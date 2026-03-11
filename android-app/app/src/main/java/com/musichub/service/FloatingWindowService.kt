@@ -71,6 +71,7 @@ class FloatingWindowService : Service() {
 
     // Mini ball rotation animation
     private var coverRotationAnimator: ObjectAnimator? = null
+    private var currentRotatingView: View? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -686,6 +687,11 @@ class FloatingWindowService : Service() {
         val savedX = miniModeParams?.x ?: 20
         val savedY = miniModeParams?.y ?: 100
 
+        // Stop and clean up rotation animator
+        coverRotationAnimator?.cancel()
+        coverRotationAnimator = null
+        currentRotatingView = null
+
         // Remove mini ball view
         if (miniBallView != null) {
             try {
@@ -810,10 +816,15 @@ class FloatingWindowService : Service() {
         miniBallView?.apply {
             // Update cover image
             val coverView = findViewById<ImageView>(R.id.ivBallCover)
+            Log.d(TAG, "updateMiniBall: coverUrl='$currentCoverUrl', coverView=$coverView")
             if (currentCoverUrl.isNotEmpty()) {
                 coverView?.load(currentCoverUrl) {
                     placeholder(R.drawable.ic_music_note)
                     error(R.drawable.ic_music_note)
+                    listener(
+                        onSuccess = { _, _ -> Log.d(TAG, "Cover image loaded successfully") },
+                        onError = { _, result -> Log.e(TAG, "Cover image load failed: ${result.throwable}") }
+                    )
                 }
             } else {
                 coverView?.setImageResource(R.drawable.ic_music_note)
@@ -839,11 +850,29 @@ class FloatingWindowService : Service() {
      * Start the cover rotation animation.
      */
     private fun startCoverRotation(view: View?) {
-        if (view == null) return
+        if (view == null) {
+            Log.d(TAG, "startCoverRotation: view is null")
+            return
+        }
 
-        // If already animating, don't restart
-        if (coverRotationAnimator?.isRunning == true) return
+        // If animating the same view, just resume if paused
+        if (currentRotatingView == view && coverRotationAnimator != null) {
+            if (coverRotationAnimator?.isPaused == true) {
+                Log.d(TAG, "Resuming rotation animation")
+                coverRotationAnimator?.resume()
+                return
+            }
+            if (coverRotationAnimator?.isRunning == true) {
+                Log.d(TAG, "Rotation already running")
+                return
+            }
+        }
 
+        // Cancel any existing animator
+        coverRotationAnimator?.cancel()
+
+        // Create new animator for this view
+        currentRotatingView = view
         coverRotationAnimator = ObjectAnimator.ofFloat(view, "rotation", view.rotation, view.rotation + 360f).apply {
             duration = 8000 // 8 seconds per rotation
             repeatCount = ValueAnimator.INFINITE
@@ -851,13 +880,17 @@ class FloatingWindowService : Service() {
             interpolator = LinearInterpolator()
             start()
         }
+        Log.d(TAG, "Started new rotation animation")
     }
 
     /**
      * Stop the cover rotation animation (keeps current position).
      */
     private fun stopCoverRotation() {
-        coverRotationAnimator?.pause()
+        if (coverRotationAnimator?.isRunning == true || coverRotationAnimator?.isPaused == true) {
+            Log.d(TAG, "Pausing rotation animation")
+            coverRotationAnimator?.pause()
+        }
     }
 
     /**
