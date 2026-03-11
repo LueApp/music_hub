@@ -30,6 +30,23 @@ This repo contains **two implementations**:
 - No Android Studio — uses only command-line tools (pixi, gradle, adb)
 - Prefers practical, working code over over-engineered abstractions
 - Uses [Pixi](https://pixi.sh/) for environment management (JDK, Gradle)
+- **Git workflow**: Commit after every fix or feature development
+
+---
+
+## Git Workflow
+
+After completing each fix or feature, create a commit:
+
+```bash
+git add <changed-files>
+git commit -m "Brief description of changes"
+```
+
+Commit message guidelines:
+- Use imperative mood ("Add feature" not "Added feature")
+- First line: brief summary (50 chars or less)
+- Optional body: detailed explanation if needed
 
 ---
 
