@@ -16,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.musichub.databinding.FragmentPlaylistDetailBinding
 import com.musichub.service.FloatingWindowService
+import com.musichub.service.PlaybackService
 import com.musichub.ui.MainActivity
 import com.musichub.ui.adapter.SongAdapter
 import com.musichub.ui.viewmodel.PlaylistDetailViewModel
@@ -122,6 +123,37 @@ class PlaylistDetailFragment : Fragment() {
             val action = PlaylistDetailFragmentDirections
                 .actionDetailToAddSong(args.playlistId)
             findNavController().navigate(action)
+        }
+
+        binding.fabLocate.setOnClickListener {
+            locateCurrentSong()
+        }
+    }
+
+    /**
+     * Scroll to the currently playing song in the list.
+     */
+    private fun locateCurrentSong() {
+        val playbackService = PlaybackService.getInstance()
+        val currentSong = playbackService?.getCurrentSong()
+
+        if (currentSong == null) {
+            Snackbar.make(binding.root, "当前没有正在播放的歌曲", Snackbar.LENGTH_SHORT).show()
+            return
+        }
+
+        val songs = songAdapter.currentList
+        val index = songs.indexOfFirst { it.id == currentSong.id }
+
+        if (index >= 0) {
+            // Scroll to the position with some offset to center it
+            (binding.rvSongs.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(
+                index,
+                binding.rvSongs.height / 3
+            )
+            Snackbar.make(binding.root, "已定位到: ${currentSong.title}", Snackbar.LENGTH_SHORT).show()
+        } else {
+            Snackbar.make(binding.root, "当前歌曲不在此歌单中", Snackbar.LENGTH_SHORT).show()
         }
     }
 
