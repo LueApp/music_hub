@@ -1,0 +1,159 @@
+package com.musichub.ui.fragment
+
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.snackbar.Snackbar
+import com.musichub.databinding.FragmentPlaylistDetailBinding
+import com.musichub.service.FloatingWindowService
+import com.musichub.ui.MainActivity
+import com.musichub.ui.adapter.SongAdapter
+import com.musichub.ui.viewmodel.PlaylistDetailViewModel
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+
+class PlaylistDetailFragment : Fragment() {
+
+    private var _binding: FragmentPlaylistDetailBinding? = null
+    private val binding get() = _binding!!
+
+    private val args: PlaylistDetailFragmentArgs by navArgs()
+    private val viewModel: PlaylistDetailViewModel by viewModels {
+        PlaylistDetailViewModel.Factory(args.playlistId)
+    }
+    private lateinit var songAdapter: SongAdapter
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentPlaylistDetailBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        setupRecyclerView()
+        setupSwipeToDelete()
+        setupClickListeners()
+        observeData()
+    }
+
+    private fun setupRecyclerView() {
+        songAdapter = SongAdapter(
+            onSongClick = { song ->
+                val playbackService = (activity as? MainActivity)?.getPlaybackService()
+                val allSongs = songAdapter.currentList
+                val index = allSongs.indexOfFirst { it.id == song.id }
+                if (index >= 0) {
+                    playbackService?.setQueue(allSongs, index)
+                    playbackService?.playAtIndex(index)
+                    FloatingWindowService.start(requireContext())
+                }
+            },
+            onPlayClick = { song ->
+                (activity as? MainActivity)?.getPlaybackService()?.playSong(song)
+                FloatingWindowService.start(requireContext())
+            },
+            onDeleteClick = { song ->
+                viewModel.removeSongFromPlaylist(song.id)
+                Snackbar.make(binding.root, "已移除: ${song.title}", Snackbar.LENGTH_SHORT).show()
+            }
+        )
+
+        binding.rvSongs.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = songAdapter
+        }
+    }
+
+    private fun setupSwipeToDelete() {
+        val swipeHandler = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
+            override fun onMove(
+                recyclerView: RecyclerView,
+                viewHolder: RecyclerView.ViewHolder,
+                target: RecyclerView.ViewHolder
+            ): Boolean = false
+
+            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                val position = viewHolder.bindingAdapterPosition
+                songAdapter.removeItem(position)
+            }
+        }
+        ItemTouchHelper(swipeHandler).attachToRecyclerView(binding.rvSongs)
+    }
+
+    private fun setupClickListeners() {
+        binding.btnPlayAll.setOnClickListener {
+            val songs = songAdapter.currentList
+            if (songs.isNotEmpty()) {
+                val playbackService = (activity as? MainActivity)?.getPlaybackService()
+                playbackService?.setQueue(songs, 0)
+                playbackService?.playAtIndex(0)
+                // Start floating window for playback control
+                FloatingWindowService.start(requireContext())
+            }
+        }
+
+        binding.btnShuffle.setOnClickListener {
+            val songs = songAdapter.currentList.shuffled()
+            if (songs.isNotEmpty()) {
+                val playbackService = (activity as? MainActivity)?.getPlaybackService()
+                playbackService?.setQueue(songs, 0)
+                playbackService?.playAtIndex(0)
+                // Start floating window for playback control
+                FloatingWindowService.start(requireContext())
+            }
+        }
+
+        binding.fabAddSong.setOnClickListener {
+            val action = PlaylistDetailFragmentDirections
+                .actionDetailToAddSong(args.playlistId)
+            findNavController().navigate(action)
+        }
+    }
+
+    private fun observeData() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.playlist.collectLatest { playlist ->
+                if (playlist != null) {
+                    binding.tvPlaylistName.text = playlist.name
+                    binding.tvPlaylistDescription.text = playlist.description
+                    binding.tvPlaylistDescription.visibility =
+                        if (playlist.description.isNotEmpty()) View.VISIBLE else View.GONE
+
+                    // Set toolbar title
+                    (activity as? AppCompatActivity)?.supportActionBar?.title = playlist.name
+                }
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.songs.collectLatest { songs ->
+                songAdapter.submitList(songs)
+                binding.tvSongCount.text = "${songs.size} 首歌曲"
+
+                val isEmpty = songs.isEmpty()
+                binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                binding.rvSongs.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}

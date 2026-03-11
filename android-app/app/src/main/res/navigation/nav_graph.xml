@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/nav_home">
+
+    <fragment
+        android:id="@+id/nav_home"
+        android:name="com.musichub.ui.fragment.HomeFragment"
+        android:label="@string/nav_home_cn"
+        tools:layout="@layout/fragment_home">
+
+        <action
+            android:id="@+id/action_home_to_add_song"
+            app:destination="@id/nav_add_song" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_library"
+        android:name="com.musichub.ui.fragment.LibraryFragment"
+        android:label="@string/nav_library_cn"
+        tools:layout="@layout/fragment_library">
+
+        <action
+            android:id="@+id/action_library_to_add_song"
+            app:destination="@id/nav_add_song" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_playlists"
+        android:name="com.musichub.ui.fragment.PlaylistsFragment"
+        android:label="@string/nav_playlists_cn"
+        tools:layout="@layout/fragment_playlists">
+
+        <action
+            android:id="@+id/action_playlists_to_detail"
+            app:destination="@id/nav_playlist_detail" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_settings"
+        android:name="com.musichub.ui.fragment.SettingsFragment"
+        android:label="@string/nav_settings_cn" />
+
+    <fragment
+        android:id="@+id/nav_playlist_detail"
+        android:name="com.musichub.ui.fragment.PlaylistDetailFragment"
+        android:label=""
+        tools:layout="@layout/fragment_playlist_detail">
+
+        <argument
+            android:name="playlistId"
+            app:argType="long" />
+
+        <argument
+            android:name="playlistName"
+            app:argType="string"
+            android:defaultValue="歌单" />
+
+        <action
+            android:id="@+id/action_detail_to_add_song"
+            app:destination="@id/nav_add_song" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_add_song"
+        android:name="com.musichub.ui.fragment.AddSongFragment"
+        android:label="@string/add_song_cn"
+        tools:layout="@layout/fragment_add_song">
+
+        <argument
+            android:name="playlistId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+
+    </fragment>
+
+</navigation>

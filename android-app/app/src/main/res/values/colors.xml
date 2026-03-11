@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="primary">#6200EE</color>
+    <color name="primary_dark">#3700B3</color>
+    <color name="primary_variant">#9C4DCC</color>
+
+    <!-- Secondary Colors -->
+    <color name="secondary">#03DAC6</color>
+    <color name="secondary_variant">#018786</color>
+
+    <!-- Background Colors -->
+    <color name="background">#FFFFFF</color>
+    <color name="background_dark">#121212</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_dark">#1E1E1E</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_primary_dark">#FFFFFF</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_secondary_dark">#B3B3B3</color>
+    <color name="text_hint">#9E9E9E</color>
+
+    <!-- Platform Colors -->
+    <color name="netease_red">#E60026</color>
+    <color name="netease_red_light">#FF3D5A</color>
+    <color name="qqmusic_green">#31C27C</color>
+    <color name="qqmusic_green_light">#5DD598</color>
+    <color name="bilibili_pink">#FB7299</color>
+    <color name="bilibili_blue">#00A1D6</color>
+
+    <!-- Status Colors -->
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FF9800</color>
+    <color name="error">#F44336</color>
+    <color name="info">#2196F3</color>
+
+    <!-- UI Element Colors -->
+    <color name="card_background">#FFFFFF</color>
+    <color name="card_background_dark">#2D2D2D</color>
+    <color name="divider">#E0E0E0</color>
+    <color name="divider_dark">#424242</color>
+    <color name="ripple">#1F000000</color>
+    <color name="ripple_dark">#1FFFFFFF</color>
+
+    <!-- Floating Window Colors -->
+    <color name="floating_window_bg">#F5F5F5</color>
+    <color name="floating_window_bg_dark">#2D2D2D</color>
+
+    <!-- Navigation Colors -->
+    <color name="nav_selected">#6200EE</color>
+    <color name="nav_unselected">#757575</color>
+
+    <!-- Transparent -->
+    <color name="transparent">#00000000</color>
+    <color name="scrim">#80000000</color>
+
+    <!-- Launcher Icon -->
+    <color name="ic_launcher_background">#6200EE</color>
+</resources>

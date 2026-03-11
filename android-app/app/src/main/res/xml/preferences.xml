@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory
+        android:title="播放控制"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            android:key="floating_window"
+            android:title="@string/enable_floating_window_cn"
+            android:summary="@string/floating_window_desc_cn"
+            android:defaultValue="false"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            android:key="auto_advance"
+            android:title="@string/enable_auto_advance_cn"
+            android:summary="@string/auto_advance_desc_cn"
+            android:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
+        <ListPreference
+            android:key="playback_mode"
+            android:title="播放切换模式"
+            android:summary="选择切换歌曲时的行为"
+            android:entries="@array/playback_mode_entries"
+            android:entryValues="@array/playback_mode_values"
+            android:defaultValue="background"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="权限"
+        app:iconSpaceReserved="false">
+
+        <Preference
+            android:key="notification_access"
+            android:title="@string/notification_access_cn"
+            android:summary="@string/notification_access_desc_cn"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="关于"
+        app:iconSpaceReserved="false">
+
+        <Preference
+            android:key="version"
+            android:title="版本"
+            android:summary="1.0.0"
+            android:selectable="false"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

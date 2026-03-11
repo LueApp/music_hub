@@ -1,0 +1,58 @@
+[workspace]
+name = "music-hub"
+version = "0.1.0"
+description = "Cross-platform music playlist manager and launcher for Chinese music platforms"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[activation]
+# Set ANDROID_HOME automatically - SDK installed by setup-sdk task
+env = { ANDROID_HOME = "$HOME/Android/Sdk" }
+
+[tasks]
+# Build debug APK
+build = { cmd = "cd android-app && ./gradlew assembleDebug", description = "Build debug APK" }
+
+# Build release APK
+build-release = { cmd = "cd android-app && ./gradlew assembleRelease", description = "Build release APK" }
+
+# Clean build artifacts
+clean = { cmd = "cd android-app && ./gradlew clean", description = "Clean build artifacts" }
+
+# Install APK to connected device
+install = { cmd = "cd android-app && ./gradlew installDebug", description = "Install debug APK to device" }
+
+# Build and install
+deploy = { cmd = "cd android-app && ./gradlew installDebug", description = "Build and install debug APK" }
+
+# Run tests
+test = { cmd = "cd android-app && ./gradlew test", description = "Run unit tests" }
+
+# Run Android instrumented tests
+test-android = { cmd = "cd android-app && ./gradlew connectedAndroidTest", description = "Run instrumented tests on device" }
+
+# Watch device logs (uses adb from Android SDK)
+logcat = { cmd = "$ANDROID_HOME/platform-tools/adb logcat", description = "Watch all device logs" }
+
+# Watch app logs only
+logcat-app = { cmd = "$ANDROID_HOME/platform-tools/adb logcat -s 'MusicHub:*' '*:E'", description = "Watch app logs only" }
+
+# List connected devices
+devices = { cmd = "$ANDROID_HOME/platform-tools/adb devices -l", description = "List connected Android devices" }
+
+# Setup Android SDK (run once)
+setup-sdk = { cmd = "bash scripts/setup-android-sdk.sh", description = "Download and setup Android SDK (~3GB)" }
+
+# Generate Gradle wrapper (run once)
+setup-gradle = { cmd = "cd android-app && gradle wrapper --gradle-version 8.11.1", description = "Generate Gradle wrapper" }
+
+[dependencies]
+# JDK 17 for Android development
+openjdk = "17.*"
+
+# Gradle for building (used to generate wrapper)
+gradle = ">=8.5"
+
+# Build tools
+unzip = "*"
+wget = "*"

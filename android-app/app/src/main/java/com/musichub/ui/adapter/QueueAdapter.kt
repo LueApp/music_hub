@@ -1,0 +1,88 @@
+package com.musichub.ui.adapter
+
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.musichub.R
+import com.musichub.data.model.Song
+import com.musichub.platform.Platforms
+
+/**
+ * Adapter for displaying queue songs in the floating window.
+ */
+class QueueAdapter(
+    private var songs: List<Song> = emptyList(),
+    private var currentIndex: Int = -1,
+    private var playOrder: List<Int>? = null,  // For shuffle mode - shows order of play
+    private val onItemClick: (Int) -> Unit = {}
+) : RecyclerView.Adapter<QueueAdapter.ViewHolder>() {
+
+    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val tvPosition: TextView = view.findViewById(R.id.tvPosition)
+        val tvSongTitle: TextView = view.findViewById(R.id.tvSongTitle)
+        val tvArtist: TextView = view.findViewById(R.id.tvArtist)
+        val ivPlatform: ImageView = view.findViewById(R.id.ivPlatform)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val view = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_queue_song, parent, false)
+        return ViewHolder(view)
+    }
+
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        // If we have a play order (shuffle mode), show songs in that order
+        val displayIndex = if (playOrder != null && position < playOrder!!.size) {
+            playOrder!![position]
+        } else {
+            position
+        }
+
+        if (displayIndex !in songs.indices) return
+
+        val song = songs[displayIndex]
+        val isCurrentSong = displayIndex == currentIndex
+
+        // Show position number (1-based)
+        holder.tvPosition.text = "${position + 1}"
+
+        holder.tvSongTitle.text = song.title
+        holder.tvArtist.text = song.artist
+
+        // Highlight current song
+        if (isCurrentSong) {
+            holder.tvSongTitle.setTextColor(holder.itemView.context.getColor(R.color.primary))
+            holder.tvPosition.setTextColor(holder.itemView.context.getColor(R.color.primary))
+        } else {
+            holder.tvSongTitle.setTextColor(holder.itemView.context.getColor(R.color.text_primary))
+            holder.tvPosition.setTextColor(holder.itemView.context.getColor(R.color.text_secondary))
+        }
+
+        // Set platform icon
+        val platformIcon = when (song.platform) {
+            Platforms.NETEASE -> R.drawable.ic_netease
+            Platforms.QQMUSIC -> R.drawable.ic_qqmusic
+            Platforms.BILIBILI -> R.drawable.ic_bilibili
+            else -> R.drawable.ic_music_note
+        }
+        holder.ivPlatform.setImageResource(platformIcon)
+
+        holder.itemView.setOnClickListener {
+            onItemClick(displayIndex)
+        }
+    }
+
+    override fun getItemCount(): Int {
+        return playOrder?.size ?: songs.size
+    }
+
+    fun updateData(newSongs: List<Song>, newCurrentIndex: Int, newPlayOrder: List<Int>? = null) {
+        songs = newSongs
+        currentIndex = newCurrentIndex
+        playOrder = newPlayOrder
+        notifyDataSetChanged()
+    }
+}
