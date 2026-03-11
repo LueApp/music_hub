@@ -142,18 +142,19 @@
         app:tint="@android:color/white"
         android:contentDescription="@string/play_all" />
 
-    <!-- Locate current song FAB (mini, above play all) -->
+    <!-- Locate current song FAB (mini, anchored above play all) -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabLocate"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="80dp"
+        app:layout_anchor="@id/fabPlayAll"
+        app:layout_anchorGravity="top|center"
+        android:layout_marginBottom="16dp"
         android:src="@drawable/ic_locate"
         app:fabSize="mini"
         app:backgroundTint="@color/secondary"
         app:tint="@android:color/white"
+        app:elevation="8dp"
         android:contentDescription="@string/locate_current_song" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
