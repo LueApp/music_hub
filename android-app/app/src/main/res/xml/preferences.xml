@@ -29,13 +29,6 @@
             android:defaultValue="background"
             app:iconSpaceReserved="false" />
 
-        <SwitchPreferenceCompat
-            android:key="auto_landscape"
-            android:title="前台模式自动横屏"
-            android:summary="前台模式切换歌曲时自动切换到横屏歌词模式"
-            android:defaultValue="false"
-            app:iconSpaceReserved="false" />
-
     </PreferenceCategory>
 
     <PreferenceCategory

@@ -169,17 +169,6 @@
             android:contentDescription="播放列表" />
 
         <ImageButton
-            android:id="@+id/btnLandscape"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:src="@drawable/ic_screen_rotation"
-            android:background="@null"
-            android:alpha="0.7"
-            android:scaleType="centerInside"
-            android:layout_marginStart="12dp"
-            android:contentDescription="横屏模式" />
-
-        <ImageButton
             android:id="@+id/btnMinimize"
             android:layout_width="32dp"
             android:layout_height="32dp"
