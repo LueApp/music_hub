@@ -11,6 +11,7 @@ import com.musichub.R
 import com.musichub.service.DeepLinkLauncher
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.MediaMonitorService
+import com.musichub.service.ScreenRotationHelper
 
 class SettingsFragment : PreferenceFragmentCompat() {
 
@@ -67,6 +68,23 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 true
             }
         }
+
+        // Auto-landscape preference
+        findPreference<SwitchPreferenceCompat>("auto_landscape")?.apply {
+            isChecked = DeepLinkLauncher.autoLandscape
+
+            setOnPreferenceChangeListener { _, newValue ->
+                val enabled = newValue as Boolean
+                if (enabled && !ScreenRotationHelper.canWriteSettings(requireContext())) {
+                    // Request WRITE_SETTINGS permission
+                    ScreenRotationHelper.requestWriteSettingsPermission(requireContext())
+                    false // Don't toggle yet, wait for permission
+                } else {
+                    DeepLinkLauncher.autoLandscape = enabled
+                    true
+                }
+            }
+        }
     }
 
     private fun updatePlaybackModeSummary(pref: ListPreference, currentValue: String) {
@@ -99,6 +117,11 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 else -> "background"
             }
             updatePlaybackModeSummary(this, value)
+        }
+
+        // Sync auto-landscape state (may have gotten permission while away)
+        findPreference<SwitchPreferenceCompat>("auto_landscape")?.apply {
+            isChecked = DeepLinkLauncher.autoLandscape
         }
     }
 }

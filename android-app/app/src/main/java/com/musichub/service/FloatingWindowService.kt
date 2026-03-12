@@ -215,6 +215,13 @@ class FloatingWindowService : Service() {
                 toggleQueueView()
             }
 
+            // Landscape toggle button
+            findViewById<ImageButton>(R.id.btnLandscape)?.setOnClickListener {
+                Log.d(TAG, "Landscape button clicked")
+                ScreenRotationHelper.toggleLandscape(this@FloatingWindowService)
+                updateLandscapeButtonState()
+            }
+
             // Setup queue RecyclerView
             setupQueueView()
 
@@ -540,6 +547,14 @@ class FloatingWindowService : Service() {
             }
         }
         Log.d(TAG, "Mode icons updated: repeat=$repeatMode, shuffle=$shuffleEnabled")
+    }
+
+    private fun updateLandscapeButtonState() {
+        val isLandscape = ScreenRotationHelper.isLandscapeForced(this)
+        floatingView?.apply {
+            val btnLandscape = findViewById<ImageButton>(R.id.btnLandscape)
+            btnLandscape?.alpha = if (isLandscape) 1.0f else 0.7f
+        }
     }
 
     private fun setupDragListener(params: WindowManager.LayoutParams) {
@@ -953,6 +968,8 @@ class FloatingWindowService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Restore rotation if we changed it
+        ScreenRotationHelper.restoreRotation(this)
         hideFloatingWindow()
         Log.d(TAG, "FloatingWindowService destroyed")
     }

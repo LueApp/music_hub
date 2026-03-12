@@ -45,6 +45,9 @@ object DeepLinkLauncher {
     // Current playback mode (default to background for minimal disruption)
     var playbackMode: PlaybackMode = PlaybackMode.BACKGROUND
 
+    // Whether to auto-switch to landscape when launching in foreground mode
+    var autoLandscape: Boolean = false
+
     // Track the package name of the app user was using before launch
     private var previousAppPackage: String? = null
 
@@ -170,6 +173,16 @@ object DeepLinkLauncher {
         return try {
             context.startActivity(intent)
             Log.i(TAG, "Successfully launched: $deepLink")
+
+            // Auto-landscape in foreground mode after a delay to let the app open
+            if (autoLandscape) {
+                val delay = if (deepLink.contains("bilibili")) 2000L else 1000L
+                Handler(Looper.getMainLooper()).postDelayed({
+                    Log.d(TAG, "Auto-switching to landscape mode")
+                    ScreenRotationHelper.forceRotation(context, landscape = true)
+                }, delay)
+            }
+
             true
         } catch (e: Exception) {
             Log.w(TAG, "Failed to launch deep link, trying fallback: ${e.message}")
