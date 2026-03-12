@@ -94,7 +94,7 @@
 
     </LinearLayout>
 
-    <!-- Control buttons row -->
+    <!-- Playback control buttons row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -148,42 +148,55 @@
             android:layout_marginStart="4dp"
             android:contentDescription="循环模式" />
 
+    </LinearLayout>
+
+    <!-- Utility buttons row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="4dp">
+
         <ImageButton
             android:id="@+id/btnQueue"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@drawable/ic_queue_music"
             android:background="@null"
             android:alpha="0.7"
-            android:layout_marginStart="4dp"
+            android:scaleType="centerInside"
             android:contentDescription="播放列表" />
 
         <ImageButton
             android:id="@+id/btnLandscape"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@drawable/ic_screen_rotation"
             android:background="@null"
             android:alpha="0.7"
-            android:layout_marginStart="4dp"
+            android:scaleType="centerInside"
+            android:layout_marginStart="12dp"
             android:contentDescription="横屏模式" />
 
         <ImageButton
             android:id="@+id/btnMinimize"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@drawable/ic_minimize"
             android:background="@null"
-            android:layout_marginStart="4dp"
+            android:scaleType="centerInside"
+            android:layout_marginStart="12dp"
             android:contentDescription="最小化" />
 
         <ImageButton
             android:id="@+id/btnClose"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@drawable/ic_close"
             android:background="@null"
-            android:layout_marginStart="4dp"
+            android:scaleType="centerInside"
+            android:layout_marginStart="12dp"
             android:contentDescription="@string/close" />
 
     </LinearLayout>

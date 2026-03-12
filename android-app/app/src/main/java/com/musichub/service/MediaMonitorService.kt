@@ -420,6 +420,33 @@ class MediaMonitorService : NotificationListenerService() {
         super.onNotificationRemoved(sbn)
     }
 
+    /**
+     * Open the player page of a music app by sending its notification's contentIntent.
+     * This simulates tapping the notification, which reliably opens the player/lyrics page.
+     *
+     * @param packageName The package name of the music app (e.g., com.tencent.qqmusic)
+     * @return true if the contentIntent was sent successfully
+     */
+    fun openPlayerViaNotification(packageName: String): Boolean {
+        try {
+            val notifications = activeNotifications ?: return false
+            for (sbn in notifications) {
+                if (sbn.packageName == packageName) {
+                    val contentIntent = sbn.notification?.contentIntent
+                    if (contentIntent != null) {
+                        Log.d(TAG, "Sending contentIntent for $packageName notification")
+                        contentIntent.send()
+                        return true
+                    }
+                }
+            }
+            Log.w(TAG, "No notification found for $packageName")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send notification contentIntent: ${e.message}")
+        }
+        return false
+    }
+
     // Track package name of the platform we're switching FROM (only for cross-platform switches)
     private var switchingFromPackage: String? = null
     // Whether we're switching between different platforms
