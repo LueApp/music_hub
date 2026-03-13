@@ -123,12 +123,13 @@ class PlayerAccessibilityService : AccessibilityService() {
                 val clicked = tryClickMiniPlayer()
                 if (clicked) {
                     clickCount++
+                    Log.i(TAG, "Click successful, total clicks: $clickCount")
                 }
                 // Keep retrying even after clicking - click multiple times to ensure it works
-                // Stop only after we've clicked 3 times or reached max retries
-                if (clickCount < 3 && retryCount < MAX_RETRIES) {
+                // Stop only after we've clicked 1 time or reached max retries
+                if (clickCount < 1 && retryCount < MAX_RETRIES) {
                     scheduleRetry()
-                } else if (clickCount >= 3) {
+                } else if (clickCount >= 1) {
                     pendingClick = false
                     Log.i(TAG, "Finished clicking after $clickCount clicks")
                 }
@@ -140,7 +141,8 @@ class PlayerAccessibilityService : AccessibilityService() {
         val rootNode = rootInActiveWindow
         if (rootNode == null) {
             Log.d(TAG, "rootInActiveWindow is null (retry $retryCount)")
-            return false
+            // Fallback: try clicking at known position even without root window
+            return tryFallbackClick()
         }
 
         try {
@@ -156,13 +158,14 @@ class PlayerAccessibilityService : AccessibilityService() {
                 // Click in the upper portion of the card (song info area, not controls)
                 val x = (rect.left + rect.right) / 2f
                 val y = rect.top + 150f  // 150px from top of card (in song info area)
+                Log.d(TAG, "Found cxs card at bounds: $rect, clicking at ($x, $y)")
                 if (performGestureClick(x, y)) {
-                    Log.i(TAG, "Clicked now-playing card (cxs) at ($x, $y) (retry $retryCount, click $clickCount)")
+                    Log.i(TAG, "Clicked now-playing card (cxs) at ($x, $y) (retry $retryCount)")
                     return true
                 }
             }
 
-            // Strategy 2: After retries, try the mini player container (jqv)
+            // Strategy 2: Try the mini player container (jqv)
             val miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
                 "$QQMUSIC_PACKAGE:id/jqv"
             )
@@ -171,16 +174,19 @@ class PlayerAccessibilityService : AccessibilityService() {
                 val rect = android.graphics.Rect()
                 node.getBoundsInScreen(rect)
 
-                val x = (rect.left + rect.right) / 2f
-                val y = (rect.top + rect.bottom) / 2f
+                val x = rect.left + 100f  // Click on album art area (left side)
+                val y = (rect.top + rect.bottom) / 2f  // Vertical center
+                Log.d(TAG, "Found jqv mini player at bounds: $rect, clicking at ($x, $y)")
 
                 if (performGestureClick(x, y)) {
-                    Log.i(TAG, "Clicked mini player at ($x, $y) (retry $retryCount, click $clickCount)")
+                    Log.i(TAG, "Clicked mini player (jqv) at ($x, $y) (retry $retryCount)")
                     return true
                 }
             }
 
-            Log.d(TAG, "No clickable target found (retry $retryCount)")
+            // Strategy 3: Fallback to known position if no elements found
+            Log.d(TAG, "No UI elements found (retry $retryCount), trying fallback position")
+            return tryFallbackClick()
         } catch (e: Exception) {
             Log.e(TAG, "Error trying to click mini player: ${e.message}")
         } finally {
@@ -188,6 +194,23 @@ class PlayerAccessibilityService : AccessibilityService() {
             rootNode.recycle()
         }
 
+        return false
+    }
+
+    /**
+     * Try clicking at a known fallback position where the mini player typically appears.
+     * This is used when we can't find the UI elements but know QQ Music is active.
+     */
+    private fun tryFallbackClick(): Boolean {
+        // Fallback position: center-bottom of screen where mini player usually is
+        // Based on previous successful clicks around (554, 1753) and (550, 2100)
+        val x = 550f
+        val y = 2000f  // Bottom area where mini player bar appears
+        Log.d(TAG, "Attempting fallback click at ($x, $y)")
+        if (performGestureClick(x, y)) {
+            Log.i(TAG, "Fallback click dispatched at ($x, $y) (retry $retryCount)")
+            return true
+        }
         return false
     }
 
@@ -201,11 +224,21 @@ class PlayerAccessibilityService : AccessibilityService() {
 
         val gestureBuilder = android.accessibilityservice.GestureDescription.Builder()
         val strokeDescription = android.accessibilityservice.GestureDescription.StrokeDescription(
-            path, 0, 100
+            path, 0, 100  // 100ms tap duration
         )
         gestureBuilder.addStroke(strokeDescription)
 
-        return dispatchGesture(gestureBuilder.build(), null, null)
+        val callback = object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                Log.d(TAG, "Gesture completed at ($x, $y)")
+            }
+
+            override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                Log.w(TAG, "Gesture cancelled at ($x, $y)")
+            }
+        }
+
+        return dispatchGesture(gestureBuilder.build(), callback, handler)
     }
 
     private fun findNodesByContentDesc(

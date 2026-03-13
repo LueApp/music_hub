@@ -681,7 +681,14 @@ class FloatingWindowService : Service() {
 
         // Setup mini ball UI
         setupMiniBallView()
+
+        // Sync with PlaybackService to get current song
+        syncWithPlaybackService()
+
         updateMiniBall()
+
+        // Start progress updates for mini ball
+        startProgressUpdates()
     }
 
     /**
