@@ -50,6 +50,18 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        android:title="数据管理"
+        app:iconSpaceReserved="false">
+
+        <Preference
+            android:key="delete_all_songs"
+            android:title="删除所有歌曲"
+            android:summary="清空歌曲库（不影响播放列表）"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         android:title="关于"
         app:iconSpaceReserved="false">
 
