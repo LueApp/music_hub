@@ -164,25 +164,17 @@ object DeepLinkLauncher {
             context.startActivity(intent)
             Log.i(TAG, "Successfully launched: $deepLink")
 
-            // For QQ Music in foreground mode, try multiple methods to open player
+            // For QQ Music in foreground mode, use accessibility service to click mini player
             if (deepLink.contains("qqmusic://")) {
                 Handler(Looper.getMainLooper()).postDelayed({
-                    try {
-                        // Method 1: Try PLAYER2 action
-                        val playerIntent = Intent("com.tencent.qqmusic.forthird.activity.PLAYER2").apply {
-                            setPackage("com.tencent.qqmusic")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                        }
-                        context.startActivity(playerIntent)
-                        Log.i(TAG, "Opened QQ Music player with PLAYER2")
-                    } catch (e: Exception) {
-                        Log.w(TAG, "PLAYER2 failed, trying accessibility service: ${e.message}")
-                        // Method 2: Fall back to accessibility service
-                        val a11yService = PlayerAccessibilityService.getInstance()
-                        a11yService?.requestClickMiniPlayer()
+                    val a11yService = PlayerAccessibilityService.getInstance()
+                    if (a11yService != null) {
+                        a11yService.requestClickMiniPlayer()
+                        Log.i(TAG, "Requested accessibility service to open QQ Music player")
+                    } else {
+                        Log.w(TAG, "Accessibility service not available")
                     }
-                }, 1500)
+                }, 2500)
             }
 
             true
