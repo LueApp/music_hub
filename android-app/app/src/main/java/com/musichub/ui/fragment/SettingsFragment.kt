@@ -11,6 +11,8 @@ import com.musichub.R
 import com.musichub.service.DeepLinkLauncher
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.MediaMonitorService
+import com.musichub.service.PlaybackService
+import com.musichub.service.PlayerAccessibilityService
 
 class SettingsFragment : PreferenceFragmentCompat() {
 
@@ -48,6 +50,16 @@ class SettingsFragment : PreferenceFragmentCompat() {
             }
         }
 
+        // Accessibility service preference
+        findPreference<Preference>("accessibility_access")?.apply {
+            setOnPreferenceClickListener {
+                if (!PlayerAccessibilityService.isEnabled(requireContext())) {
+                    PlayerAccessibilityService.openSettings(requireContext())
+                }
+                true
+            }
+        }
+
         // Playback mode preference
         findPreference<ListPreference>("playback_mode")?.apply {
             // Set initial value from DeepLinkLauncher
@@ -62,6 +74,8 @@ class SettingsFragment : PreferenceFragmentCompat() {
                     "foreground" -> DeepLinkLauncher.PlaybackMode.FOREGROUND
                     else -> DeepLinkLauncher.PlaybackMode.BACKGROUND
                 }
+                // Update screen wake lock state based on new mode
+                PlaybackService.getInstance()?.onPlaybackModeChanged()
                 // Use newValue since pref.value hasn't been updated yet
                 updatePlaybackModeSummary(this, newValue as String)
                 true
@@ -83,6 +97,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
         findPreference<Preference>("notification_access")?.apply {
             val isEnabled = MediaMonitorService.isEnabled(requireContext())
             summary = if (isEnabled) "已授权" else "未授权 - 点击授权"
+        }
+
+        // Update accessibility service status
+        findPreference<Preference>("accessibility_access")?.apply {
+            val isEnabled = PlayerAccessibilityService.isEnabled(requireContext())
+            summary = if (isEnabled) "已授权" else "未授权 - 点击授权（QQ音乐前台模式需要）"
         }
 
         // Update floating window status

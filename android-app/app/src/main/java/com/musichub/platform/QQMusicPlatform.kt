@@ -83,10 +83,10 @@ class QQMusicPlatform : PlatformHandler {
     }
 
     override fun generateDeepLink(platformSongId: String): String {
-        // QQ Music deep link format with JSON payload
-        val payload = """{"song":[{"songmid":"$platformSongId"}]}"""
+        // QQ Music deep link - use playmusic action to play immediately
+        val payload = """{"songmid":"$platformSongId","action":1}"""
         val encodedPayload = URLEncoder.encode(payload, "UTF-8")
-        return "qqmusic://qq.com/media/playSonglist?p=$encodedPayload"
+        return "qqmusic://qq.com/ui/playmusic?p=$encodedPayload"
     }
 
     override fun generateFallbackUrl(platformSongId: String): String {

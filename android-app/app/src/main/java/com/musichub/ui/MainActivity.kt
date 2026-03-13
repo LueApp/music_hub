@@ -72,11 +72,6 @@ class MainActivity : AppCompatActivity() {
         navController = navHostFragment.navController
 
         binding.bottomNavigation.setupWithNavController(navController)
-
-        // Update toolbar title based on destination
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            binding.toolbar.title = destination.label
-        }
     }
 
     private fun setupNowPlayingBar() {

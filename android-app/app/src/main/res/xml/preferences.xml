@@ -41,6 +41,12 @@
             android:summary="@string/notification_access_desc_cn"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="accessibility_access"
+            android:title="无障碍服务权限"
+            android:summary="用于前台模式下自动打开QQ音乐播放器页面"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

@@ -36,6 +36,10 @@ class PlaybackService : Service() {
     // Wake lock to keep CPU running while playing
     private var wakeLock: PowerManager.WakeLock? = null
 
+    // Screen wake lock to keep screen on during foreground mode playback
+    @Suppress("DEPRECATION")
+    private var screenWakeLock: PowerManager.WakeLock? = null
+
     // Playback modes
     enum class RepeatMode {
         OFF,        // No repeat - stop at end of queue
@@ -88,6 +92,13 @@ class PlaybackService : Service() {
             "MusicHub::PlaybackWakeLock"
         )
 
+        // Initialize screen wake lock for foreground mode (keeps screen on)
+        @Suppress("DEPRECATION")
+        screenWakeLock = powerManager.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "MusicHub::ScreenWakeLock"
+        )
+
         // Register for song finished broadcasts
         val filter = IntentFilter(MediaMonitorService.ACTION_SONG_FINISHED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -117,6 +128,7 @@ class PlaybackService : Service() {
         super.onDestroy()
         instance = null
         releaseWakeLock()
+        releaseScreenWakeLock()
         try {
             unregisterReceiver(songFinishedReceiver)
         } catch (e: Exception) {
@@ -137,6 +149,40 @@ class PlaybackService : Service() {
         if (wakeLock?.isHeld == true) {
             wakeLock?.release()
             Log.d(TAG, "Wake lock released")
+        }
+    }
+
+    /**
+     * Acquire screen wake lock to keep screen on during foreground mode playback.
+     * Only acquires if playback mode is FOREGROUND.
+     */
+    private fun acquireScreenWakeLock() {
+        if (DeepLinkLauncher.playbackMode == DeepLinkLauncher.PlaybackMode.FOREGROUND) {
+            if (screenWakeLock?.isHeld == false) {
+                // Acquire for 30 minutes max (renewed on each song change)
+                screenWakeLock?.acquire(30 * 60 * 1000L)
+                Log.d(TAG, "Screen wake lock acquired (foreground mode)")
+            }
+        }
+    }
+
+    private fun releaseScreenWakeLock() {
+        if (screenWakeLock?.isHeld == true) {
+            screenWakeLock?.release()
+            Log.d(TAG, "Screen wake lock released")
+        }
+    }
+
+    /**
+     * Called when playback mode changes. Updates screen wake lock state accordingly.
+     */
+    fun onPlaybackModeChanged() {
+        if (isPlaying) {
+            if (DeepLinkLauncher.playbackMode == DeepLinkLauncher.PlaybackMode.FOREGROUND) {
+                acquireScreenWakeLock()
+            } else {
+                releaseScreenWakeLock()
+            }
         }
     }
 
@@ -363,6 +409,7 @@ class PlaybackService : Service() {
     fun stop() {
         isPlaying = false
         releaseWakeLock()
+        releaseScreenWakeLock()
         notifySongChangeListeners(null)
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
@@ -373,6 +420,9 @@ class PlaybackService : Service() {
 
         // Acquire wake lock to keep CPU active for playback control
         acquireWakeLock()
+
+        // Keep screen on in foreground mode so user can see lyrics/player
+        acquireScreenWakeLock()
 
         // Determine the target platform's package name
         val targetPackage = Platforms.PACKAGE_NAMES[song.platform]

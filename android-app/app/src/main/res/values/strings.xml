@@ -148,4 +148,7 @@
     <string name="close">Close</string>
     <string name="play_state">播放状态</string>
     <string name="locate_current_song">定位当前歌曲</string>
+
+    <!-- Accessibility Service -->
+    <string name="accessibility_service_desc_cn">用于在前台模式下自动打开QQ音乐播放器页面（歌词页面）</string>
 </resources>

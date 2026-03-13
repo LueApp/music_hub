@@ -144,17 +144,10 @@ object DeepLinkLauncher {
     private fun launchNormal(context: Context, deepLink: String, fallbackUrl: String): Boolean {
         Log.d(TAG, "Launching deep link (foreground mode): $deepLink")
 
-        // Ensure target app is running first (cold start scenario)
-        val preLaunchDelay = ensureAppRunning(context, deepLink)
-        if (preLaunchDelay > 0) {
-            Log.d(TAG, "App not running, waiting ${preLaunchDelay}ms for it to start before deep link")
-            // Schedule the actual deep link launch after app starts
-            Handler(Looper.getMainLooper()).postDelayed({
-                performNormalLaunch(context, deepLink, fallbackUrl)
-            }, preLaunchDelay)
-            return true
-        }
-
+        // In foreground mode, launch the deep link directly without pre-launching the app.
+        // Pre-launching opens the app's home screen first, which prevents the deep link
+        // from navigating to the song detail/player page (e.g., NetEase's orpheus://song/{id}
+        // opens the player page only when it's the first intent the app receives).
         return performNormalLaunch(context, deepLink, fallbackUrl)
     }
 
@@ -170,6 +163,27 @@ object DeepLinkLauncher {
         return try {
             context.startActivity(intent)
             Log.i(TAG, "Successfully launched: $deepLink")
+
+            // For QQ Music in foreground mode, try multiple methods to open player
+            if (deepLink.contains("qqmusic://")) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    try {
+                        // Method 1: Try PLAYER2 action
+                        val playerIntent = Intent("com.tencent.qqmusic.forthird.activity.PLAYER2").apply {
+                            setPackage("com.tencent.qqmusic")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        context.startActivity(playerIntent)
+                        Log.i(TAG, "Opened QQ Music player with PLAYER2")
+                    } catch (e: Exception) {
+                        Log.w(TAG, "PLAYER2 failed, trying accessibility service: ${e.message}")
+                        // Method 2: Fall back to accessibility service
+                        val a11yService = PlayerAccessibilityService.getInstance()
+                        a11yService?.requestClickMiniPlayer()
+                    }
+                }, 1500)
+            }
 
             true
         } catch (e: Exception) {
