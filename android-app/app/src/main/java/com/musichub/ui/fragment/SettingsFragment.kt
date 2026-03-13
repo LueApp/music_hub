@@ -126,7 +126,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
         // Update accessibility service status
         findPreference<Preference>("accessibility_access")?.apply {
             val isEnabled = PlayerAccessibilityService.isEnabled(requireContext())
-            summary = if (isEnabled) "已授权" else "未授权 - 点击授权（QQ音乐前台模式需要）"
+            val isRunning = PlayerAccessibilityService.getInstance() != null
+            summary = when {
+                isEnabled && isRunning -> "已授权且运行中"
+                isEnabled && !isRunning -> "已授权但未运行 - 请点击重新启用"
+                else -> "未授权 - 点击授权（QQ音乐前台模式需要）"
+            }
         }
 
         // Update floating window status

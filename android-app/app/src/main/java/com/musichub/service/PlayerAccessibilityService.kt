@@ -2,8 +2,11 @@ package com.musichub.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -25,10 +28,28 @@ class PlayerAccessibilityService : AccessibilityService() {
     private var pendingClick = false
     private var retryCount = 0
 
+    // Broadcast receiver to handle click requests from other components
+    private val clickRequestReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_REQUEST_CLICK) {
+                Log.d(TAG, "Received click request via broadcast")
+                requestClickMiniPlayer()
+            }
+        }
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
         Log.d(TAG, "PlayerAccessibilityService connected")
+
+        // Register broadcast receiver
+        val filter = IntentFilter(ACTION_REQUEST_CLICK)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(clickRequestReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(clickRequestReceiver, filter)
+        }
 
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
@@ -63,6 +84,11 @@ class PlayerAccessibilityService : AccessibilityService() {
         super.onDestroy()
         instance = null
         handler.removeCallbacksAndMessages(null)
+        try {
+            unregisterReceiver(clickRequestReceiver)
+        } catch (e: Exception) {
+            // Receiver might not be registered
+        }
         Log.d(TAG, "PlayerAccessibilityService destroyed")
     }
 
@@ -205,11 +231,23 @@ class PlayerAccessibilityService : AccessibilityService() {
         private const val RETRY_INTERVAL_MS = 500L
         private const val MAX_RETRIES = 16  // 16 * 500ms = 8 seconds
         private const val MAX_TIMEOUT_MS = 8000L
+        const val ACTION_REQUEST_CLICK = "com.musichub.action.REQUEST_CLICK_MINIPLAYER"
 
         @Volatile
         private var instance: PlayerAccessibilityService? = null
 
         fun getInstance(): PlayerAccessibilityService? = instance
+
+        /**
+         * Request clicking the mini player via broadcast.
+         * This works even if getInstance() returns null, as long as the service is running.
+         */
+        fun requestClickViaBroadcast(context: Context) {
+            val intent = Intent(ACTION_REQUEST_CLICK)
+            intent.setPackage(context.packageName)
+            context.sendBroadcast(intent)
+            Log.d(TAG, "Sent click request broadcast")
+        }
 
         /**
          * Check if the accessibility service is enabled.

@@ -172,7 +172,8 @@ object DeepLinkLauncher {
                         a11yService.requestClickMiniPlayer()
                         Log.i(TAG, "Requested accessibility service to open QQ Music player")
                     } else {
-                        Log.w(TAG, "Accessibility service not available")
+                        // Service not running - just log it, don't bother the user
+                        Log.d(TAG, "Accessibility service not running, skipping auto-open player")
                     }
                 }, 2500)
             }
