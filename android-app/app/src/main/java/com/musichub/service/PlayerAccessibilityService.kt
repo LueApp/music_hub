@@ -110,35 +110,45 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
 
         try {
-            // Strategy 1: Click the album cover (jqt) - this opens the player page
-            val albumCoverNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/jqt"
+            // Strategy 1: Look for now-playing card (cxs) - expanded player at bottom
+            // Card bounds: [50,1603][1058,2213], click on the album/song info area (not controls)
+            val nowPlayingNodes = rootNode.findAccessibilityNodeInfosByViewId(
+                "$QQMUSIC_PACKAGE:id/cxs"
             )
-            if (albumCoverNodes.isNotEmpty()) {
-                val node = albumCoverNodes[0]
-                if (node.isClickable) {
-                    node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            if (nowPlayingNodes.isNotEmpty()) {
+                val node = nowPlayingNodes[0]
+                val rect = android.graphics.Rect()
+                node.getBoundsInScreen(rect)
+                // Click in the upper portion of the card (song info area, not controls)
+                val x = (rect.left + rect.right) / 2f
+                val y = rect.top + 150f  // 150px from top of card (in song info area)
+                if (performGestureClick(x, y)) {
                     pendingClick = false
-                    Log.i(TAG, "Clicked album cover (jqt) to open player page (retry $retryCount)")
+                    Log.i(TAG, "Clicked now-playing card (cxs) at ($x, $y) (retry $retryCount)")
                     return true
                 }
             }
 
-            // Strategy 2: Click the mini player container (jqv)
+            // Strategy 2: After retries, try the mini player container (jqv)
             val miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
                 "$QQMUSIC_PACKAGE:id/jqv"
             )
             if (miniPlayerNodes.isNotEmpty()) {
                 val node = miniPlayerNodes[0]
-                if (node.isClickable) {
-                    node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                val rect = android.graphics.Rect()
+                node.getBoundsInScreen(rect)
+
+                val x = (rect.left + rect.right) / 2f
+                val y = (rect.top + rect.bottom) / 2f
+
+                if (performGestureClick(x, y)) {
                     pendingClick = false
-                    Log.i(TAG, "Clicked mini player via jqv resource ID (retry $retryCount)")
+                    Log.i(TAG, "Clicked mini player at ($x, $y) (retry $retryCount)")
                     return true
                 }
             }
 
-            Log.d(TAG, "Mini player not found yet (retry $retryCount)")
+            Log.d(TAG, "No clickable target found (retry $retryCount)")
         } catch (e: Exception) {
             Log.e(TAG, "Error trying to click mini player: ${e.message}")
         } finally {
@@ -147,6 +157,23 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
 
         return false
+    }
+
+    private fun performGestureClick(x: Float, y: Float): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) {
+            return false
+        }
+
+        val path = android.graphics.Path()
+        path.moveTo(x, y)
+
+        val gestureBuilder = android.accessibilityservice.GestureDescription.Builder()
+        val strokeDescription = android.accessibilityservice.GestureDescription.StrokeDescription(
+            path, 0, 100
+        )
+        gestureBuilder.addStroke(strokeDescription)
+
+        return dispatchGesture(gestureBuilder.build(), null, null)
     }
 
     private fun findNodesByContentDesc(
