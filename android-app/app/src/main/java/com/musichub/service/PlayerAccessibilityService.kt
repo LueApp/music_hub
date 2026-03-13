@@ -27,6 +27,7 @@ class PlayerAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var pendingClick = false
     private var retryCount = 0
+    private var clickCount = 0  // Track how many times we've clicked
 
     // Broadcast receiver to handle click requests from other components
     private val clickRequestReceiver = object : BroadcastReceiver() {
@@ -99,6 +100,7 @@ class PlayerAccessibilityService : AccessibilityService() {
     fun requestClickMiniPlayer() {
         pendingClick = true
         retryCount = 0
+        clickCount = 0
         Log.d(TAG, "Mini player click requested")
 
         // Start retry loop — QQ Music needs time to process the deep link
@@ -109,7 +111,7 @@ class PlayerAccessibilityService : AccessibilityService() {
         handler.postDelayed({
             if (pendingClick) {
                 pendingClick = false
-                Log.w(TAG, "Mini player click timed out after $retryCount retries")
+                Log.w(TAG, "Mini player click timed out after $retryCount retries, $clickCount clicks")
             }
         }, MAX_TIMEOUT_MS)
     }
@@ -118,11 +120,17 @@ class PlayerAccessibilityService : AccessibilityService() {
         handler.postDelayed({
             if (pendingClick) {
                 retryCount++
-                if (!tryClickMiniPlayer()) {
-                    // Schedule next retry
-                    if (retryCount < MAX_RETRIES) {
-                        scheduleRetry()
-                    }
+                val clicked = tryClickMiniPlayer()
+                if (clicked) {
+                    clickCount++
+                }
+                // Keep retrying even after clicking - click multiple times to ensure it works
+                // Stop only after we've clicked 3 times or reached max retries
+                if (clickCount < 3 && retryCount < MAX_RETRIES) {
+                    scheduleRetry()
+                } else if (clickCount >= 3) {
+                    pendingClick = false
+                    Log.i(TAG, "Finished clicking after $clickCount clicks")
                 }
             }
         }, RETRY_INTERVAL_MS)
@@ -149,8 +157,7 @@ class PlayerAccessibilityService : AccessibilityService() {
                 val x = (rect.left + rect.right) / 2f
                 val y = rect.top + 150f  // 150px from top of card (in song info area)
                 if (performGestureClick(x, y)) {
-                    pendingClick = false
-                    Log.i(TAG, "Clicked now-playing card (cxs) at ($x, $y) (retry $retryCount)")
+                    Log.i(TAG, "Clicked now-playing card (cxs) at ($x, $y) (retry $retryCount, click $clickCount)")
                     return true
                 }
             }
@@ -168,8 +175,7 @@ class PlayerAccessibilityService : AccessibilityService() {
                 val y = (rect.top + rect.bottom) / 2f
 
                 if (performGestureClick(x, y)) {
-                    pendingClick = false
-                    Log.i(TAG, "Clicked mini player at ($x, $y) (retry $retryCount)")
+                    Log.i(TAG, "Clicked mini player at ($x, $y) (retry $retryCount, click $clickCount)")
                     return true
                 }
             }
