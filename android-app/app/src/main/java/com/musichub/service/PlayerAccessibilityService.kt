@@ -155,9 +155,9 @@ class PlayerAccessibilityService : AccessibilityService() {
                 val node = nowPlayingNodes[0]
                 val rect = android.graphics.Rect()
                 node.getBoundsInScreen(rect)
-                // Click in the upper portion of the card (song info area, not controls)
-                val x = (rect.left + rect.right) / 2f
-                val y = rect.top + 150f  // 150px from top of card (in song info area)
+                // Click on song title/artist area (center-left, avoiding progress bar at bottom)
+                val x = rect.left + 250f  // 250px from left edge (song info area)
+                val y = rect.top + 80f  // 80px from top (song title area)
                 Log.d(TAG, "Found cxs card at bounds: $rect, clicking at ($x, $y)")
                 if (performGestureClick(x, y)) {
                     Log.i(TAG, "Clicked now-playing card (cxs) at ($x, $y) (retry $retryCount)")

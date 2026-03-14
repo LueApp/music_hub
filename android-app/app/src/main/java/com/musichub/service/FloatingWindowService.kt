@@ -475,6 +475,8 @@ class FloatingWindowService : Service() {
                 currentArtist = currentSong.artist
                 currentCoverUrl = currentSong.coverUrl ?: ""
                 remainingCount = playbackService.getRemainingCount()
+            } else {
+                Log.w(TAG, "PlaybackService has no current song")
             }
 
             // Sync playback mode states
@@ -519,7 +521,7 @@ class FloatingWindowService : Service() {
             // Initial queue update (in case queue was already set)
             updateQueueData()
         } else {
-            Log.d(TAG, "PlaybackService not available for sync")
+            Log.w(TAG, "PlaybackService not available for sync")
         }
     }
 
