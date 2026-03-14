@@ -28,6 +28,8 @@ class PlayerAccessibilityService : AccessibilityService() {
     private var pendingClick = false
     private var retryCount = 0
     private var clickCount = 0  // Track how many times we've clicked
+    private var foundUIElement = false  // Track if we found the actual UI element
+    private var lastFoundCard = false  // Track if card was found in last attempt
 
     // Broadcast receiver to handle click requests from other components
     private val clickRequestReceiver = object : BroadcastReceiver() {
@@ -54,7 +56,8 @@ class PlayerAccessibilityService : AccessibilityService() {
 
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
+                    AccessibilityEvent.TYPE_VIEW_CLICKED
             packageNames = arrayOf(QQMUSIC_PACKAGE)
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             notificationTimeout = 200
@@ -64,8 +67,28 @@ class PlayerAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (!pendingClick) return
         if (event == null) return
+
+        // Log all click events to help identify which node opens the player page
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val source = event.source
+            if (source != null && event.packageName == QQMUSIC_PACKAGE) {
+                val rect = android.graphics.Rect()
+                source.getBoundsInScreen(rect)
+                Log.i(TAG, "CLICK DETECTED - ID: ${source.viewIdResourceName}, Class: ${source.className}, Bounds: $rect, Clickable: ${source.isClickable}, ChildCount: ${source.childCount}")
+
+                // Log children info
+                for (i in 0 until source.childCount.coerceAtMost(5)) {
+                    val child = source.getChild(i)
+                    if (child != null) {
+                        Log.i(TAG, "  Child[$i] - ID: ${child.viewIdResourceName}, Class: ${child.className}, Clickable: ${child.isClickable}")
+                    }
+                }
+                source.recycle()
+            }
+        }
+
+        if (!pendingClick) return
 
         if (event.packageName == QQMUSIC_PACKAGE) {
             // Try to find and click the mini player bar
@@ -101,19 +124,22 @@ class PlayerAccessibilityService : AccessibilityService() {
         pendingClick = true
         retryCount = 0
         clickCount = 0
+        foundUIElement = false
+        lastFoundCard = false
         Log.d(TAG, "Mini player click requested")
 
-        // Start retry loop — QQ Music needs time to process the deep link
-        // and show the mini player bar. We retry every 500ms for up to 8 seconds.
-        scheduleRetry()
+        // Wait 2 seconds for QQ Music card animation to finish before first attempt
+        handler.postDelayed({
+            scheduleRetry()
+        }, 2000L)
 
-        // Timeout: give up after 8 seconds
+        // Timeout: give up after 10 seconds
         handler.postDelayed({
             if (pendingClick) {
                 pendingClick = false
                 Log.w(TAG, "Mini player click timed out after $retryCount retries, $clickCount clicks")
             }
-        }, MAX_TIMEOUT_MS)
+        }, 10000L)
     }
 
     private fun scheduleRetry() {
@@ -125,13 +151,13 @@ class PlayerAccessibilityService : AccessibilityService() {
                     clickCount++
                     Log.i(TAG, "Click successful, total clicks: $clickCount")
                 }
-                // Keep retrying even after clicking - click multiple times to ensure it works
-                // Stop only after we've clicked 1 time or reached max retries
-                if (clickCount < 1 && retryCount < MAX_RETRIES) {
+                // Stop only if we found UI element AND it's no longer visible (page changed)
+                // OR if we've exceeded max retries
+                if (retryCount < MAX_RETRIES) {
                     scheduleRetry()
-                } else if (clickCount >= 1) {
+                } else {
                     pendingClick = false
-                    Log.i(TAG, "Finished clicking after $clickCount clicks")
+                    Log.i(TAG, "Finished after $retryCount retries, $clickCount clicks")
                 }
             }
         }, RETRY_INTERVAL_MS)
@@ -141,50 +167,78 @@ class PlayerAccessibilityService : AccessibilityService() {
         val rootNode = rootInActiveWindow
         if (rootNode == null) {
             Log.d(TAG, "rootInActiveWindow is null (retry $retryCount)")
-            // Fallback: try clicking at known position even without root window
             return tryFallbackClick()
         }
 
         try {
-            // Strategy 1: Look for now-playing card (cxs) - expanded player at bottom
-            // Card bounds: [50,1603][1058,2213], click on the album/song info area (not controls)
-            val nowPlayingNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/cxs"
+            // Strategy 1: Try the music card (cxy) - appears during song transitions
+            val cardNodes = rootNode.findAccessibilityNodeInfosByViewId(
+                "$QQMUSIC_PACKAGE:id/cxy"
             )
-            if (nowPlayingNodes.isNotEmpty()) {
-                val node = nowPlayingNodes[0]
+            Log.d(TAG, "Found ${cardNodes.size} cxy (card) nodes")
+            if (cardNodes.isNotEmpty()) {
+                val node = cardNodes[0]
                 val rect = android.graphics.Rect()
                 node.getBoundsInScreen(rect)
-                // Click on song title/artist area (center-left, avoiding progress bar at bottom)
-                val x = rect.left + 250f  // 250px from left edge (song info area)
-                val y = rect.top + 80f  // 80px from top (song title area)
-                Log.d(TAG, "Found cxs card at bounds: $rect, clicking at ($x, $y)")
-                if (performGestureClick(x, y)) {
-                    Log.i(TAG, "Clicked now-playing card (cxs) at ($x, $y) (retry $retryCount)")
-                    return true
+                Log.d(TAG, "Music card - clickable: ${node.isClickable}, enabled: ${node.isEnabled}, bounds: $rect, size: ${rect.width()}x${rect.height()}")
+
+                if (rect.width() > 50 && rect.height() > 50) {
+                    lastFoundCard = true
+                    foundUIElement = true
+
+                    // Click at 1/4 height from top (likely where the album cover/title is)
+                    val x = (rect.left + rect.right) / 2f
+                    val y = rect.top + (rect.height() / 4f)
+
+                    if (performGestureClick(x, y)) {
+                        Log.i(TAG, "Clicked music card via gesture at ($x, $y) at 1/4 height (retry $retryCount)")
+                        return true
+                    }
                 }
+            } else if (lastFoundCard) {
+                // Card was present before but now disappeared - page changed!
+                Log.i(TAG, "Music card disappeared, page changed successfully")
+                pendingClick = false
+                return true
             }
 
-            // Strategy 2: Try the mini player container (jqv)
-            val miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/jqv"
+            // Strategy 2: Try the mini player container (jrh or jro)
+            var miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
+                "$QQMUSIC_PACKAGE:id/jrh"
             )
+            Log.d(TAG, "Found ${miniPlayerNodes.size} jrh nodes")
+            if (miniPlayerNodes.isEmpty()) {
+                miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
+                    "$QQMUSIC_PACKAGE:id/jro"
+                )
+                Log.d(TAG, "Found ${miniPlayerNodes.size} jro nodes")
+            }
             if (miniPlayerNodes.isNotEmpty()) {
                 val node = miniPlayerNodes[0]
                 val rect = android.graphics.Rect()
                 node.getBoundsInScreen(rect)
 
-                val x = rect.left + 100f  // Click on album art area (left side)
-                val y = (rect.top + rect.bottom) / 2f  // Vertical center
-                Log.d(TAG, "Found jqv mini player at bounds: $rect, clicking at ($x, $y)")
-
-                if (performGestureClick(x, y)) {
-                    Log.i(TAG, "Clicked mini player (jqv) at ($x, $y) (retry $retryCount)")
+                if (rect.width() > 100 && rect.height() > 100) {
+                    if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        foundUIElement = true
+                        Log.i(TAG, "Clicked mini player node (retry $retryCount)")
+                        return true
+                    }
+                } else {
+                    Log.i(TAG, "Mini player too small, assuming player page already open")
+                    pendingClick = false
                     return true
                 }
             }
 
-            // Strategy 3: Fallback to known position if no elements found
+            // Strategy 3: If no elements found after retries, assume already on player page
+            if (retryCount > 3) {
+                Log.i(TAG, "No clickable elements found after $retryCount retries, assuming player page already open")
+                pendingClick = false
+                return true
+            }
+
+            // Strategy 4: Fallback to known position
             Log.d(TAG, "No UI elements found (retry $retryCount), trying fallback position")
             return tryFallbackClick()
         } catch (e: Exception) {
@@ -202,10 +256,9 @@ class PlayerAccessibilityService : AccessibilityService() {
      * This is used when we can't find the UI elements but know QQ Music is active.
      */
     private fun tryFallbackClick(): Boolean {
-        // Fallback position: center-bottom of screen where mini player usually is
-        // Based on previous successful clicks around (554, 1753) and (550, 2100)
-        val x = 550f
-        val y = 2000f  // Bottom area where mini player bar appears
+        // Fallback position: center of mini player at [50,2022][1058,2213]
+        val x = 554f  // Center horizontally
+        val y = 2117f  // Center vertically
         Log.d(TAG, "Attempting fallback click at ($x, $y)")
         if (performGestureClick(x, y)) {
             Log.i(TAG, "Fallback click dispatched at ($x, $y) (retry $retryCount)")
