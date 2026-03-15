@@ -84,6 +84,64 @@ class NetEasePlatform : PlatformHandler {
         return "https://music.163.com/song?id=$platformSongId"
     }
 
+    override suspend fun checkSongAvailability(platformSongId: String): SongAvailability {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://music.163.com/api/v3/song/detail?id=$platformSongId&c=[{%22id%22:$platformSongId}]"
+
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://music.163.com/")
+                    .header("Accept", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        return@withContext SongAvailability(false, "API请求失败 (${response.code})")
+                    }
+
+                    val body = response.body?.string()
+                    if (body == null) {
+                        return@withContext SongAvailability(false, "空响应")
+                    }
+
+                    val json = gson.fromJson(body, JsonObject::class.java)
+                    val songs = json.getAsJsonArray("songs")
+
+                    if (songs == null || songs.size() == 0) {
+                        return@withContext SongAvailability(false, "歌曲不存在")
+                    }
+
+                    val song = songs[0].asJsonObject
+                    val title = song.get("name")?.asString ?: ""
+
+                    if (title.isEmpty()) {
+                        return@withContext SongAvailability(false, "歌曲不存在")
+                    }
+
+                    // Check privileges - NetEase uses 'privileges' array to indicate availability
+                    // st < 0 means the song is not available (e.g., taken down, region-locked)
+                    val privileges = json.getAsJsonArray("privileges")
+                    if (privileges != null && privileges.size() > 0) {
+                        val priv = privileges[0].asJsonObject
+                        val st = priv.get("st")?.asInt ?: 0
+                        if (st < 0) {
+                            Log.d(TAG, "Song $platformSongId unavailable: st=$st")
+                            return@withContext SongAvailability(false, "歌曲已下架或无版权")
+                        }
+                    }
+
+                    SongAvailability(true)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Availability check failed for $platformSongId: ${e.message}")
+                // On network error, assume available to avoid blocking playback
+                SongAvailability(true)
+            }
+        }
+    }
+
     override suspend fun fetchMetadata(platformSongId: String): Map<String, String> {
         return withContext(Dispatchers.IO) {
             val result = mutableMapOf<String, String>()

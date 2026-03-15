@@ -114,6 +114,92 @@ class BilibiliPlatform : PlatformHandler {
         }
     }
 
+    override suspend fun checkSongAvailability(platformSongId: String): SongAvailability {
+        return withContext(Dispatchers.IO) {
+            try {
+                when {
+                    platformSongId.startsWith("video:BV") -> {
+                        val bvid = platformSongId.removePrefix("video:")
+                        checkVideoAvailability("bvid=$bvid")
+                    }
+                    platformSongId.startsWith("video:av") -> {
+                        val avid = platformSongId.removePrefix("video:av")
+                        checkVideoAvailability("aid=$avid")
+                    }
+                    platformSongId.startsWith("audio:") -> {
+                        val auid = platformSongId.removePrefix("audio:")
+                        checkAudioAvailability(auid)
+                    }
+                    else -> SongAvailability(false, "未知的ID格式")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Availability check failed for $platformSongId: ${e.message}")
+                // On network error, assume available to avoid blocking playback
+                SongAvailability(true)
+            }
+        }
+    }
+
+    private fun checkVideoAvailability(queryParam: String): SongAvailability {
+        val url = "https://api.bilibili.com/x/web-interface/view?$queryParam"
+
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .header("Referer", "https://www.bilibili.com/")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                return SongAvailability(false, "API请求失败 (${response.code})")
+            }
+
+            val body = response.body?.string() ?: return SongAvailability(false, "空响应")
+            val json = gson.fromJson(body, JsonObject::class.java)
+            val code = json.get("code")?.asInt ?: -1
+
+            // Bilibili API codes: 0 = success, -404 = not found, -403 = forbidden, 62002 = invisible
+            return when (code) {
+                0 -> SongAvailability(true)
+                -404 -> SongAvailability(false, "视频不存在")
+                -403 -> SongAvailability(false, "视频无法访问")
+                62002 -> SongAvailability(false, "视频不可见")
+                else -> {
+                    val message = json.get("message")?.asString ?: "未知错误"
+                    SongAvailability(false, message)
+                }
+            }
+        }
+    }
+
+    private fun checkAudioAvailability(auid: String): SongAvailability {
+        val url = "https://www.bilibili.com/audio/music-service-c/web/song/info?sid=$auid"
+
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .header("Referer", "https://www.bilibili.com/")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                return SongAvailability(false, "API请求失败 (${response.code})")
+            }
+
+            val body = response.body?.string() ?: return SongAvailability(false, "空响应")
+            val json = gson.fromJson(body, JsonObject::class.java)
+            val code = json.get("code")?.asInt ?: -1
+
+            return when (code) {
+                0 -> SongAvailability(true)
+                else -> {
+                    val msg = json.get("msg")?.asString ?: "音频不存在"
+                    SongAvailability(false, msg)
+                }
+            }
+        }
+    }
+
     override suspend fun fetchMetadata(platformSongId: String): Map<String, String> {
         return withContext(Dispatchers.IO) {
             val result = mutableMapOf<String, String>()

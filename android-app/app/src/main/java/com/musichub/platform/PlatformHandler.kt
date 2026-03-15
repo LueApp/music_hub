@@ -55,10 +55,32 @@ interface PlatformHandler {
     suspend fun fetchMetadata(platformSongId: String): Map<String, String>
 
     /**
+     * Check if a song is available on the platform.
+     * Returns a SongAvailability result indicating whether the song can be played.
+     */
+    suspend fun checkSongAvailability(platformSongId: String): SongAvailability {
+        // Default implementation: try fetching metadata, consider available if we get a title
+        val metadata = fetchMetadata(platformSongId)
+        return if (metadata["title"]?.isNotEmpty() == true) {
+            SongAvailability(true)
+        } else {
+            SongAvailability(false, "无法获取歌曲信息")
+        }
+    }
+
+    /**
      * Fetch playlist details and songs from the platform's API.
      */
     suspend fun fetchPlaylistSongs(playlistId: String): ParsedPlaylist? = null
 }
+
+/**
+ * Result of a song availability check.
+ */
+data class SongAvailability(
+    val isAvailable: Boolean,
+    val reason: String = ""
+)
 
 /**
  * Platform constants.

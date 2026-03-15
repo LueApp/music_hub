@@ -93,6 +93,73 @@ class QQMusicPlatform : PlatformHandler {
         return "https://y.qq.com/n/ryqq/songDetail/$platformSongId"
     }
 
+    override suspend fun checkSongAvailability(platformSongId: String): SongAvailability {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+
+                val payload = JsonObject().apply {
+                    add("songinfo", JsonObject().apply {
+                        addProperty("method", "get_song_detail_yqq")
+                        addProperty("module", "music.pf_song_detail_svr")
+                        add("param", JsonObject().apply {
+                            addProperty("song_mid", platformSongId)
+                        })
+                    })
+                }
+
+                val requestBody = payload.toString()
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://y.qq.com/")
+                    .header("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        return@withContext SongAvailability(false, "API请求失败 (${response.code})")
+                    }
+
+                    val body = response.body?.string()
+                    if (body == null) {
+                        return@withContext SongAvailability(false, "空响应")
+                    }
+
+                    val json = gson.fromJson(body, JsonObject::class.java)
+                    val songInfo = json.getAsJsonObject("songinfo")
+                    val data = songInfo?.getAsJsonObject("data")
+                    val trackInfo = data?.getAsJsonObject("track_info")
+
+                    if (trackInfo == null) {
+                        return@withContext SongAvailability(false, "歌曲不存在")
+                    }
+
+                    val title = trackInfo.get("name")?.asString ?: ""
+                    if (title.isEmpty()) {
+                        return@withContext SongAvailability(false, "歌曲不存在")
+                    }
+
+                    // Check fnote field - QQ Music uses this to indicate takedown
+                    val fnote = trackInfo.get("fnote")?.asInt ?: 0
+                    if (fnote == 4001) {
+                        Log.d(TAG, "Song $platformSongId unavailable: fnote=$fnote")
+                        return@withContext SongAvailability(false, "歌曲已下架")
+                    }
+
+                    SongAvailability(true)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Availability check failed for $platformSongId: ${e.message}")
+                // On network error, assume available to avoid blocking playback
+                SongAvailability(true)
+            }
+        }
+    }
+
     override suspend fun fetchMetadata(platformSongId: String): Map<String, String> {
         return withContext(Dispatchers.IO) {
             val result = mutableMapOf<String, String>()
