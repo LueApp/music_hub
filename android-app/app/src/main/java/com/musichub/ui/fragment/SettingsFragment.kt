@@ -6,16 +6,13 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
-import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SwitchPreferenceCompat
 import com.musichub.MusicHubApplication
 import com.musichub.R
-import com.musichub.service.DeepLinkLauncher
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.MediaMonitorService
-import com.musichub.service.PlaybackService
 import com.musichub.service.PlayerAccessibilityService
 import kotlinx.coroutines.launch
 
@@ -65,28 +62,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
             }
         }
 
-        // Playback mode preference
-        findPreference<ListPreference>("playback_mode")?.apply {
-            // Set initial value from DeepLinkLauncher
-            value = when (DeepLinkLauncher.playbackMode) {
-                DeepLinkLauncher.PlaybackMode.FOREGROUND -> "foreground"
-                else -> "background"
-            }
-            updatePlaybackModeSummary(this, value)
-
-            setOnPreferenceChangeListener { _, newValue ->
-                DeepLinkLauncher.playbackMode = when (newValue) {
-                    "foreground" -> DeepLinkLauncher.PlaybackMode.FOREGROUND
-                    else -> DeepLinkLauncher.PlaybackMode.BACKGROUND
-                }
-                // Update screen wake lock state based on new mode
-                PlaybackService.getInstance()?.onPlaybackModeChanged()
-                // Use newValue since pref.value hasn't been updated yet
-                updatePlaybackModeSummary(this, newValue as String)
-                true
-            }
-        }
-
         // Delete all songs preference
         findPreference<Preference>("delete_all_songs")?.apply {
             setOnPreferenceClickListener {
@@ -107,13 +82,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
     }
 
-    private fun updatePlaybackModeSummary(pref: ListPreference, currentValue: String) {
-        pref.summary = when (currentValue) {
-            "foreground" -> "前台模式：切换歌曲时跳转到音乐应用"
-            else -> "后台模式：切换歌曲时保持在当前应用"
-        }
-    }
-
     override fun onResume() {
         super.onResume()
 
@@ -130,7 +98,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
             summary = when {
                 isEnabled && isRunning -> "已授权且运行中"
                 isEnabled && !isRunning -> "已授权但未运行 - 请点击重新启用"
-                else -> "未授权 - 点击授权（QQ音乐前台模式需要）"
+                else -> "未授权 - 点击授权（QQ音乐需要）"
             }
         }
 
@@ -139,15 +107,6 @@ class SettingsFragment : PreferenceFragmentCompat() {
             if (!Settings.canDrawOverlays(requireContext())) {
                 isChecked = false
             }
-        }
-
-        // Sync playback mode state
-        findPreference<ListPreference>("playback_mode")?.apply {
-            value = when (DeepLinkLauncher.playbackMode) {
-                DeepLinkLauncher.PlaybackMode.FOREGROUND -> "foreground"
-                else -> "background"
-            }
-            updatePlaybackModeSummary(this, value)
         }
     }
 }

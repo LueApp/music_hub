@@ -20,15 +20,6 @@
             android:defaultValue="true"
             app:iconSpaceReserved="false" />
 
-        <ListPreference
-            android:key="playback_mode"
-            android:title="播放切换模式"
-            android:summary="选择切换歌曲时的行为"
-            android:entries="@array/playback_mode_entries"
-            android:entryValues="@array/playback_mode_values"
-            android:defaultValue="background"
-            app:iconSpaceReserved="false" />
-
     </PreferenceCategory>
 
     <PreferenceCategory

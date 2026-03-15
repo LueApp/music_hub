@@ -281,6 +281,21 @@ Three tables with Room annotations. See `data/model/Models.kt`.
 
 ---
 
+## Known Limitations
+
+### No Background Song Switching
+Song switching always brings the target music app to the foreground. Android's `startActivity()` (required for deep links) always switches the active task to the target app. Multiple approaches were attempted and failed:
+
+- **Transparent Activity curtain**: `startActivity()` pushes the curtain behind the target app
+- **SYSTEM_ALERT_WINDOW overlay**: Overlay stays on top but can't hide the underlying task switch; causes visible black/transparent flash
+- **AccessibilityService GLOBAL_ACTION_BACK**: Navigates within the music app's stack rather than returning to the previous app
+- **Return-to-previous-app via UsageStatsManager**: Floating window taps register Music Hub as the most recently used app, breaking detection
+- **MediaSession playFromMediaId**: NetEase doesn't support it (actions=822); QQ Music advertises support (actions=1911) but was not reliably testable
+
+**Conclusion**: There is no reliable way on Android to send a deep link to a third-party app without bringing it to the foreground. The app uses foreground-only playback mode.
+
+---
+
 ## Debugging Workflow
 
 1. **Build**: `pixi run build` - compile the APK
