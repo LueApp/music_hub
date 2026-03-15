@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import com.musichub.platform.Platforms
 
@@ -20,6 +21,12 @@ object DeepLinkLauncher {
 
     // Delay for locked screen launches (needs more time for app to process)
     private const val LOCKED_SCREEN_LAUNCH_DELAY_MS = 500L
+
+    // Delay before toggling auto-rotate (let the target app's activity fully start)
+    private const val AUTO_ROTATE_TOGGLE_DELAY_MS = 1000L
+
+    // Duration to keep auto-rotate disabled before re-enabling
+    private const val AUTO_ROTATE_OFF_DURATION_MS = 200L
 
     /**
      * Launch a deep link URL, falling back to web URL if the app isn't installed.
@@ -77,6 +84,14 @@ object DeepLinkLauncher {
                         Log.d(TAG, "Accessibility service not running, skipping auto-open player")
                     }
                 }, 2500)
+            }
+
+            // For NetEase, toggle auto-rotate to force orientation re-detection.
+            // NetEase doesn't detect the current orientation on activity start when
+            // the device is already in landscape; toggling auto-rotate forces the
+            // system to re-deliver the orientation configuration.
+            if (deepLink.startsWith("orpheus://")) {
+                toggleAutoRotate(context)
             }
 
             true
@@ -164,6 +179,69 @@ object DeepLinkLauncher {
         return Platforms.PACKAGE_NAMES.keys.filter { platform ->
             isAppInstalled(context, platform)
         }
+    }
+
+    /**
+     * Toggle auto-rotate off and back on to force the foreground app to
+     * re-detect the current device orientation. This works around apps
+     * (like NetEase Cloud Music) that don't detect orientation on activity
+     * start when the device is already rotated.
+     */
+    private fun toggleAutoRotate(context: Context) {
+        if (!Settings.System.canWrite(context)) {
+            Log.w(TAG, "WRITE_SETTINGS permission not granted, skipping auto-rotate toggle")
+            return
+        }
+
+        try {
+            val currentAutoRotate = Settings.System.getInt(
+                context.contentResolver,
+                Settings.System.ACCELEROMETER_ROTATION,
+                1 // default: auto-rotate enabled
+            )
+
+            if (currentAutoRotate != 1) {
+                Log.d(TAG, "Auto-rotate is disabled by user, skipping toggle")
+                return
+            }
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    // Disable auto-rotate
+                    Settings.System.putInt(
+                        context.contentResolver,
+                        Settings.System.ACCELEROMETER_ROTATION,
+                        0
+                    )
+                    Log.d(TAG, "Auto-rotate disabled for orientation toggle")
+
+                    // Re-enable after a brief pause
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        try {
+                            Settings.System.putInt(
+                                context.contentResolver,
+                                Settings.System.ACCELEROMETER_ROTATION,
+                                1
+                            )
+                            Log.d(TAG, "Auto-rotate re-enabled")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to re-enable auto-rotate: ${e.message}")
+                        }
+                    }, AUTO_ROTATE_OFF_DURATION_MS)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to toggle auto-rotate: ${e.message}")
+                }
+            }, AUTO_ROTATE_TOGGLE_DELAY_MS)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading auto-rotate setting: ${e.message}")
+        }
+    }
+
+    /**
+     * Check if WRITE_SETTINGS permission is granted.
+     */
+    fun canWriteSettings(context: Context): Boolean {
+        return Settings.System.canWrite(context)
     }
 
     /**

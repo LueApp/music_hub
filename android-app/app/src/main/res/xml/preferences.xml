@@ -38,6 +38,12 @@
             android:summary="用于前台模式下自动打开QQ音乐播放器页面"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="write_settings_access"
+            android:title="修改系统设置权限"
+            android:summary="用于横屏时自动修复网易云音乐方向检测"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
