@@ -30,6 +30,7 @@ class PlayerAccessibilityService : AccessibilityService() {
     private var clickCount = 0  // Track how many times we've clicked
     private var foundUIElement = false  // Track if we found the actual UI element
     private var lastFoundCard = false  // Track if card was found in last attempt
+    private var lastFoundMiniPlayer = false  // Track if mini player was found in last attempt
 
     // Broadcast receiver to handle click requests from other components
     private val clickRequestReceiver = object : BroadcastReceiver() {
@@ -126,6 +127,7 @@ class PlayerAccessibilityService : AccessibilityService() {
         clickCount = 0
         foundUIElement = false
         lastFoundCard = false
+        lastFoundMiniPlayer = false
         Log.d(TAG, "Mini player click requested")
 
         // Wait 2 seconds for QQ Music card animation to finish before first attempt
@@ -219,9 +221,16 @@ class PlayerAccessibilityService : AccessibilityService() {
                 node.getBoundsInScreen(rect)
 
                 if (rect.width() > 100 && rect.height() > 100) {
-                    if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                        foundUIElement = true
-                        Log.i(TAG, "Clicked mini player node (retry $retryCount)")
+                    lastFoundMiniPlayer = true
+                    foundUIElement = true
+                    // Use gesture click on the album art area (left side of mini player).
+                    // performAction(ACTION_CLICK) on the ViewGroup container is received
+                    // by QQ Music but doesn't trigger navigation to the player page —
+                    // only a real touch event (gesture) opens it.
+                    val x = rect.left + (rect.height() / 2f)  // center of album art area
+                    val y = (rect.top + rect.bottom) / 2f
+                    if (performGestureClick(x, y)) {
+                        Log.i(TAG, "Clicked mini player via gesture at ($x, $y) (retry $retryCount)")
                         return true
                     }
                 } else {
@@ -229,6 +238,11 @@ class PlayerAccessibilityService : AccessibilityService() {
                     pendingClick = false
                     return true
                 }
+            } else if (lastFoundMiniPlayer) {
+                // Mini player was present before but now disappeared - player page opened!
+                Log.i(TAG, "Mini player disappeared, player page opened successfully")
+                pendingClick = false
+                return true
             }
 
             // Strategy 3: If no elements found after retries, assume already on player page
