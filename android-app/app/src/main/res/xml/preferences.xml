@@ -47,6 +47,36 @@
     </PreferenceCategory>
 
     <PreferenceCategory
+        android:title="远程控制"
+        app:iconSpaceReserved="false">
+
+        <ListPreference
+            android:key="remote_mode"
+            android:title="远程控制模式"
+            android:summary="当前模式: 独立运行"
+            android:entries="@array/remote_mode_entries"
+            android:entryValues="@array/remote_mode_values"
+            android:defaultValue="standalone"
+            app:iconSpaceReserved="false" />
+
+        <EditTextPreference
+            android:key="remote_server_ip"
+            android:title="服务器地址"
+            android:summary="输入播放手机的IP地址"
+            android:defaultValue=""
+            android:dependency="remote_mode"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="remote_status"
+            android:title="连接状态"
+            android:summary="未连接"
+            android:selectable="false"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         android:title="数据管理"
         app:iconSpaceReserved="false">
 

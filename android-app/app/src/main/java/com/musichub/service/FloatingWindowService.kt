@@ -35,8 +35,16 @@ import coil.load
 import com.google.android.material.card.MaterialCardView
 import com.musichub.R
 import com.musichub.data.model.Song
+import com.musichub.remote.RemoteClient
+import com.musichub.remote.RemoteMode
+import com.musichub.remote.RemoteState
+import com.musichub.remote.toSong
 import com.musichub.ui.MainActivity
 import com.musichub.ui.adapter.QueueAdapter
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Service that displays a floating window overlay for playback control.
@@ -72,6 +80,19 @@ class FloatingWindowService : Service() {
     // Mini ball rotation animation
     private var coverRotationAnimator: ObjectAnimator? = null
     private var currentRotatingView: View? = null
+
+    // Coroutine scope for remote operations
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // Remote state listener for controller mode
+    private val remoteStateListener: (RemoteState) -> Unit = { state ->
+        // Update current song info from remote state
+        state.currentSong?.let { song ->
+            currentSongTitle = song.title
+            currentArtist = song.artist
+            currentCoverUrl = song.coverUrl
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -180,19 +201,31 @@ class FloatingWindowService : Service() {
             // Shuffle button
             findViewById<ImageButton>(R.id.btnShuffle)?.setOnClickListener {
                 Log.d(TAG, "Shuffle button clicked")
-                sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_SHUFFLE)
+                if (RemoteMode.isController()) {
+                    RemoteClient.toggleShuffle()
+                } else {
+                    sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_SHUFFLE)
+                }
             }
 
             // Previous button
             findViewById<ImageButton>(R.id.btnPrevious)?.setOnClickListener {
                 Log.d(TAG, "Previous button clicked")
-                sendPlaybackCommand(PlaybackService.ACTION_PLAY_PREVIOUS)
+                if (RemoteMode.isController()) {
+                    RemoteClient.playPrevious()
+                } else {
+                    sendPlaybackCommand(PlaybackService.ACTION_PLAY_PREVIOUS)
+                }
             }
 
             // Play/Pause button
             findViewById<ImageButton>(R.id.btnPlayPause)?.setOnClickListener {
                 Log.d(TAG, "Play/Pause button clicked")
-                MediaMonitorService.getInstance()?.togglePlayPause()
+                if (RemoteMode.isController()) {
+                    RemoteClient.togglePlayPause()
+                } else {
+                    MediaMonitorService.getInstance()?.togglePlayPause()
+                }
                 // Update icon after a brief delay to let the state change
                 progressHandler.postDelayed({ updatePlayPauseIcon() }, 100)
             }
@@ -200,13 +233,21 @@ class FloatingWindowService : Service() {
             // Next button
             findViewById<ImageButton>(R.id.btnNext)?.setOnClickListener {
                 Log.d(TAG, "Next button clicked")
-                sendPlaybackCommand(PlaybackService.ACTION_PLAY_NEXT)
+                if (RemoteMode.isController()) {
+                    RemoteClient.playNext()
+                } else {
+                    sendPlaybackCommand(PlaybackService.ACTION_PLAY_NEXT)
+                }
             }
 
             // Repeat button
             findViewById<ImageButton>(R.id.btnRepeat)?.setOnClickListener {
                 Log.d(TAG, "Repeat button clicked")
-                sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_REPEAT)
+                if (RemoteMode.isController()) {
+                    RemoteClient.toggleRepeat()
+                } else {
+                    sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_REPEAT)
+                }
             }
 
             // Queue button
@@ -269,17 +310,19 @@ class FloatingWindowService : Service() {
         floatingView?.apply {
             val seekBar = findViewById<SeekBar>(R.id.seekBarProgress) ?: return@apply
 
-            // Enable seeking in external apps via MediaController
+            // Enable seeking in external apps via MediaController or remote
             seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 private var seekPosition: Long = 0
 
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                     if (fromUser) {
-                        // Calculate the target position based on progress percentage
-                        val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
-                        if (playbackInfo != null && playbackInfo.duration > 0) {
-                            seekPosition = (playbackInfo.duration * progress / 100)
-                            // Update time label to show where user is seeking to
+                        val duration = if (RemoteMode.isController()) {
+                            RemoteClient.currentState?.duration ?: 0
+                        } else {
+                            MediaMonitorService.getInstance()?.getPlaybackInfo()?.duration ?: 0
+                        }
+                        if (duration > 0) {
+                            seekPosition = (duration * progress / 100)
                             findViewById<TextView>(R.id.tvCurrentTime)?.text = formatTime(seekPosition)
                         }
                     }
@@ -291,10 +334,13 @@ class FloatingWindowService : Service() {
 
                 override fun onStopTrackingTouch(seekBar: SeekBar?) {
                     isUserSeeking = false
-                    // Seek to the position when user releases
                     if (seekPosition > 0) {
                         Log.d(TAG, "User seeked to position: $seekPosition ms")
-                        MediaMonitorService.getInstance()?.seekTo(seekPosition)
+                        if (RemoteMode.isController()) {
+                            RemoteClient.seekTo(seekPosition)
+                        } else {
+                            MediaMonitorService.getInstance()?.seekTo(seekPosition)
+                        }
                     }
                 }
             })
@@ -328,6 +374,12 @@ class FloatingWindowService : Service() {
     }
 
     private fun updateProgress() {
+        // In controller mode, use remote state
+        if (RemoteMode.isController()) {
+            updateProgressFromRemote()
+            return
+        }
+
         val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
 
         // Update mini ball progress if in mini mode
@@ -374,8 +426,98 @@ class FloatingWindowService : Service() {
         }
     }
 
+    /**
+     * Update progress and UI from remote state (controller mode).
+     */
+    private fun updateProgressFromRemote() {
+        val state = RemoteClient.currentState
+
+        if (isMiniMode) {
+            val isPlaying = state?.isPlaying == true
+            val coverView = miniBallView?.findViewById<ImageView>(R.id.ivBallCover)
+            if (isPlaying) {
+                startCoverRotation(coverView)
+            } else {
+                stopCoverRotation()
+            }
+
+            // Update mini ball progress ring
+            if (state != null && state.duration > 0) {
+                val progress = ((state.position.toFloat() / state.duration) * 100).toInt()
+                miniBallView?.findViewById<ProgressBar>(R.id.progressRing)?.progress = progress
+            }
+
+            // Update play indicator
+            miniBallView?.apply {
+                val playIndicator = findViewById<ImageView>(R.id.ivPlayIndicator)
+                if (state?.isPlaying == true) {
+                    playIndicator?.setImageResource(R.drawable.ic_pause_circle)
+                } else {
+                    playIndicator?.setImageResource(R.drawable.ic_play_circle)
+                }
+            }
+            return
+        }
+
+        floatingView?.apply {
+            val seekBar = findViewById<SeekBar>(R.id.seekBarProgress)
+            val tvCurrentTime = findViewById<TextView>(R.id.tvCurrentTime)
+            val tvTotalTime = findViewById<TextView>(R.id.tvTotalTime)
+
+            if (state != null && state.duration > 0) {
+                tvCurrentTime?.text = formatTime(state.position)
+                tvTotalTime?.text = formatTime(state.duration)
+
+                if (!isUserSeeking) {
+                    val progress = ((state.position.toFloat() / state.duration.toFloat()) * 100).toInt()
+                    seekBar?.progress = progress.coerceIn(0, 100)
+                }
+
+                updatePlayPauseIcon(state.isPlaying)
+
+                // Update mode icons from remote state
+                val repeatMode = when (state.repeatMode) {
+                    "ALL" -> PlaybackService.RepeatMode.ALL
+                    "ONE" -> PlaybackService.RepeatMode.ONE
+                    else -> PlaybackService.RepeatMode.OFF
+                }
+                updateModeIcons(repeatMode, state.shuffleEnabled)
+            } else {
+                tvCurrentTime?.text = "0:00"
+                tvTotalTime?.text = "0:00"
+                if (!isUserSeeking) {
+                    seekBar?.progress = 0
+                }
+            }
+
+            // Update song info if changed
+            if (state?.currentSong != null) {
+                val song = state.currentSong
+                if (song.title != (findViewById<TextView>(R.id.tvSongTitle)?.text ?: "")) {
+                    findViewById<TextView>(R.id.tvSongTitle)?.text = song.title
+                    findViewById<TextView>(R.id.tvArtist)?.text = song.artist
+
+                    val coverView = findViewById<ImageView>(R.id.ivAlbumCover)
+                    if (song.coverUrl.isNotEmpty()) {
+                        coverView?.load(song.coverUrl) {
+                            placeholder(R.drawable.ic_album)
+                            error(R.drawable.ic_album)
+                            allowHardware(false)
+                        }
+                    } else {
+                        coverView?.setImageResource(R.drawable.ic_album)
+                    }
+                }
+            }
+        }
+    }
+
     private fun updatePlayPauseIcon(isPlaying: Boolean? = null) {
-        val playing = isPlaying ?: (MediaMonitorService.getInstance()?.getPlaybackInfo()?.isPlaying == true)
+        val playing = if (RemoteMode.isController()) {
+            isPlaying ?: (RemoteClient.currentState?.isPlaying == true)
+        } else {
+            isPlaying ?: (MediaMonitorService.getInstance()?.getPlaybackInfo()?.isPlaying == true)
+        }
 
         floatingView?.apply {
             val btnPlayPause = findViewById<ImageButton>(R.id.btnPlayPause)
@@ -416,6 +558,10 @@ class FloatingWindowService : Service() {
     }
 
     private fun updateQueueData() {
+        if (RemoteMode.isController()) {
+            updateQueueDataFromRemote()
+            return
+        }
         val playbackService = PlaybackService.getInstance()
         if (playbackService == null) {
             Log.w(TAG, "PlaybackService is null, cannot update queue")
@@ -439,6 +585,25 @@ class FloatingWindowService : Service() {
 
         // Auto-scroll to current song position
         scrollToCurrentSong(currentIndex, shuffleOrder)
+    }
+
+    private fun updateQueueDataFromRemote() {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val remoteSongs = RemoteClient.fetchQueue()
+                val songs = remoteSongs.map { it.toSong() }
+                val currentIndex = RemoteClient.currentState?.currentIndex ?: -1
+
+                launch(Dispatchers.Main) {
+                    floatingView?.findViewById<TextView>(R.id.tvQueueHeader)?.text =
+                        "播放队列 (${songs.size}首)"
+                    queueAdapter?.updateData(songs, currentIndex, null)
+                    scrollToCurrentSong(currentIndex, null)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch remote queue: ${e.message}")
+            }
+        }
     }
 
     /**
@@ -466,6 +631,18 @@ class FloatingWindowService : Service() {
     }
 
     private fun syncWithPlaybackService() {
+        // In controller mode, sync via RemoteClient
+        if (RemoteMode.isController()) {
+            RemoteClient.addStateListener(remoteStateListener)
+            val state = RemoteClient.currentState
+            if (state?.currentSong != null) {
+                currentSongTitle = state.currentSong.title
+                currentArtist = state.currentSong.artist
+                currentCoverUrl = state.currentSong.coverUrl
+            }
+            return
+        }
+
         val playbackService = PlaybackService.getInstance()
         if (playbackService != null) {
             val currentSong = playbackService.getCurrentSong()
@@ -770,7 +947,11 @@ class FloatingWindowService : Service() {
             // Long press to toggle play/pause
             setOnLongClickListener {
                 Log.d(TAG, "Mini ball long pressed, toggling play/pause")
-                MediaMonitorService.getInstance()?.togglePlayPause()
+                if (RemoteMode.isController()) {
+                    RemoteClient.togglePlayPause()
+                } else {
+                    MediaMonitorService.getInstance()?.togglePlayPause()
+                }
                 // Update play indicator after brief delay
                 progressHandler.postDelayed({ updateMiniBallPlayIndicator() }, 100)
                 true
@@ -852,7 +1033,11 @@ class FloatingWindowService : Service() {
             updateMiniBallPlayIndicator()
 
             // Start/update rotation animation based on playback state
-            val isPlaying = MediaMonitorService.getInstance()?.getPlaybackInfo()?.isPlaying == true
+            val isPlaying = if (RemoteMode.isController()) {
+                RemoteClient.currentState?.isPlaying == true
+            } else {
+                MediaMonitorService.getInstance()?.getPlaybackInfo()?.isPlaying == true
+            }
             if (isPlaying) {
                 startCoverRotation(coverView)
             } else {
@@ -915,15 +1100,29 @@ class FloatingWindowService : Service() {
      * Update the progress ring on mini ball.
      */
     private fun updateMiniBallProgress() {
-        val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
-        if (playbackInfo != null && playbackInfo.duration > 0) {
-            val progress = ((playbackInfo.position.toFloat() / playbackInfo.duration) * 100).toInt()
+        val position: Long
+        val duration: Long
+        if (RemoteMode.isController()) {
+            val state = RemoteClient.currentState
+            position = state?.position ?: 0
+            duration = state?.duration ?: 0
+        } else {
+            val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
+            position = playbackInfo?.position ?: 0
+            duration = playbackInfo?.duration ?: 0
+        }
+        if (duration > 0) {
+            val progress = ((position.toFloat() / duration) * 100).toInt()
             miniBallView?.findViewById<ProgressBar>(R.id.progressRing)?.progress = progress
         }
     }
 
     private fun updateMiniBallPlayIndicator() {
-        val isPlaying = MediaMonitorService.getInstance()?.getPlaybackInfo()?.isPlaying == true
+        val isPlaying = if (RemoteMode.isController()) {
+            RemoteClient.currentState?.isPlaying == true
+        } else {
+            MediaMonitorService.getInstance()?.getPlaybackInfo()?.isPlaying == true
+        }
         miniBallView?.apply {
             val playIndicator = findViewById<ImageView>(R.id.ivPlayIndicator)
             if (isPlaying) {
@@ -971,6 +1170,7 @@ class FloatingWindowService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        RemoteClient.removeStateListener(remoteStateListener)
         hideFloatingWindow()
         Log.d(TAG, "FloatingWindowService destroyed")
     }

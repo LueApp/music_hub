@@ -12,11 +12,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.musichub.R
+import com.musichub.data.model.Playlist
 import com.musichub.databinding.FragmentPlaylistsBinding
+import com.musichub.remote.RemoteClient
+import com.musichub.remote.RemoteMode
 import com.musichub.ui.adapter.PlaylistAdapter
 import com.musichub.ui.viewmodel.PlaylistsViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlaylistsFragment : Fragment() {
 
@@ -104,6 +109,28 @@ class PlaylistsFragment : Fragment() {
     }
 
     private fun observeData() {
+        if (RemoteMode.isController()) {
+            // In controller mode, fetch playlists from remote server
+            viewLifecycleOwner.lifecycleScope.launch {
+                val remotePlaylists = withContext(Dispatchers.IO) {
+                    RemoteClient.fetchPlaylists()
+                }
+                val playlists = remotePlaylists.map { remote ->
+                    Playlist(
+                        id = remote.id,
+                        name = remote.name,
+                        description = remote.description
+                    )
+                }
+                playlistAdapter.submitList(playlists)
+
+                val isEmpty = playlists.isEmpty()
+                binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                binding.rvPlaylists.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            }
+            return
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.playlists.collectLatest { playlists ->
                 playlistAdapter.submitList(playlists)

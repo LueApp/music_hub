@@ -16,14 +16,19 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.musichub.R
 import com.musichub.databinding.FragmentHomeBinding
 import com.musichub.platform.Platforms
+import com.musichub.remote.RemoteClient
+import com.musichub.remote.RemoteMode
+import com.musichub.remote.toSong
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.MediaMonitorService
 import com.musichub.service.PlaybackService
 import com.musichub.ui.MainActivity
 import com.musichub.ui.adapter.SongAdapter
 import com.musichub.ui.viewmodel.HomeViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HomeFragment : Fragment() {
 
@@ -59,10 +64,18 @@ class HomeFragment : Fragment() {
     private fun setupRecyclerView() {
         songAdapter = SongAdapter(
             onSongClick = { song ->
-                (activity as? MainActivity)?.getPlaybackService()?.playSong(song)
+                if (RemoteMode.isController()) {
+                    RemoteClient.playSong(song.id)
+                } else {
+                    (activity as? MainActivity)?.getPlaybackService()?.playSong(song)
+                }
             },
             onPlayClick = { song ->
-                (activity as? MainActivity)?.getPlaybackService()?.playSong(song)
+                if (RemoteMode.isController()) {
+                    RemoteClient.playSong(song.id)
+                } else {
+                    (activity as? MainActivity)?.getPlaybackService()?.playSong(song)
+                }
             }
         )
 
@@ -173,6 +186,27 @@ class HomeFragment : Fragment() {
     }
 
     private fun observeData() {
+        if (RemoteMode.isController()) {
+            // In controller mode, fetch songs from remote server
+            viewLifecycleOwner.lifecycleScope.launch {
+                val songs = withContext(Dispatchers.IO) {
+                    RemoteClient.fetchAllSongs().map { it.toSong() }
+                }
+                songAdapter.submitList(songs)
+                binding.tvNoRecentPlays.visibility =
+                    if (songs.isEmpty()) View.VISIBLE else View.GONE
+                binding.rvRecentPlays.visibility =
+                    if (songs.isEmpty()) View.GONE else View.VISIBLE
+
+                // Update platform counts
+                val neteaseCnt = songs.count { it.platform == Platforms.NETEASE }
+                val qqCnt = songs.count { it.platform == Platforms.QQMUSIC }
+                binding.tvNeteaseSongCount.text = "$neteaseCnt 首"
+                binding.tvQQMusicSongCount.text = "$qqCnt 首"
+            }
+            return
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.recentSongs.collectLatest { songs ->
                 songAdapter.submitList(songs)
