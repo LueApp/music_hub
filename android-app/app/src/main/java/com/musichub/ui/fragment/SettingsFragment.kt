@@ -95,12 +95,16 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
         // Remote server IP preference
         findPreference<EditTextPreference>("remote_server_ip")?.apply {
+            isVisible = RemoteMode.isController()
             setOnPreferenceChangeListener { _, newValue ->
                 val ip = (newValue as String).trim()
-                if (RemoteMode.isController() && ip.isNotEmpty()) {
+                if (RemoteMode.isController()) {
                     RemoteClient.disconnect()
-                    RemoteMode.setController(ip)
-                    RemoteClient.connect()
+                    if (ip.isNotEmpty()) {
+                        RemoteMode.setController(ip)
+                        RemoteClient.connect()
+                        Toast.makeText(requireContext(), "正在连接到 $ip ...", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 summary = if (ip.isNotEmpty()) "服务器地址: $ip" else "输入播放手机的IP地址"
                 true
@@ -146,16 +150,16 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 Toast.makeText(requireContext(), "服务器已启动", Toast.LENGTH_SHORT).show()
             }
             "controller" -> {
+                // Set controller mode first; connection happens when user enters IP
                 val ip = findPreference<EditTextPreference>("remote_server_ip")?.text?.trim() ?: ""
-                if (ip.isEmpty()) {
-                    Toast.makeText(requireContext(), "请先输入服务器地址", Toast.LENGTH_SHORT).show()
-                    RemoteMode.setStandalone()
-                    findPreference<ListPreference>("remote_mode")?.value = "standalone"
-                    return
+                if (ip.isNotEmpty()) {
+                    RemoteMode.setController(ip)
+                    RemoteClient.connect()
+                    Toast.makeText(requireContext(), "正在连接到 $ip ...", Toast.LENGTH_SHORT).show()
+                } else {
+                    RemoteMode.setController("")
+                    Toast.makeText(requireContext(), "请输入服务器地址后自动连接", Toast.LENGTH_SHORT).show()
                 }
-                RemoteMode.setController(ip)
-                RemoteClient.connect()
-                Toast.makeText(requireContext(), "正在连接到 $ip ...", Toast.LENGTH_SHORT).show()
             }
         }
         updateRemoteStatus()

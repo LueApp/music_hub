@@ -64,7 +64,6 @@
             android:title="服务器地址"
             android:summary="输入播放手机的IP地址"
             android:defaultValue=""
-            android:dependency="remote_mode"
             app:iconSpaceReserved="false" />
 
         <Preference

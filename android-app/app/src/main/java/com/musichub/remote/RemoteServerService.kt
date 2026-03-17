@@ -52,17 +52,21 @@ class RemoteServerService : Service() {
         if (server != null) return
 
         val port = RemoteMode.DEFAULT_PORT
+        val ip = getDeviceIpAddress()
+
+        // Must call startForeground() immediately after startForegroundService()
+        // to avoid ANR/crash from the 5-second timeout
+        val notification = buildNotification(ip, port)
+        startForeground(NOTIFICATION_ID, notification)
+
         server = RemoteServer(port).also {
             try {
                 it.start()
                 it.startBroadcasting()
-                val ip = getDeviceIpAddress()
                 Log.i(TAG, "Remote server started on $ip:$port")
-
-                val notification = buildNotification(ip, port)
-                startForeground(NOTIFICATION_ID, notification)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start server: ${e.message}")
+                it.stop()
                 server = null
             }
         }
