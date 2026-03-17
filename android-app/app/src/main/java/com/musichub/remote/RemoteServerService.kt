@@ -34,7 +34,10 @@ class RemoteServerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startServer()
-            ACTION_STOP -> stopServer()
+            ACTION_STOP -> {
+                stopServer()
+                return START_NOT_STICKY
+            }
         }
         return START_STICKY
     }

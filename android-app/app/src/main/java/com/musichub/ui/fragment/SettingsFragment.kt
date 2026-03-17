@@ -137,7 +137,11 @@ class SettingsFragment : PreferenceFragmentCompat() {
     private fun handleRemoteModeChange(mode: String) {
         // Stop any existing remote services
         RemoteClient.disconnect()
-        RemoteServerService.stop(requireContext())
+        // Only stop server if it was actually running to avoid race condition
+        // where stop's stopSelf() races with start's startForeground()
+        if (RemoteMode.isPlayer()) {
+            RemoteServerService.stop(requireContext())
+        }
 
         when (mode) {
             "standalone" -> {
