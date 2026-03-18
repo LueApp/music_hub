@@ -47,48 +47,73 @@ object RemoteClient {
     // --- Connection ---
 
     fun connect() {
+        if (RemoteMode.serverHost.isBlank()) {
+            Log.w(TAG, "Cannot connect: server host is empty")
+            return
+        }
+
         val wsUrl = baseUrl().replace("http://", "ws://") + "/ws"
         Log.d(TAG, "Connecting WebSocket to $wsUrl")
 
-        val request = Request.Builder().url(wsUrl).build()
-        webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.i(TAG, "WebSocket connected")
-                isConnected = true
-                mainHandler.post {
-                    connectionListeners.forEach { it(true) }
+        try {
+            val request = Request.Builder().url(wsUrl).build()
+            webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    Log.i(TAG, "WebSocket connected")
+                    isConnected = true
+                    notifyConnectionListeners(true)
                 }
-            }
 
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                try {
-                    val state = gson.fromJson(text, RemoteState::class.java)
-                    currentState = state
-                    mainHandler.post {
-                        stateListeners.forEach { it(state) }
+                override fun onMessage(webSocket: WebSocket, text: String) {
+                    try {
+                        val state = gson.fromJson(text, RemoteState::class.java)
+                        currentState = state
+                        mainHandler.post {
+                            notifyStateListeners(state)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing state: ${e.message}")
                     }
+                }
+
+                override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    Log.i(TAG, "WebSocket closed: $reason")
+                    isConnected = false
+                    currentState = null
+                    notifyConnectionListeners(false)
+                }
+
+                override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    Log.e(TAG, "WebSocket failure: ${t.message}")
+                    isConnected = false
+                    notifyConnectionListeners(false)
+                }
+            })
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create WebSocket connection: ${e.message}")
+        }
+    }
+
+    private fun notifyStateListeners(state: RemoteState) {
+        for (listener in stateListeners.toList()) {
+            try {
+                listener(state)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in state listener: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun notifyConnectionListeners(connected: Boolean) {
+        mainHandler.post {
+            for (listener in connectionListeners.toList()) {
+                try {
+                    listener(connected)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing state: ${e.message}")
+                    Log.e(TAG, "Error in connection listener: ${e.message}", e)
                 }
             }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                Log.i(TAG, "WebSocket closed: $reason")
-                isConnected = false
-                currentState = null
-                mainHandler.post {
-                    connectionListeners.forEach { it(false) }
-                }
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e(TAG, "WebSocket failure: ${t.message}")
-                isConnected = false
-                mainHandler.post {
-                    connectionListeners.forEach { it(false) }
-                }
-            }
-        })
+        }
     }
 
     fun disconnect() {

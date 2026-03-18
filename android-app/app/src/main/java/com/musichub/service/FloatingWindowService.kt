@@ -88,9 +88,9 @@ class FloatingWindowService : Service() {
     private val remoteStateListener: (RemoteState) -> Unit = { state ->
         // Update current song info from remote state
         state.currentSong?.let { song ->
-            currentSongTitle = song.title
-            currentArtist = song.artist
-            currentCoverUrl = song.coverUrl
+            currentSongTitle = (song.title as String?) ?: ""
+            currentArtist = (song.artist as String?) ?: ""
+            currentCoverUrl = (song.coverUrl as String?) ?: ""
         }
     }
 
@@ -497,9 +497,10 @@ class FloatingWindowService : Service() {
                     findViewById<TextView>(R.id.tvSongTitle)?.text = song.title
                     findViewById<TextView>(R.id.tvArtist)?.text = song.artist
 
+                    val coverUrl = (song.coverUrl as String?) ?: ""
                     val coverView = findViewById<ImageView>(R.id.ivAlbumCover)
-                    if (song.coverUrl.isNotEmpty()) {
-                        coverView?.load(song.coverUrl) {
+                    if (coverUrl.isNotEmpty()) {
+                        coverView?.load(coverUrl) {
                             placeholder(R.drawable.ic_album)
                             error(R.drawable.ic_album)
                             allowHardware(false)

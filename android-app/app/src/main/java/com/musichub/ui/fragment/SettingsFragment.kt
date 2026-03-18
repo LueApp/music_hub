@@ -25,7 +25,9 @@ import kotlinx.coroutines.launch
 class SettingsFragment : PreferenceFragmentCompat() {
 
     private val connectionListener: (Boolean) -> Unit = { connected ->
-        updateRemoteStatus()
+        if (isAdded && view != null) {
+            updateRemoteStatus()
+        }
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {

@@ -35,13 +35,15 @@ class MainActivity : AppCompatActivity() {
     // Remote state listener for controller mode
     private val remoteStateListener: (RemoteState) -> Unit = { state ->
         runOnUiThread {
-            if (state.currentSong != null) {
+            val song = state.currentSong
+            if (song != null) {
                 binding.nowPlayingBar.visibility = View.VISIBLE
-                binding.tvNowPlayingTitle.text = state.currentSong.title
-                binding.tvNowPlayingArtist.text = state.currentSong.artist
+                binding.tvNowPlayingTitle.text = song.title
+                binding.tvNowPlayingArtist.text = song.artist
 
-                if (state.currentSong.coverUrl.isNotEmpty()) {
-                    binding.ivNowPlayingCover.load(state.currentSong.coverUrl) {
+                val coverUrl = (song.coverUrl as String?) ?: ""
+                if (coverUrl.isNotEmpty()) {
+                    binding.ivNowPlayingCover.load(coverUrl) {
                         placeholder(R.drawable.ic_album)
                         error(R.drawable.ic_album)
                     }

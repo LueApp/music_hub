@@ -5,38 +5,40 @@ import com.musichub.data.model.Song
 
 /**
  * Data classes for JSON serialization between server and client.
+ * Fields use defaults to guard against Gson setting null for missing JSON fields.
  */
 
 data class RemoteSong(
-    val id: Long,
-    val title: String,
-    val artist: String,
-    val album: String,
-    val platform: String,
-    val platformSongId: String,
-    val deepLink: String,
-    val coverUrl: String
+    val id: Long = 0,
+    val title: String = "",
+    val artist: String = "",
+    val album: String = "",
+    val platform: String = "",
+    val platformSongId: String = "",
+    val deepLink: String = "",
+    val coverUrl: String = ""
 )
 
 data class RemotePlaylist(
-    val id: Long,
-    val name: String,
-    val description: String,
-    val songCount: Int
+    val id: Long = 0,
+    val name: String = "",
+    val description: String = "",
+    val songCount: Int = 0
 )
 
 data class RemoteState(
-    val isPlaying: Boolean,
-    val position: Long,
-    val duration: Long,
-    val repeatMode: String,     // "OFF", "ALL", "ONE"
-    val shuffleEnabled: Boolean,
-    val currentSong: RemoteSong?,
-    val currentIndex: Int,
-    val queueSize: Int
+    val isPlaying: Boolean = false,
+    val position: Long = 0,
+    val duration: Long = 0,
+    val repeatMode: String = "OFF",     // "OFF", "ALL", "ONE"
+    val shuffleEnabled: Boolean = false,
+    val currentSong: RemoteSong? = null,
+    val currentIndex: Int = -1,
+    val queueSize: Int = 0
 )
 
 // Extension functions for conversion
+// Use orEmpty() to guard against Gson setting null on non-null Kotlin String fields
 
 fun Song.toRemoteSong() = RemoteSong(
     id = id,
@@ -51,13 +53,13 @@ fun Song.toRemoteSong() = RemoteSong(
 
 fun RemoteSong.toSong() = Song(
     id = id,
-    title = title,
-    artist = artist,
-    album = album,
-    platform = platform,
-    platformSongId = platformSongId,
-    deepLink = deepLink,
-    coverUrl = coverUrl
+    title = (title as String?) ?: "",
+    artist = (artist as String?) ?: "",
+    album = (album as String?) ?: "",
+    platform = (platform as String?) ?: "",
+    platformSongId = (platformSongId as String?) ?: "",
+    deepLink = (deepLink as String?) ?: "",
+    coverUrl = (coverUrl as String?) ?: ""
 )
 
 fun Playlist.toRemotePlaylist(songCount: Int = 0) = RemotePlaylist(
