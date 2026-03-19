@@ -72,6 +72,8 @@ class FloatingWindowService : Service() {
     private val progressUpdateInterval = 500L  // Update every 500ms
     private var isProgressUpdating = false
     private var isUserSeeking = false  // Track if user is dragging seekbar
+    private var seekCooldownUntil = 0L  // Ignore remote position updates until this time
+    private var modeCooldownUntil = 0L  // Ignore remote mode updates until this time
 
     // Store window positions for both modes
     private var fullModeParams: WindowManager.LayoutParams? = null
@@ -203,6 +205,7 @@ class FloatingWindowService : Service() {
                 Log.d(TAG, "Shuffle button clicked")
                 if (RemoteMode.isController()) {
                     RemoteClient.toggleShuffle()
+                    modeCooldownUntil = System.currentTimeMillis() + 2000
                 } else {
                     sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_SHUFFLE)
                 }
@@ -245,6 +248,7 @@ class FloatingWindowService : Service() {
                 Log.d(TAG, "Repeat button clicked")
                 if (RemoteMode.isController()) {
                     RemoteClient.toggleRepeat()
+                    modeCooldownUntil = System.currentTimeMillis() + 2000
                 } else {
                     sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_REPEAT)
                 }
@@ -338,6 +342,8 @@ class FloatingWindowService : Service() {
                         Log.d(TAG, "User seeked to position: $seekPosition ms")
                         if (RemoteMode.isController()) {
                             RemoteClient.seekTo(seekPosition)
+                            // Ignore remote position updates for 2s to prevent snap-back
+                            seekCooldownUntil = System.currentTimeMillis() + 2000
                         } else {
                             MediaMonitorService.getInstance()?.seekTo(seekPosition)
                         }
@@ -465,23 +471,29 @@ class FloatingWindowService : Service() {
             val tvTotalTime = findViewById<TextView>(R.id.tvTotalTime)
 
             if (state != null && state.duration > 0) {
-                tvCurrentTime?.text = formatTime(state.position)
+                val inCooldown = System.currentTimeMillis() < seekCooldownUntil
+
+                if (!inCooldown) {
+                    tvCurrentTime?.text = formatTime(state.position)
+                }
                 tvTotalTime?.text = formatTime(state.duration)
 
-                if (!isUserSeeking) {
+                if (!isUserSeeking && !inCooldown) {
                     val progress = ((state.position.toFloat() / state.duration.toFloat()) * 100).toInt()
                     seekBar?.progress = progress.coerceIn(0, 100)
                 }
 
                 updatePlayPauseIcon(state.isPlaying)
 
-                // Update mode icons from remote state
-                val repeatMode = when (state.repeatMode) {
-                    "ALL" -> PlaybackService.RepeatMode.ALL
-                    "ONE" -> PlaybackService.RepeatMode.ONE
-                    else -> PlaybackService.RepeatMode.OFF
+                // Update mode icons from remote state (skip during cooldown)
+                if (System.currentTimeMillis() >= modeCooldownUntil) {
+                    val repeatMode = when (state.repeatMode) {
+                        "ALL" -> PlaybackService.RepeatMode.ALL
+                        "ONE" -> PlaybackService.RepeatMode.ONE
+                        else -> PlaybackService.RepeatMode.OFF
+                    }
+                    updateModeIcons(repeatMode, state.shuffleEnabled)
                 }
-                updateModeIcons(repeatMode, state.shuffleEnabled)
             } else {
                 tvCurrentTime?.text = "0:00"
                 tvTotalTime?.text = "0:00"

@@ -189,20 +189,25 @@ class HomeFragment : Fragment() {
         if (RemoteMode.isController()) {
             // In controller mode, fetch songs from remote server
             viewLifecycleOwner.lifecycleScope.launch {
-                val songs = withContext(Dispatchers.IO) {
-                    RemoteClient.fetchAllSongs().map { it.toSong() }
-                }
-                songAdapter.submitList(songs)
-                binding.tvNoRecentPlays.visibility =
-                    if (songs.isEmpty()) View.VISIBLE else View.GONE
-                binding.rvRecentPlays.visibility =
-                    if (songs.isEmpty()) View.GONE else View.VISIBLE
+                try {
+                    val songs = withContext(Dispatchers.IO) {
+                        RemoteClient.fetchAllSongs().map { it.toSong() }
+                    }
+                    if (_binding == null) return@launch
+                    songAdapter.submitList(songs)
+                    binding.tvNoRecentPlays.visibility =
+                        if (songs.isEmpty()) View.VISIBLE else View.GONE
+                    binding.rvRecentPlays.visibility =
+                        if (songs.isEmpty()) View.GONE else View.VISIBLE
 
-                // Update platform counts
-                val neteaseCnt = songs.count { it.platform == Platforms.NETEASE }
-                val qqCnt = songs.count { it.platform == Platforms.QQMUSIC }
-                binding.tvNeteaseSongCount.text = "$neteaseCnt 首"
-                binding.tvQQMusicSongCount.text = "$qqCnt 首"
+                    // Update platform counts
+                    val neteaseCnt = songs.count { it.platform == Platforms.NETEASE }
+                    val qqCnt = songs.count { it.platform == Platforms.QQMUSIC }
+                    binding.tvNeteaseSongCount.text = "$neteaseCnt 首"
+                    binding.tvQQMusicSongCount.text = "$qqCnt 首"
+                } catch (e: Exception) {
+                    android.util.Log.e("HomeFragment", "Failed to fetch remote songs: ${e.message}", e)
+                }
             }
             return
         }

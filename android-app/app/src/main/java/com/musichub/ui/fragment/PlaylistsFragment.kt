@@ -112,21 +112,26 @@ class PlaylistsFragment : Fragment() {
         if (RemoteMode.isController()) {
             // In controller mode, fetch playlists from remote server
             viewLifecycleOwner.lifecycleScope.launch {
-                val remotePlaylists = withContext(Dispatchers.IO) {
-                    RemoteClient.fetchPlaylists()
-                }
-                val playlists = remotePlaylists.map { remote ->
-                    Playlist(
-                        id = remote.id,
-                        name = remote.name,
-                        description = remote.description
-                    )
-                }
-                playlistAdapter.submitList(playlists)
+                try {
+                    val remotePlaylists = withContext(Dispatchers.IO) {
+                        RemoteClient.fetchPlaylists()
+                    }
+                    if (_binding == null) return@launch
+                    val playlists = remotePlaylists.map { remote ->
+                        Playlist(
+                            id = remote.id,
+                            name = (remote.name as String?) ?: "",
+                            description = (remote.description as String?) ?: ""
+                        )
+                    }
+                    playlistAdapter.submitList(playlists)
 
-                val isEmpty = playlists.isEmpty()
-                binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                binding.rvPlaylists.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                    val isEmpty = playlists.isEmpty()
+                    binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                    binding.rvPlaylists.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                } catch (e: Exception) {
+                    android.util.Log.e("PlaylistsFragment", "Failed to fetch remote playlists: ${e.message}", e)
+                }
             }
             return
         }
