@@ -188,12 +188,16 @@ class HomeFragment : Fragment() {
     private fun observeData() {
         if (RemoteMode.isController()) {
             // In controller mode, fetch songs from remote server
+            binding.progressLoading.visibility = View.VISIBLE
+            binding.rvRecentPlays.visibility = View.GONE
+            binding.tvNoRecentPlays.visibility = View.GONE
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     val songs = withContext(Dispatchers.IO) {
                         RemoteClient.fetchAllSongs().map { it.toSong() }
                     }
                     if (_binding == null) return@launch
+                    binding.progressLoading.visibility = View.GONE
                     songAdapter.submitList(songs)
                     binding.tvNoRecentPlays.visibility =
                         if (songs.isEmpty()) View.VISIBLE else View.GONE
@@ -207,6 +211,10 @@ class HomeFragment : Fragment() {
                     binding.tvQQMusicSongCount.text = "$qqCnt 首"
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Failed to fetch remote songs: ${e.message}", e)
+                    if (_binding == null) return@launch
+                    binding.progressLoading.visibility = View.GONE
+                    binding.tvNoRecentPlays.visibility = View.VISIBLE
+                    Toast.makeText(context, R.string.remote_load_songs_failed, Toast.LENGTH_SHORT).show()
                 }
             }
             return

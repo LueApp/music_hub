@@ -28,10 +28,12 @@ object RemoteMode {
     fun setStandalone() {
         currentMode = AppMode.STANDALONE
         serverHost = ""
+        RemoteClient.disconnect()
     }
 
     fun setPlayer() {
         currentMode = AppMode.PLAYER
+        RemoteClient.disconnect()
     }
 
     fun setController(host: String, port: Int = DEFAULT_PORT) {

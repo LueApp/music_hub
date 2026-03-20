@@ -28,6 +28,12 @@ object RemoteClient {
         .build()
 
     private var webSocket: WebSocket? = null
+    private var intentionalDisconnect = false
+    private var reconnectDelay = INITIAL_RECONNECT_DELAY
+    private var reconnectRunnable: Runnable? = null
+
+    private const val INITIAL_RECONNECT_DELAY = 1000L  // 1 second
+    private const val MAX_RECONNECT_DELAY = 30000L     // 30 seconds
 
     // Cached state from WebSocket updates
     @Volatile
@@ -52,6 +58,9 @@ object RemoteClient {
             return
         }
 
+        intentionalDisconnect = false
+        cancelReconnect()
+
         val wsUrl = baseUrl().replace("http://", "ws://") + "/ws"
         Log.d(TAG, "Connecting WebSocket to $wsUrl")
 
@@ -61,6 +70,7 @@ object RemoteClient {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     Log.i(TAG, "WebSocket connected")
                     isConnected = true
+                    reconnectDelay = INITIAL_RECONNECT_DELAY
                     notifyConnectionListeners(true)
                 }
 
@@ -81,17 +91,40 @@ object RemoteClient {
                     isConnected = false
                     currentState = null
                     notifyConnectionListeners(false)
+                    scheduleReconnect()
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                     Log.e(TAG, "WebSocket failure: ${t.message}")
                     isConnected = false
                     notifyConnectionListeners(false)
+                    scheduleReconnect()
                 }
             })
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create WebSocket connection: ${e.message}")
+            scheduleReconnect()
         }
+    }
+
+    private fun scheduleReconnect() {
+        if (intentionalDisconnect || !RemoteMode.isController()) return
+
+        Log.d(TAG, "Scheduling reconnect in ${reconnectDelay}ms")
+        val runnable = Runnable {
+            if (!intentionalDisconnect && RemoteMode.isController()) {
+                Log.d(TAG, "Attempting reconnect...")
+                connect()
+            }
+        }
+        reconnectRunnable = runnable
+        mainHandler.postDelayed(runnable, reconnectDelay)
+        reconnectDelay = (reconnectDelay * 2).coerceAtMost(MAX_RECONNECT_DELAY)
+    }
+
+    private fun cancelReconnect() {
+        reconnectRunnable?.let { mainHandler.removeCallbacks(it) }
+        reconnectRunnable = null
     }
 
     private fun notifyStateListeners(state: RemoteState) {
@@ -117,6 +150,8 @@ object RemoteClient {
     }
 
     fun disconnect() {
+        intentionalDisconnect = true
+        cancelReconnect()
         webSocket?.close(1000, "Client disconnecting")
         webSocket = null
         isConnected = false
@@ -206,15 +241,10 @@ object RemoteClient {
     private inline fun <reified T> fetchList(path: String): List<T> {
         val url = baseUrl() + path
         val request = Request.Builder().url(url).get().build()
-        return try {
-            val response = httpClient.newCall(request).execute()
-            val body = response.body?.string() ?: return emptyList()
-            response.close()
-            val type = TypeToken.getParameterized(List::class.java, T::class.java).type
-            gson.fromJson(body, type) ?: emptyList()
-        } catch (e: Exception) {
-            Log.e(TAG, "Fetch $path failed: ${e.message}")
-            emptyList()
-        }
+        val response = httpClient.newCall(request).execute()
+        val body = response.body?.string() ?: return emptyList()
+        response.close()
+        val type = TypeToken.getParameterized(List::class.java, T::class.java).type
+        return gson.fromJson(body, type) ?: emptyList()
     }
 }

@@ -32,6 +32,18 @@ class MainActivity : AppCompatActivity() {
     private var playbackService: PlaybackService? = null
     private var serviceBound = false
 
+    // Connection status listener for controller mode
+    private val remoteConnectionListener: (Boolean) -> Unit = { connected ->
+        runOnUiThread {
+            if (connected) {
+                binding.tvConnectionStatus.visibility = View.GONE
+            } else {
+                binding.tvConnectionStatus.text = getString(R.string.remote_disconnected_reconnecting)
+                binding.tvConnectionStatus.visibility = View.VISIBLE
+            }
+        }
+    }
+
     // Remote state listener for controller mode
     private val remoteStateListener: (RemoteState) -> Unit = { state ->
         runOnUiThread {
@@ -87,6 +99,12 @@ class MainActivity : AppCompatActivity() {
         if (RemoteMode.isController()) {
             // In controller mode, listen to remote state updates instead of binding local service
             RemoteClient.addStateListener(remoteStateListener)
+            RemoteClient.addConnectionListener(remoteConnectionListener)
+            // Show initial connection status
+            if (!RemoteClient.isConnected) {
+                binding.tvConnectionStatus.text = getString(R.string.remote_disconnected_reconnecting)
+                binding.tvConnectionStatus.visibility = View.VISIBLE
+            }
         } else {
             bindPlaybackService()
         }
@@ -190,6 +208,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         RemoteClient.removeStateListener(remoteStateListener)
+        RemoteClient.removeConnectionListener(remoteConnectionListener)
         if (serviceBound) {
             unbindService(serviceConnection)
             serviceBound = false

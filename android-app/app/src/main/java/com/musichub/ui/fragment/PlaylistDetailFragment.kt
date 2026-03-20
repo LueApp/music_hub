@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
+import com.musichub.R
 import com.musichub.databinding.FragmentPlaylistDetailBinding
 import com.musichub.remote.RemoteClient
 import com.musichub.remote.RemoteMode
@@ -195,17 +197,30 @@ class PlaylistDetailFragment : Fragment() {
     private fun observeData() {
         if (RemoteMode.isController()) {
             // In controller mode, fetch playlist songs from remote
+            binding.progressLoading?.visibility = View.VISIBLE
+            binding.rvSongs.visibility = View.GONE
+            binding.emptyState.visibility = View.GONE
+            binding.tvPlaylistName.text = args.playlistName
             viewLifecycleOwner.lifecycleScope.launch {
-                val songs = withContext(Dispatchers.IO) {
-                    RemoteClient.fetchPlaylistSongs(args.playlistId).map { it.toSong() }
-                }
-                songAdapter.submitList(songs)
-                binding.tvSongCount.text = "${songs.size} 首歌曲"
-                binding.tvPlaylistName.text = args.playlistName
+                try {
+                    val songs = withContext(Dispatchers.IO) {
+                        RemoteClient.fetchPlaylistSongs(args.playlistId).map { it.toSong() }
+                    }
+                    if (_binding == null) return@launch
+                    binding.progressLoading?.visibility = View.GONE
+                    songAdapter.submitList(songs)
+                    binding.tvSongCount.text = "${songs.size} 首歌曲"
 
-                val isEmpty = songs.isEmpty()
-                binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                binding.rvSongs.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                    val isEmpty = songs.isEmpty()
+                    binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                    binding.rvSongs.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                } catch (e: Exception) {
+                    android.util.Log.e("PlaylistDetailFragment", "Failed to fetch remote playlist songs: ${e.message}", e)
+                    if (_binding == null) return@launch
+                    binding.progressLoading?.visibility = View.GONE
+                    binding.emptyState.visibility = View.VISIBLE
+                    Toast.makeText(context, R.string.remote_load_songs_failed, Toast.LENGTH_SHORT).show()
+                }
             }
             return
         }

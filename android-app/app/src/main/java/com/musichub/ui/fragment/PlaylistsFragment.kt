@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -111,12 +112,16 @@ class PlaylistsFragment : Fragment() {
     private fun observeData() {
         if (RemoteMode.isController()) {
             // In controller mode, fetch playlists from remote server
+            binding.progressLoading.visibility = View.VISIBLE
+            binding.rvPlaylists.visibility = View.GONE
+            binding.emptyState.visibility = View.GONE
             viewLifecycleOwner.lifecycleScope.launch {
                 try {
                     val remotePlaylists = withContext(Dispatchers.IO) {
                         RemoteClient.fetchPlaylists()
                     }
                     if (_binding == null) return@launch
+                    binding.progressLoading.visibility = View.GONE
                     val playlists = remotePlaylists.map { remote ->
                         Playlist(
                             id = remote.id,
@@ -131,6 +136,10 @@ class PlaylistsFragment : Fragment() {
                     binding.rvPlaylists.visibility = if (isEmpty) View.GONE else View.VISIBLE
                 } catch (e: Exception) {
                     android.util.Log.e("PlaylistsFragment", "Failed to fetch remote playlists: ${e.message}", e)
+                    if (_binding == null) return@launch
+                    binding.progressLoading.visibility = View.GONE
+                    binding.emptyState.visibility = View.VISIBLE
+                    Toast.makeText(context, R.string.remote_load_playlists_failed, Toast.LENGTH_SHORT).show()
                 }
             }
             return
