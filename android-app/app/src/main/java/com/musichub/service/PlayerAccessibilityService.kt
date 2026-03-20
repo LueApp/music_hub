@@ -308,6 +308,47 @@ class PlayerAccessibilityService : AccessibilityService() {
         return dispatchGesture(gestureBuilder.build(), callback, handler)
     }
 
+    /**
+     * Dismiss QQ Music error/no-copyright dialog.
+     * Tries to find and click the close button, falls back to GLOBAL_ACTION_BACK.
+     */
+    fun dismissErrorDialog() {
+        val rootNode = rootInActiveWindow
+        if (rootNode == null) {
+            Log.d(TAG, "dismissErrorDialog: rootInActiveWindow is null, sending BACK")
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            return
+        }
+
+        try {
+            val closeNodes = rootNode.findAccessibilityNodeInfosByViewId(
+                "$QQMUSIC_PACKAGE:id/close_btn"
+            )
+            if (closeNodes.isNotEmpty()) {
+                val node = closeNodes[0]
+                val rect = android.graphics.Rect()
+                node.getBoundsInScreen(rect)
+                val x = (rect.left + rect.right) / 2f
+                val y = (rect.top + rect.bottom) / 2f
+                Log.i(TAG, "Found close_btn at $rect, clicking at ($x, $y)")
+                if (!performGestureClick(x, y)) {
+                    // Gesture failed, try performAction as backup
+                    node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                }
+                closeNodes.forEach { it.recycle() }
+            } else {
+                Log.d(TAG, "close_btn not found, sending BACK")
+                performGlobalAction(GLOBAL_ACTION_BACK)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error dismissing dialog: ${e.message}")
+            performGlobalAction(GLOBAL_ACTION_BACK)
+        } finally {
+            @Suppress("DEPRECATION")
+            rootNode.recycle()
+        }
+    }
+
     private fun findNodesByContentDesc(
         root: AccessibilityNodeInfo,
         desc: String
@@ -343,6 +384,20 @@ class PlayerAccessibilityService : AccessibilityService() {
         private var instance: PlayerAccessibilityService? = null
 
         fun getInstance(): PlayerAccessibilityService? = instance
+
+        /**
+         * Dismiss QQ Music error dialog if the accessibility service is running.
+         * @return true if the service was available and dismissal was attempted
+         */
+        fun dismissQQMusicDialog(): Boolean {
+            val service = instance
+            if (service != null) {
+                service.dismissErrorDialog()
+                return true
+            }
+            Log.d(TAG, "Cannot dismiss dialog: accessibility service not running")
+            return false
+        }
 
         /**
          * Request clicking the mini player via broadcast.

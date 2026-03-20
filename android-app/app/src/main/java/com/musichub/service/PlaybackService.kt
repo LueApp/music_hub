@@ -22,6 +22,7 @@ import com.musichub.platform.PlatformHandler
 import com.musichub.platform.NetEasePlatform
 import com.musichub.platform.QQMusicPlatform
 import com.musichub.platform.BilibiliPlatform
+import com.musichub.remote.RemoteMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -45,6 +46,12 @@ class PlaybackService : Service() {
     // Track skipped songs to prevent infinite loops when all songs are unavailable
     private var consecutiveSkips: Int = 0
     private val MAX_CONSECUTIVE_SKIPS = 10
+
+    // Post-launch playback timeout: detect songs that fail to play at runtime
+    private val PLAYBACK_TIMEOUT_MS = 15000L
+    private var playbackTimeoutRunnable: Runnable? = null
+    private var lastLaunchedSongId: Long = -1L
+    private val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     // Wake lock to keep CPU running while playing
     private var wakeLock: PowerManager.WakeLock? = null
@@ -279,6 +286,7 @@ class PlaybackService : Service() {
     }
 
     fun clearQueue() {
+        cancelPlaybackTimeout()
         queue.clear()
         currentIndex = -1
         isPlaying = false
@@ -405,6 +413,7 @@ class PlaybackService : Service() {
     }
 
     fun stop() {
+        cancelPlaybackTimeout()
         isPlaying = false
         releaseWakeLock()
         releaseScreenWakeLock()
@@ -413,6 +422,7 @@ class PlaybackService : Service() {
     }
 
     private fun launchCurrentSong() {
+        cancelPlaybackTimeout()
         val song = getCurrentSong() ?: return
         val handler = getHandlerForPlatform(song.platform)
 
@@ -514,6 +524,9 @@ class PlaybackService : Service() {
 
         // Update floating window if active
         FloatingWindowService.updateCurrentSong(this, song)
+
+        // Schedule playback timeout to detect runtime failures
+        schedulePlaybackTimeout(song)
 
         Log.i(TAG, "Now playing: ${song.title} by ${song.artist} (${song.platform})")
     }
@@ -625,6 +638,66 @@ class PlaybackService : Service() {
         shuffledIndices.addAll(indices)
 
         Log.d(TAG, "Generated shuffle order: $shuffledIndices")
+    }
+
+    // --- Playback timeout detection ---
+
+    private fun cancelPlaybackTimeout() {
+        playbackTimeoutRunnable?.let {
+            timeoutHandler.removeCallbacks(it)
+            playbackTimeoutRunnable = null
+        }
+    }
+
+    private fun schedulePlaybackTimeout(song: Song) {
+        // Don't schedule for Bilibili (excluded from auto-advance) or controller mode
+        if (song.platform == Platforms.BILIBILI || RemoteMode.isController()) {
+            return
+        }
+
+        cancelPlaybackTimeout()
+        lastLaunchedSongId = song.id
+
+        val runnable = Runnable {
+            // Verify this timeout is still for the current song
+            if (song.id != lastLaunchedSongId) {
+                Log.d(TAG, "Playback timeout fired for stale song ${song.title}, ignoring")
+                return@Runnable
+            }
+
+            val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
+            if (playbackInfo?.isPlaying == true) {
+                // Song is playing fine — reset consecutive skips
+                Log.d(TAG, "Playback timeout check: ${song.title} is playing, all good")
+                consecutiveSkips = 0
+                return@Runnable
+            }
+
+            // Song failed to start playing
+            Log.w(TAG, "Playback timeout: ${song.title} by ${song.artist} (${song.platform}/${song.platformSongId}) - skipping [skip ${consecutiveSkips + 1}/$MAX_CONSECUTIVE_SKIPS]")
+            consecutiveSkips++
+
+            if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
+                showToast("连续多首歌曲不可用，已停止播放")
+                stop()
+                return@Runnable
+            }
+
+            showToast("跳过: ${song.title} (播放超时)")
+
+            // For QQ Music, dismiss the error dialog before skipping to next song
+            if (song.platform == Platforms.QQMUSIC) {
+                PlayerAccessibilityService.dismissQQMusicDialog()
+                // Delay to let dialog close animation complete before launching next song
+                timeoutHandler.postDelayed({ playNext() }, 500L)
+            } else {
+                playNext()
+            }
+        }
+
+        playbackTimeoutRunnable = runnable
+        timeoutHandler.postDelayed(runnable, PLAYBACK_TIMEOUT_MS)
+        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${PLAYBACK_TIMEOUT_MS}ms)")
     }
 
     companion object {
