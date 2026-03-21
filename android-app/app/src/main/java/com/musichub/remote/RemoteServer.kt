@@ -1,5 +1,7 @@
 package com.musichub.remote
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.musichub.MusicHubApplication
@@ -19,6 +21,7 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
 
     private val TAG = "RemoteServer"
     private val gson = Gson()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val connectedClients = mutableListOf<RemoteWebSocket>()
     private var broadcastJob: Job? = null
     private val broadcastScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -60,6 +63,9 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
                 method == Method.GET && uri.matches(Regex("/api/playlists/\\d+/songs")) -> handleGetPlaylistSongs(uri)
                 method == Method.GET && uri == "/api/songs" -> handleGetAllSongs()
 
+                // Playlist management
+                method == Method.POST && uri.matches(Regex("/api/playlists/\\d+/import")) -> handleImportSongsToPlaylist(session, uri)
+
                 // Play from library
                 method == Method.POST && uri.matches(Regex("/api/play/song/\\d+")) -> handlePlaySong(uri)
                 method == Method.POST && uri.matches(Regex("/api/play/playlist/\\d+")) -> handlePlayPlaylist(uri)
@@ -100,41 +106,41 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
     // --- Playback Controls ---
 
     private fun handlePlayNext(): Response {
-        PlaybackService.getInstance()?.playNext()
+        mainHandler.post { PlaybackService.getInstance()?.playNext() }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
     private fun handlePlayPrevious(): Response {
-        PlaybackService.getInstance()?.playPrevious()
+        mainHandler.post { PlaybackService.getInstance()?.playPrevious() }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
     private fun handleTogglePlayPause(): Response {
-        MediaMonitorService.getInstance()?.togglePlayPause()
+        mainHandler.post { MediaMonitorService.getInstance()?.togglePlayPause() }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
     private fun handlePlayAtIndex(uri: String): Response {
         val index = uri.substringAfterLast("/").toIntOrNull()
             ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid index"))
-        PlaybackService.getInstance()?.playAtIndex(index)
+        mainHandler.post { PlaybackService.getInstance()?.playAtIndex(index) }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
     private fun handleSeek(uri: String): Response {
         val positionMs = uri.substringAfterLast("/").toLongOrNull()
             ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid position"))
-        MediaMonitorService.getInstance()?.seekTo(positionMs)
+        mainHandler.post { MediaMonitorService.getInstance()?.seekTo(positionMs) }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
     private fun handleToggleShuffle(): Response {
-        PlaybackService.getInstance()?.toggleShuffle()
+        mainHandler.post { PlaybackService.getInstance()?.toggleShuffle() }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
     private fun handleToggleRepeat(): Response {
-        PlaybackService.getInstance()?.toggleRepeatMode()
+        mainHandler.post { PlaybackService.getInstance()?.toggleRepeatMode() }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
@@ -178,6 +184,38 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
         return jsonResponse(Response.Status.OK, songs)
     }
 
+    // --- Playlist Management ---
+
+    private fun handleImportSongsToPlaylist(session: IHTTPSession, uri: String): Response {
+        val playlistId = uri.split("/").dropLast(1).last().toLongOrNull()
+            ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid playlist ID"))
+
+        val contentLength = session.headers["content-length"]?.toIntOrNull() ?: 0
+        val body = ByteArray(contentLength)
+        session.inputStream.read(body, 0, contentLength)
+        val bodyStr = String(body)
+
+        val songIds: List<Long> = try {
+            val type = com.google.gson.reflect.TypeToken.getParameterized(
+                List::class.java, java.lang.Long::class.java
+            ).type
+            gson.fromJson(bodyStr, type) ?: emptyList()
+        } catch (e: Exception) {
+            return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid JSON body"))
+        }
+
+        if (songIds.isEmpty()) {
+            return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "No song IDs provided"))
+        }
+
+        runBlocking(Dispatchers.IO) {
+            MusicHubApplication.getInstance().database.playlistItemDao()
+                .addSongsToPlaylist(playlistId, songIds)
+        }
+
+        return jsonResponse(Response.Status.OK, mapOf("ok" to true, "added" to songIds.size))
+    }
+
     // --- Play from Library ---
 
     private fun handlePlaySong(uri: String): Response {
@@ -188,7 +226,7 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
             MusicHubApplication.getInstance().database.songDao().getById(songId)
         } ?: return jsonResponse(Response.Status.NOT_FOUND, mapOf("error" to "Song not found"))
 
-        PlaybackService.getInstance()?.playSong(song)
+        mainHandler.post { PlaybackService.getInstance()?.playSong(song) }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
@@ -205,8 +243,10 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
             return jsonResponse(Response.Status.OK, mapOf("ok" to false, "error" to "Playlist is empty"))
         }
 
-        PlaybackService.getInstance()?.setQueue(songs, 0)
-        PlaybackService.getInstance()?.playAtIndex(0)
+        mainHandler.post {
+            PlaybackService.getInstance()?.setQueue(songs, 0)
+            PlaybackService.getInstance()?.playAtIndex(0)
+        }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
