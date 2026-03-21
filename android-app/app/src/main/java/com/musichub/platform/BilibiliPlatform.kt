@@ -81,16 +81,15 @@ class BilibiliPlatform : PlatformHandler {
         return when {
             platformSongId.startsWith("video:BV") -> {
                 val bvid = platformSongId.removePrefix("video:")
-                // Bilibili app supports multiple URI formats
-                "https://www.bilibili.com/video/$bvid"
+                "bilibili://video/$bvid?start_progress=0"
             }
             platformSongId.startsWith("video:av") -> {
                 val avid = platformSongId.removePrefix("video:av")
-                "https://www.bilibili.com/video/av$avid"
+                "bilibili://video/av$avid?start_progress=0"
             }
             platformSongId.startsWith("audio:") -> {
                 val auid = platformSongId.removePrefix("audio:")
-                "https://www.bilibili.com/audio/au$auid"
+                "bilibili://music/detail/$auid"
             }
             else -> "https://www.bilibili.com"
         }

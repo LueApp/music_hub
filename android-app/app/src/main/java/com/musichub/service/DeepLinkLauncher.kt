@@ -28,6 +28,12 @@ object DeepLinkLauncher {
     // Duration to keep auto-rotate disabled before re-enabling
     private const val AUTO_ROTATE_OFF_DURATION_MS = 200L
 
+    private const val BILIBILI_PACKAGE = "tv.danmaku.bili"
+
+    // Patterns for converting legacy HTTPS Bilibili deep links to bilibili:// scheme
+    private val bilibiliVideoPattern = Regex("""https?://(?:www\.)?bilibili\.com/video/((?:BV[a-zA-Z0-9]+|av\d+))""")
+    private val bilibiliAudioPattern = Regex("""https?://(?:www\.)?bilibili\.com/audio/au(\d+)""")
+
     /**
      * Launch a deep link URL, falling back to web URL if the app isn't installed.
      *
@@ -62,19 +68,23 @@ object DeepLinkLauncher {
     }
 
     private fun launchNormal(context: Context, deepLink: String, fallbackUrl: String): Boolean {
-        Log.d(TAG, "Launching deep link: $deepLink")
+        val resolvedLink = convertLegacyBilibiliDeepLink(deepLink)
+        Log.d(TAG, "Launching deep link: $resolvedLink (original: $deepLink)")
 
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            data = Uri.parse(deepLink)
+            data = Uri.parse(resolvedLink)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (resolvedLink.startsWith("bilibili://")) {
+                setPackage(BILIBILI_PACKAGE)
+            }
         }
 
         return try {
             context.startActivity(intent)
-            Log.i(TAG, "Successfully launched: $deepLink")
+            Log.i(TAG, "Successfully launched: $resolvedLink")
 
             // For QQ Music, use accessibility service to click mini player
-            if (deepLink.contains("qqmusic://")) {
+            if (resolvedLink.contains("qqmusic://")) {
                 Handler(Looper.getMainLooper()).postDelayed({
                     val a11yService = PlayerAccessibilityService.getInstance()
                     if (a11yService != null) {
@@ -90,13 +100,18 @@ object DeepLinkLauncher {
             // NetEase doesn't detect the current orientation on activity start when
             // the device is already in landscape; toggling auto-rotate forces the
             // system to re-deliver the orientation configuration.
-            if (deepLink.startsWith("orpheus://")) {
+            if (resolvedLink.startsWith("orpheus://")) {
                 toggleAutoRotate(context)
             }
 
             true
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to launch deep link, trying fallback: ${e.message}")
+            Log.w(TAG, "Failed to launch deep link: ${e.message}")
+            // For bilibili:// links, fall back to HTTPS URL (browser)
+            if (resolvedLink.startsWith("bilibili://") && fallbackUrl.isNotEmpty()) {
+                Log.d(TAG, "Bilibili app not available, falling back to browser: $fallbackUrl")
+                return launchFallback(context, fallbackUrl)
+            }
             if (fallbackUrl.isNotEmpty()) {
                 launchFallback(context, fallbackUrl)
             } else {
@@ -109,23 +124,30 @@ object DeepLinkLauncher {
      * Launch deep link for when the screen is locked.
      */
     private fun launchForLockedScreen(context: Context, deepLink: String, fallbackUrl: String): Boolean {
-        Log.d(TAG, "Launching for locked screen: $deepLink")
+        val resolvedLink = convertLegacyBilibiliDeepLink(deepLink)
+        Log.d(TAG, "Launching for locked screen: $resolvedLink (original: $deepLink)")
 
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            data = Uri.parse(deepLink)
+            data = Uri.parse(resolvedLink)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+            if (resolvedLink.startsWith("bilibili://")) {
+                setPackage(BILIBILI_PACKAGE)
+            }
         }
 
         return try {
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     context.startActivity(intent)
-                    Log.i(TAG, "Successfully launched for locked screen: $deepLink")
+                    Log.i(TAG, "Successfully launched for locked screen: $resolvedLink")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to launch for locked screen: ${e.message}")
-                    if (fallbackUrl.isNotEmpty()) {
+                    if (resolvedLink.startsWith("bilibili://") && fallbackUrl.isNotEmpty()) {
+                        Log.d(TAG, "Bilibili app not available on locked screen, falling back to browser")
+                        launchFallback(context, fallbackUrl)
+                    } else if (fallbackUrl.isNotEmpty()) {
                         launchFallback(context, fallbackUrl)
                     }
                 }
@@ -139,6 +161,36 @@ object DeepLinkLauncher {
                 false
             }
         }
+    }
+
+    /**
+     * Convert legacy HTTPS Bilibili deep links to bilibili:// scheme.
+     * Existing database entries store HTTPS URLs; this converts them at launch time
+     * so the Bilibili app handles them directly.
+     */
+    private fun convertLegacyBilibiliDeepLink(deepLink: String): String {
+        // Already using bilibili:// scheme, no conversion needed
+        if (deepLink.startsWith("bilibili://")) return deepLink
+
+        // Try video pattern: https://www.bilibili.com/video/BVxxx or /video/av123
+        val videoMatch = bilibiliVideoPattern.find(deepLink)
+        if (videoMatch != null) {
+            val videoId = videoMatch.groupValues[1]
+            val converted = "bilibili://video/$videoId?start_progress=0"
+            Log.d(TAG, "Converted legacy Bilibili deep link: $deepLink -> $converted")
+            return converted
+        }
+
+        // Try audio pattern: https://www.bilibili.com/audio/au123
+        val audioMatch = bilibiliAudioPattern.find(deepLink)
+        if (audioMatch != null) {
+            val audioId = audioMatch.groupValues[1]
+            val converted = "bilibili://music/detail/$audioId"
+            Log.d(TAG, "Converted legacy Bilibili deep link: $deepLink -> $converted")
+            return converted
+        }
+
+        return deepLink
     }
 
     private fun launchFallback(context: Context, url: String): Boolean {
