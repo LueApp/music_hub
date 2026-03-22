@@ -3,48 +3,102 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fitsSystemWindows="false">
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:paddingStart="32dp"
-        android:paddingEnd="32dp">
+        android:orientation="horizontal">
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="8dp"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            app:startIconDrawable="@drawable/ic_search"
-            app:boxCornerRadiusTopStart="24dp"
-            app:boxCornerRadiusTopEnd="24dp"
-            app:boxCornerRadiusBottomStart="24dp"
-            app:boxCornerRadiusBottomEnd="24dp">
+        <!-- Left Panel: Song List / Empty State -->
+        <FrameLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etSearch"
+            <!-- Song list -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvSongs"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                tools:listitem="@layout/item_song" />
+
+            <!-- Empty state -->
+            <LinearLayout
+                android:id="@+id/emptyState"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:src="@drawable/ic_music_note"
+                    android:alpha="0.3"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/no_songs_cn"
+                    android:textSize="16sp"
+                    android:textColor="@color/text_hint"
+                    android:layout_marginTop="16dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddFirstSong"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/add_song_cn"
+                    android:layout_marginTop="16dp" />
+
+            </LinearLayout>
+
+        </FrameLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/divider" />
+
+        <!-- Right Panel: Search, Filters, Song Count -->
+        <LinearLayout
+            android:layout_width="240dp"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Search Bar -->
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="@string/search_songs_cn"
-                android:inputType="text"
-                android:maxLines="1" />
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                app:startIconDrawable="@drawable/ic_search"
+                app:boxCornerRadiusTopStart="24dp"
+                app:boxCornerRadiusTopEnd="24dp"
+                app:boxCornerRadiusBottomStart="24dp"
+                app:boxCornerRadiusBottomEnd="24dp">
 
-        </com.google.android.material.textfield.TextInputLayout>
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etSearch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/search_songs_cn"
+                    android:inputType="text"
+                    android:maxLines="1" />
 
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="none">
+            </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Filter chips -->
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chipGroupFilter"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:singleSelection="true">
+                android:layout_marginTop="12dp"
+                app:singleSelection="true"
+                app:singleLine="false">
 
                 <com.google.android.material.chip.Chip
                     android:id="@+id/chipAll"
@@ -68,71 +122,40 @@
                     android:text="@string/platform_qqmusic_cn"
                     style="@style/Widget.Material3.Chip.Filter" />
 
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipBilibili"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/platform_bilibili_cn"
+                    style="@style/Widget.Material3.Chip.Filter" />
+
             </com.google.android.material.chip.ChipGroup>
 
-        </HorizontalScrollView>
-
-        <TextView
-            android:id="@+id/tvSongCount"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:textColor="@color/text_secondary"
-            android:textSize="14sp"
-            tools:text="25 首歌曲" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvSongs"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            tools:listitem="@layout/item_song" />
-
-        <LinearLayout
-            android:id="@+id/emptyState"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:visibility="gone">
-
-            <ImageView
-                android:layout_width="96dp"
-                android:layout_height="96dp"
-                android:src="@drawable/ic_music_note"
-                android:alpha="0.3"
-                android:contentDescription="@null" />
-
+            <!-- Song count -->
             <TextView
+                android:id="@+id/tvSongCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/no_songs_cn"
-                android:textSize="16sp"
-                android:textColor="@color/text_hint"
-                android:layout_marginTop="16dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnAddFirstSong"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/add_song_cn"
-                android:layout_marginTop="16dp" />
+                android:layout_marginTop="12dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp"
+                tools:text="25 首歌曲" />
 
         </LinearLayout>
 
     </LinearLayout>
 
+    <!-- FAB container -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_marginEnd="48dp"
+        android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         android:orientation="vertical"
         android:gravity="center_horizontal">
 
+        <!-- Locate current song FAB (mini, on top) -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabLocate"
             android:layout_width="wrap_content"
@@ -144,6 +167,7 @@
             app:tint="@android:color/white"
             android:contentDescription="@string/locate_current_song" />
 
+        <!-- Play all FAB (main, larger, at bottom) -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabPlayAll"
             android:layout_width="wrap_content"
