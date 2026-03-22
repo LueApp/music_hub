@@ -6,9 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.musichub.MusicHubApplication
 import com.musichub.data.model.Playlist
 import com.musichub.data.model.Song
+import com.musichub.data.model.SyncSource
 import com.musichub.data.repository.MusicRepository
+import com.musichub.sync.PlaylistSyncEngine
+import com.musichub.sync.SyncResult
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -31,6 +36,19 @@ class PlaylistDetailViewModel(
             initialValue = emptyList()
         )
 
+    val syncSources: StateFlow<List<SyncSource>> = repository.getSyncSourcesForPlaylist(playlistId)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+
+    private val _syncResult = MutableStateFlow<SyncResult?>(null)
+    val syncResult: StateFlow<SyncResult?> = _syncResult.asStateFlow()
+
     fun removeSongFromPlaylist(songId: Long) {
         viewModelScope.launch {
             repository.removeSongFromPlaylist(playlistId, songId)
@@ -40,6 +58,57 @@ class PlaylistDetailViewModel(
     fun reorderSong(songId: Long, newPosition: Int) {
         viewModelScope.launch {
             repository.reorderSong(playlistId, songId, newPosition)
+        }
+    }
+
+    fun syncNow() {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            _syncResult.value = null
+            try {
+                val engine = PlaylistSyncEngine(repository)
+                val result = engine.syncPlaylist(playlistId)
+                _syncResult.value = result
+            } catch (e: Exception) {
+                _syncResult.value = SyncResult(playlistId, errors = listOf(e.message ?: "Unknown error"))
+            } finally {
+                _isSyncing.value = false
+            }
+        }
+    }
+
+    fun clearSyncResult() {
+        _syncResult.value = null
+    }
+
+    /**
+     * Format the sync status text for display.
+     */
+    fun formatSyncStatus(sources: List<SyncSource>): String {
+        if (sources.isEmpty()) return ""
+
+        val latestSync = sources.maxByOrNull { it.lastSyncAt }
+        val timeText = if (latestSync == null || latestSync.lastSyncAt == 0L) {
+            "从未同步"
+        } else {
+            formatRelativeTime(latestSync.lastSyncAt)
+        }
+
+        val sourceCount = sources.size
+        return "$timeText · ${sourceCount}个同步源"
+    }
+
+    private fun formatRelativeTime(timestamp: Long): String {
+        val diff = System.currentTimeMillis() - timestamp
+        val minutes = diff / (1000 * 60)
+        val hours = minutes / 60
+        val days = hours / 24
+
+        return when {
+            minutes < 1 -> "刚刚"
+            minutes < 60 -> "${minutes}分钟前"
+            hours < 24 -> "${hours}小时前"
+            else -> "${days}天前"
         }
     }
 

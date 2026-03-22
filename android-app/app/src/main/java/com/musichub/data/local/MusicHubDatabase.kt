@@ -7,10 +7,11 @@ import androidx.room.RoomDatabase
 import com.musichub.data.model.Playlist
 import com.musichub.data.model.PlaylistItem
 import com.musichub.data.model.Song
+import com.musichub.data.model.SyncSource
 
 @Database(
-    entities = [Song::class, Playlist::class, PlaylistItem::class],
-    version = 1,
+    entities = [Song::class, Playlist::class, PlaylistItem::class, SyncSource::class],
+    version = 2,
     exportSchema = false
 )
 abstract class MusicHubDatabase : RoomDatabase() {
@@ -18,6 +19,7 @@ abstract class MusicHubDatabase : RoomDatabase() {
     abstract fun songDao(): SongDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun playlistItemDao(): PlaylistItemDao
+    abstract fun syncSourceDao(): SyncSourceDao
 
     companion object {
         @Volatile

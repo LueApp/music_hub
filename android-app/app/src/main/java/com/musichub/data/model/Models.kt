@@ -49,7 +49,9 @@ data class Playlist(
     @ColumnInfo(name = "created_at")
     val createdAt: Long = System.currentTimeMillis(),
     @ColumnInfo(name = "updated_at")
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "sync_interval_minutes")
+    val syncIntervalMinutes: Long = 360
 )
 
 /**
@@ -71,7 +73,9 @@ data class PlaylistItem(
     val songId: Long,
     val position: Int,
     @ColumnInfo(name = "added_at")
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "sync_source_id")
+    val syncSourceId: Long? = null
 )
 
 /**
@@ -95,4 +99,35 @@ data class ParsedSong(
 data class PlaylistWithCount(
     val playlist: Playlist,
     val songCount: Int
+)
+
+/**
+ * Sync source entity linking a playlist to a remote source playlist.
+ * A playlist can have multiple sync sources from different platforms.
+ */
+@Entity(
+    tableName = "sync_sources",
+    indices = [
+        Index(value = ["playlist_id"]),
+        Index(value = ["playlist_id", "platform", "remote_playlist_id"], unique = true)
+    ]
+)
+data class SyncSource(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    @ColumnInfo(name = "playlist_id")
+    val playlistId: Long,
+    val platform: String,
+    @ColumnInfo(name = "remote_playlist_id")
+    val remotePlaylistId: String,
+    @ColumnInfo(name = "source_url")
+    val sourceUrl: String,
+    @ColumnInfo(name = "last_sync_at")
+    val lastSyncAt: Long = 0,
+    @ColumnInfo(name = "last_sync_status")
+    val lastSyncStatus: String = "never",  // "never", "success", "error"
+    @ColumnInfo(name = "last_sync_error")
+    val lastSyncError: String = "",
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long = System.currentTimeMillis()
 )

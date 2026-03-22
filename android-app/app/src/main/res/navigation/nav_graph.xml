@@ -65,6 +65,14 @@
             android:id="@+id/action_detail_to_add_song"
             app:destination="@id/nav_add_song" />
 
+        <action
+            android:id="@+id/action_detail_to_import_from_library"
+            app:destination="@id/nav_import_from_library" />
+
+        <action
+            android:id="@+id/action_detail_to_manage_sources"
+            app:destination="@id/nav_manage_sources" />
+
     </fragment>
 
     <fragment
@@ -77,6 +85,30 @@
             android:name="playlistId"
             app:argType="long"
             android:defaultValue="-1L" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_import_from_library"
+        android:name="com.musichub.ui.fragment.ImportFromLibraryFragment"
+        android:label="@string/import_screen_title"
+        tools:layout="@layout/fragment_import_from_library">
+
+        <argument
+            android:name="playlistId"
+            app:argType="long" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_manage_sources"
+        android:name="com.musichub.ui.fragment.ManageSourcesFragment"
+        android:label="@string/sync_manage_sources_title"
+        tools:layout="@layout/fragment_manage_sources">
+
+        <argument
+            android:name="playlistId"
+            app:argType="long" />
 
     </fragment>
 

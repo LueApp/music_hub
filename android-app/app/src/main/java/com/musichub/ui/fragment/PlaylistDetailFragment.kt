@@ -1,13 +1,12 @@
 package com.musichub.ui.fragment
 
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.MenuProvider
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -40,6 +39,7 @@ class PlaylistDetailFragment : Fragment() {
         PlaylistDetailViewModel.Factory(args.playlistId)
     }
     private lateinit var songAdapter: SongAdapter
+    private var hasSyncSources = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -56,6 +56,7 @@ class PlaylistDetailFragment : Fragment() {
         setupRecyclerView()
         setupSwipeToDelete()
         setupClickListeners()
+        setupMenu()
         observeData()
     }
 
@@ -63,7 +64,6 @@ class PlaylistDetailFragment : Fragment() {
         songAdapter = SongAdapter(
             onSongClick = { song ->
                 if (RemoteMode.isController()) {
-                    // In controller mode, play the entire playlist remotely starting at this song
                     RemoteClient.playPlaylist(args.playlistId)
                 } else {
                     val playbackService = (activity as? MainActivity)?.getPlaybackService()
@@ -130,7 +130,6 @@ class PlaylistDetailFragment : Fragment() {
 
         binding.btnShuffle.setOnClickListener {
             if (RemoteMode.isController()) {
-                // Play playlist remotely, then toggle shuffle
                 RemoteClient.playPlaylist(args.playlistId)
                 RemoteClient.toggleShuffle()
                 FloatingWindowService.start(requireContext())
@@ -145,6 +144,12 @@ class PlaylistDetailFragment : Fragment() {
             }
         }
 
+        binding.fabImportFromLibrary?.setOnClickListener {
+            val action = PlaylistDetailFragmentDirections
+                .actionDetailToImportFromLibrary(args.playlistId)
+            findNavController().navigate(action)
+        }
+
         binding.fabAddSong.setOnClickListener {
             val action = PlaylistDetailFragmentDirections
                 .actionDetailToAddSong(args.playlistId)
@@ -156,9 +161,46 @@ class PlaylistDetailFragment : Fragment() {
         }
     }
 
-    /**
-     * Scroll to the currently playing song in the list.
-     */
+    private fun setupMenu() {
+        binding.toolbar!!.addMenuProvider(object : MenuProvider {
+            override fun onCreateMenu(menu: Menu, menuInflater: MenuInflater) {
+                menuInflater.inflate(R.menu.menu_playlist_detail, menu)
+            }
+
+            override fun onPrepareMenu(menu: Menu) {
+                menu.findItem(R.id.action_sync_now)?.isVisible = hasSyncSources
+                menu.findItem(R.id.action_manage_sources)?.isVisible = true
+            }
+
+            override fun onMenuItemSelected(menuItem: MenuItem): Boolean {
+                return when (menuItem.itemId) {
+                    R.id.action_import_from_library -> {
+                        val action = PlaylistDetailFragmentDirections
+                            .actionDetailToImportFromLibrary(args.playlistId)
+                        findNavController().navigate(action)
+                        true
+                    }
+                    R.id.action_sync_now -> {
+                        if (hasSyncSources) {
+                            viewModel.syncNow()
+                            Snackbar.make(binding.root, R.string.sync_syncing, Snackbar.LENGTH_SHORT).show()
+                        } else {
+                            Snackbar.make(binding.root, R.string.sync_no_sources, Snackbar.LENGTH_SHORT).show()
+                        }
+                        true
+                    }
+                    R.id.action_manage_sources -> {
+                        val action = PlaylistDetailFragmentDirections
+                            .actionDetailToManageSources(args.playlistId)
+                        findNavController().navigate(action)
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }, viewLifecycleOwner, Lifecycle.State.RESUMED)
+    }
+
     private fun locateCurrentSong() {
         val currentSongTitle: String?
         val currentSongId: Long?
@@ -183,7 +225,6 @@ class PlaylistDetailFragment : Fragment() {
         val index = songs.indexOfFirst { it.id == currentSongId }
 
         if (index >= 0) {
-            // Scroll to the position with some offset to center it
             (binding.rvSongs.layoutManager as? LinearLayoutManager)?.scrollToPositionWithOffset(
                 index,
                 binding.rvSongs.height / 3
@@ -196,7 +237,6 @@ class PlaylistDetailFragment : Fragment() {
 
     private fun observeData() {
         if (RemoteMode.isController()) {
-            // In controller mode, fetch playlist songs from remote
             binding.progressLoading?.visibility = View.VISIBLE
             binding.rvSongs.visibility = View.GONE
             binding.emptyState.visibility = View.GONE
@@ -233,8 +273,7 @@ class PlaylistDetailFragment : Fragment() {
                     binding.tvPlaylistDescription.visibility =
                         if (playlist.description.isNotEmpty()) View.VISIBLE else View.GONE
 
-                    // Set toolbar title
-                    (activity as? AppCompatActivity)?.supportActionBar?.title = playlist.name
+                    binding.toolbar?.title = playlist.name
                 }
             }
         }
@@ -247,6 +286,40 @@ class PlaylistDetailFragment : Fragment() {
                 val isEmpty = songs.isEmpty()
                 binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
                 binding.rvSongs.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            }
+        }
+
+        // Observe sync sources
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.syncSources.collectLatest { sources ->
+                hasSyncSources = sources.isNotEmpty()
+                if (sources.isNotEmpty()) {
+                    binding.layoutSyncStatus?.visibility = View.VISIBLE
+                    binding.tvSyncStatus?.text = viewModel.formatSyncStatus(sources)
+                } else {
+                    binding.layoutSyncStatus?.visibility = View.GONE
+                }
+                binding.toolbar?.invalidateMenu()
+            }
+        }
+
+        // Observe sync results
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.syncResult.collectLatest { result ->
+                if (result != null) {
+                    val msg = getString(R.string.sync_result, result.added, result.removed)
+                    Snackbar.make(binding.root, msg, Snackbar.LENGTH_LONG).show()
+                    viewModel.clearSyncResult()
+                }
+            }
+        }
+
+        // Observe syncing state
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.isSyncing.collectLatest { syncing ->
+                if (syncing) {
+                    binding.tvSyncStatus?.text = getString(R.string.sync_syncing)
+                }
             }
         }
     }

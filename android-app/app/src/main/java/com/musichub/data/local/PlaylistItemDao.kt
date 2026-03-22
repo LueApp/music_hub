@@ -69,12 +69,13 @@ interface PlaylistItemDao {
     suspend fun getItem(playlistId: Long, songId: Long): PlaylistItem?
 
     @Transaction
-    suspend fun addSongToPlaylist(playlistId: Long, songId: Long): Long {
+    suspend fun addSongToPlaylist(playlistId: Long, songId: Long, syncSourceId: Long? = null): Long {
         val maxPosition = getMaxPosition(playlistId) ?: -1
         val item = PlaylistItem(
             playlistId = playlistId,
             songId = songId,
-            position = maxPosition + 1
+            position = maxPosition + 1,
+            syncSourceId = syncSourceId
         )
         return insert(item)
     }
@@ -82,6 +83,33 @@ interface PlaylistItemDao {
     fun getSongsInPlaylist(playlistId: Long): Flow<List<Song>> = getSongsForPlaylist(playlistId)
 
     suspend fun removeSongFromPlaylist(playlistId: Long, songId: Long): Int = deleteByIds(playlistId, songId)
+
+    @Transaction
+    suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>, syncSourceId: Long? = null) {
+        var position = (getMaxPosition(playlistId) ?: -1) + 1
+        for (songId in songIds) {
+            val item = PlaylistItem(
+                playlistId = playlistId,
+                songId = songId,
+                position = position,
+                syncSourceId = syncSourceId
+            )
+            insert(item)
+            position++
+        }
+    }
+
+    @Query("SELECT * FROM playlist_items WHERE sync_source_id = :syncSourceId")
+    suspend fun getItemsBySyncSource(syncSourceId: Long): List<PlaylistItem>
+
+    @Query("DELETE FROM playlist_items WHERE sync_source_id = :syncSourceId")
+    suspend fun deleteItemsBySyncSource(syncSourceId: Long): Int
+
+    @Query("""
+        SELECT * FROM playlist_items
+        WHERE playlist_id = :playlistId AND sync_source_id IS NOT NULL
+    """)
+    suspend fun getSyncedItemsForPlaylist(playlistId: Long): List<PlaylistItem>
 
     @Transaction
     suspend fun reorderSong(playlistId: Long, songId: Long, newPosition: Int) {

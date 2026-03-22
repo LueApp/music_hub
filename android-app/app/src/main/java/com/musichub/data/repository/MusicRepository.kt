@@ -2,7 +2,9 @@ package com.musichub.data.repository
 
 import com.musichub.data.local.MusicHubDatabase
 import com.musichub.data.model.Playlist
+import com.musichub.data.model.PlaylistItem
 import com.musichub.data.model.Song
+import com.musichub.data.model.SyncSource
 import kotlinx.coroutines.flow.Flow
 
 class MusicRepository(private val database: MusicHubDatabase) {
@@ -65,4 +67,56 @@ class MusicRepository(private val database: MusicHubDatabase) {
 
     fun getPlaylistSongCount(playlistId: Long): Flow<Int> =
         database.playlistItemDao().getSongCount(playlistId)
+
+    // Import from library
+    fun getSongsNotInPlaylist(playlistId: Long): Flow<List<Song>> =
+        database.songDao().getSongsNotInPlaylist(playlistId)
+
+    fun searchSongsNotInPlaylist(query: String, playlistId: Long): Flow<List<Song>> =
+        database.songDao().searchSongsNotInPlaylist(query, playlistId)
+
+    fun getSongsByPlatformNotInPlaylist(platform: String, playlistId: Long): Flow<List<Song>> =
+        database.songDao().getSongsByPlatformNotInPlaylist(platform, playlistId)
+
+    fun searchSongsByPlatformNotInPlaylist(query: String, platform: String, playlistId: Long): Flow<List<Song>> =
+        database.songDao().searchSongsByPlatformNotInPlaylist(query, platform, playlistId)
+
+    suspend fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>, syncSourceId: Long? = null) =
+        database.playlistItemDao().addSongsToPlaylist(playlistId, songIds, syncSourceId)
+
+    // Sync Sources
+    fun getSyncSourcesForPlaylist(playlistId: Long): Flow<List<SyncSource>> =
+        database.syncSourceDao().getByPlaylistId(playlistId)
+
+    suspend fun getSyncSourcesForPlaylistList(playlistId: Long): List<SyncSource> =
+        database.syncSourceDao().getByPlaylistIdList(playlistId)
+
+    suspend fun addSyncSource(syncSource: SyncSource): Long =
+        database.syncSourceDao().insert(syncSource)
+
+    suspend fun removeSyncSource(id: Long) =
+        database.syncSourceDao().deleteById(id)
+
+    suspend fun updateSyncStatus(id: Long, syncAt: Long, status: String, error: String = "") =
+        database.syncSourceDao().updateSyncStatus(id, syncAt, status, error)
+
+    suspend fun getAllSyncedPlaylistIds(): List<Long> =
+        database.syncSourceDao().getAllSyncedPlaylistIds()
+
+    suspend fun getPlaylistItemsBySyncSource(syncSourceId: Long): List<PlaylistItem> =
+        database.playlistItemDao().getItemsBySyncSource(syncSourceId)
+
+    suspend fun getSyncedItemsForPlaylist(playlistId: Long): List<PlaylistItem> =
+        database.playlistItemDao().getSyncedItemsForPlaylist(playlistId)
+
+    suspend fun removeSyncSourceAndItems(syncSourceId: Long) {
+        database.playlistItemDao().deleteItemsBySyncSource(syncSourceId)
+        database.syncSourceDao().deleteById(syncSourceId)
+    }
+
+    suspend fun addSongToPlaylistWithSync(playlistId: Long, songId: Long, syncSourceId: Long? = null) =
+        database.playlistItemDao().addSongToPlaylist(playlistId, songId, syncSourceId)
+
+    suspend fun getSongsForPlaylistList(playlistId: Long): List<Song> =
+        database.playlistItemDao().getSongsForPlaylistList(playlistId)
 }
