@@ -19,6 +19,7 @@ import com.musichub.service.PlaybackService
 import com.musichub.ui.MainActivity
 import com.musichub.ui.adapter.SongAdapter
 import com.musichub.ui.viewmodel.LibraryViewModel
+import me.zhanghai.android.fastscroll.FastScrollerBuilder
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -71,6 +72,10 @@ class LibraryFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = songAdapter
         }
+
+        FastScrollerBuilder(binding.rvSongs)
+            .useMd2Style()
+            .build()
     }
 
     private fun setupSearchAndFilter() {
