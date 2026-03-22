@@ -81,6 +81,9 @@ dependencies {
     implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("org.nanohttpd:nanohttpd-websocket:2.3.1")
 
+    // Fast Scroll
+    implementation("me.zhanghai.android.fastscroll:library:1.3.0")
+
     // Image Loading
     implementation("io.coil-kt:coil:2.5.0")
 
