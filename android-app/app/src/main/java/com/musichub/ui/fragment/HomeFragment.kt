@@ -97,6 +97,10 @@ class HomeFragment : Fragment() {
         binding.cardQQMusic.setOnClickListener {
             // TODO: Filter library by QQ Music
         }
+
+        binding.cardBilibili.setOnClickListener {
+            // TODO: Filter library by Bilibili
+        }
     }
 
     private fun setupPermissionButtons() {
@@ -207,8 +211,10 @@ class HomeFragment : Fragment() {
                     // Update platform counts
                     val neteaseCnt = songs.count { it.platform == Platforms.NETEASE }
                     val qqCnt = songs.count { it.platform == Platforms.QQMUSIC }
+                    val biliCnt = songs.count { it.platform == Platforms.BILIBILI }
                     binding.tvNeteaseSongCount.text = "$neteaseCnt 首"
                     binding.tvQQMusicSongCount.text = "$qqCnt 首"
+                    binding.tvBilibiliSongCount.text = "$biliCnt 首"
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Failed to fetch remote songs: ${e.message}", e)
                     if (_binding == null) return@launch
@@ -234,6 +240,7 @@ class HomeFragment : Fragment() {
             viewModel.platformCounts.collectLatest { counts ->
                 binding.tvNeteaseSongCount.text = "${counts[Platforms.NETEASE] ?: 0} 首"
                 binding.tvQQMusicSongCount.text = "${counts[Platforms.QQMUSIC] ?: 0} 首"
+                binding.tvBilibiliSongCount.text = "${counts[Platforms.BILIBILI] ?: 0} 首"
             }
         }
     }

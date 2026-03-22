@@ -70,6 +70,8 @@
     <string name="platform_netease_cn">网易云</string>
     <string name="platform_qqmusic">QQ Music</string>
     <string name="platform_qqmusic_cn">QQ音乐</string>
+    <string name="platform_bilibili">Bilibili</string>
+    <string name="platform_bilibili_cn">B站</string>
 
     <!-- Playback -->
     <string name="now_playing">Now Playing</string>

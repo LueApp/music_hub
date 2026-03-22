@@ -77,11 +77,15 @@ class ManageSourcesViewModel(
                 }
 
                 // Check for Bilibili
-                val biliHandler = LinkParser.getHandler(Platforms.BILIBILI)
-                if (platform == null && biliHandler != null && biliHandler.canHandle(resolvedUrl)) {
-                    _addResult.value = AddSourceResult.Error("B站暂不支持歌单同步")
-                    _isAdding.value = false
-                    return@launch
+                if (platform == null) {
+                    val biliHandler = LinkParser.getHandler(Platforms.BILIBILI)
+                    if (biliHandler != null && biliHandler.canHandle(resolvedUrl)) {
+                        val parsed = biliHandler.parsePlaylistUrl(resolvedUrl)
+                        if (parsed != null) {
+                            platform = Platforms.BILIBILI
+                            remotePlaylistId = parsed.playlistId
+                        }
+                    }
                 }
 
                 if (platform == null || remotePlaylistId == null) {

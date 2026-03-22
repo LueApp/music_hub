@@ -8,60 +8,71 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.musichub.R
 import com.musichub.data.model.Song
-import com.musichub.databinding.ItemSongBinding
+import com.musichub.databinding.ItemSongSelectableBinding
 import com.musichub.platform.Platforms
 
-class SongAdapter(
-    private val onSongClick: (Song) -> Unit,
-    private val onPlayClick: (Song) -> Unit,
-    private val onDeleteClick: ((Song) -> Unit)? = null
-) : ListAdapter<Song, SongAdapter.SongViewHolder>(SongDiffCallback()) {
+class SelectableSongAdapter(
+    private val onSelectionChanged: (Set<Long>) -> Unit
+) : ListAdapter<Song, SelectableSongAdapter.ViewHolder>(SongDiffCallback()) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
-        val binding = ItemSongBinding.inflate(
+    private val selectedIds = mutableSetOf<Long>()
+
+    fun getSelectedIds(): Set<Long> = selectedIds.toSet()
+
+    fun selectAll(songs: List<Song>) {
+        selectedIds.clear()
+        selectedIds.addAll(songs.map { it.id })
+        notifyDataSetChanged()
+        onSelectionChanged(getSelectedIds())
+    }
+
+    fun deselectAll() {
+        selectedIds.clear()
+        notifyDataSetChanged()
+        onSelectionChanged(getSelectedIds())
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val binding = ItemSongSelectableBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
             false
         )
-        return SongViewHolder(binding)
+        return ViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: SongViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(getItem(position))
     }
 
-    fun removeItem(position: Int) {
-        if (position in 0 until itemCount) {
-            val song = getItem(position)
-            onDeleteClick?.invoke(song)
-        }
-    }
-
-    inner class SongViewHolder(
-        private val binding: ItemSongBinding
+    inner class ViewHolder(
+        private val binding: ItemSongSelectableBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
         init {
-            binding.root.setOnClickListener {
+            val toggle = {
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    onSongClick(getItem(position))
+                    val song = getItem(position)
+                    if (selectedIds.contains(song.id)) {
+                        selectedIds.remove(song.id)
+                    } else {
+                        selectedIds.add(song.id)
+                    }
+                    notifyItemChanged(position)
+                    onSelectionChanged(getSelectedIds())
                 }
             }
 
-            binding.btnPlay.setOnClickListener {
-                val position = bindingAdapterPosition
-                if (position != RecyclerView.NO_POSITION) {
-                    onPlayClick(getItem(position))
-                }
-            }
+            binding.root.setOnClickListener { toggle() }
+            binding.cbSelect.setOnClickListener { toggle() }
         }
 
         fun bind(song: Song) {
             binding.tvTitle.text = song.title
             binding.tvArtist.text = song.artist
+            binding.cbSelect.isChecked = selectedIds.contains(song.id)
 
-            // Platform badge
             when (song.platform) {
                 Platforms.NETEASE -> {
                     binding.tvPlatform.text = "网易云"
@@ -80,7 +91,6 @@ class SongAdapter(
                 }
             }
 
-            // Album cover
             if (song.coverUrl.isNotEmpty()) {
                 binding.ivAlbumCover.load(song.coverUrl) {
                     placeholder(R.drawable.ic_album)
