@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.*
 import android.widget.Toast
 import androidx.core.view.MenuProvider
+import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -15,7 +16,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.musichub.R
+import com.musichub.data.model.Song
 import com.musichub.databinding.FragmentPlaylistDetailBinding
+import com.musichub.platform.Platforms
 import com.musichub.remote.RemoteClient
 import com.musichub.remote.RemoteMode
 import com.musichub.remote.toSong
@@ -41,6 +44,9 @@ class PlaylistDetailFragment : Fragment() {
     private lateinit var songAdapter: SongAdapter
     private var hasSyncSources = false
 
+    // For controller mode in-memory filtering
+    private var remoteSongs: List<Song> = emptyList()
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -55,6 +61,7 @@ class PlaylistDetailFragment : Fragment() {
 
         setupRecyclerView()
         setupSwipeToDelete()
+        setupSearchAndFilter()
         setupClickListeners()
         setupMenu()
         observeData()
@@ -94,6 +101,59 @@ class PlaylistDetailFragment : Fragment() {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = songAdapter
         }
+    }
+
+    private fun setupSearchAndFilter() {
+        binding.etSearch?.doAfterTextChanged { text ->
+            val query = text?.toString() ?: ""
+            if (RemoteMode.isController()) {
+                filterRemoteSongs(query, getCurrentPlatformFilter())
+            } else {
+                viewModel.setSearchQuery(query)
+            }
+        }
+
+        binding.chipGroupFilter?.setOnCheckedStateChangeListener { _, checkedIds ->
+            val platform = when {
+                checkedIds.contains(R.id.chipNetease) -> Platforms.NETEASE
+                checkedIds.contains(R.id.chipQQMusic) -> Platforms.QQMUSIC
+                checkedIds.contains(R.id.chipBilibili) -> Platforms.BILIBILI
+                else -> null
+            }
+            if (RemoteMode.isController()) {
+                filterRemoteSongs(binding.etSearch?.text?.toString() ?: "", platform)
+            } else {
+                viewModel.setPlatformFilter(platform)
+            }
+        }
+    }
+
+    private fun getCurrentPlatformFilter(): String? {
+        val checkedIds = binding.chipGroupFilter?.checkedChipIds ?: return null
+        return when {
+            checkedIds.contains(R.id.chipNetease) -> Platforms.NETEASE
+            checkedIds.contains(R.id.chipQQMusic) -> Platforms.QQMUSIC
+            checkedIds.contains(R.id.chipBilibili) -> Platforms.BILIBILI
+            else -> null
+        }
+    }
+
+    private fun filterRemoteSongs(query: String, platform: String?) {
+        val filtered = remoteSongs.filter { song ->
+            if (query.isNotEmpty()) {
+                song.title.contains(query, ignoreCase = true) ||
+                    song.artist.contains(query, ignoreCase = true)
+            } else true
+        }.filter { song ->
+            platform == null || song.platform == platform
+        }
+
+        songAdapter.submitList(filtered)
+        binding.tvSongCount.text = "${filtered.size} 首歌曲"
+
+        val isEmpty = filtered.isEmpty()
+        binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        binding.rvSongs.visibility = if (isEmpty) View.GONE else View.VISIBLE
     }
 
     private fun setupSwipeToDelete() {
@@ -248,12 +308,11 @@ class PlaylistDetailFragment : Fragment() {
                     }
                     if (_binding == null) return@launch
                     binding.progressLoading?.visibility = View.GONE
-                    songAdapter.submitList(songs)
-                    binding.tvSongCount.text = "${songs.size} 首歌曲"
-
-                    val isEmpty = songs.isEmpty()
-                    binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                    binding.rvSongs.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                    remoteSongs = songs
+                    filterRemoteSongs(
+                        binding.etSearch?.text?.toString() ?: "",
+                        getCurrentPlatformFilter()
+                    )
                 } catch (e: Exception) {
                     android.util.Log.e("PlaylistDetailFragment", "Failed to fetch remote playlist songs: ${e.message}", e)
                     if (_binding == null) return@launch

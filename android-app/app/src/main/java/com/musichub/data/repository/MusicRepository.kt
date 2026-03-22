@@ -68,6 +68,15 @@ class MusicRepository(private val database: MusicHubDatabase) {
     fun getPlaylistSongCount(playlistId: Long): Flow<Int> =
         database.playlistItemDao().getSongCount(playlistId)
 
+    fun searchSongsInPlaylist(query: String, playlistId: Long): Flow<List<Song>> =
+        database.playlistItemDao().searchSongsInPlaylist(query, playlistId)
+
+    fun getSongsInPlaylistByPlatform(playlistId: Long, platform: String): Flow<List<Song>> =
+        database.playlistItemDao().getSongsInPlaylistByPlatform(playlistId, platform)
+
+    fun searchSongsInPlaylistByPlatform(query: String, playlistId: Long, platform: String): Flow<List<Song>> =
+        database.playlistItemDao().searchSongsInPlaylistByPlatform(query, playlistId, platform)
+
     // Import from library
     fun getSongsNotInPlaylist(playlistId: Long): Flow<List<Song>> =
         database.songDao().getSongsNotInPlaylist(playlistId)

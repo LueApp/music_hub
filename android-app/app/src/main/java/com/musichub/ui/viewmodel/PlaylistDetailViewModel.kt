@@ -10,10 +10,13 @@ import com.musichub.data.model.SyncSource
 import com.musichub.data.repository.MusicRepository
 import com.musichub.sync.PlaylistSyncEngine
 import com.musichub.sync.SyncResult
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,12 +32,31 @@ class PlaylistDetailViewModel(
             initialValue = null
         )
 
-    val songs: StateFlow<List<Song>> = repository.getSongsInPlaylist(playlistId)
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _searchQuery = MutableStateFlow("")
+    private val _platformFilter = MutableStateFlow<String?>(null)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val songs: StateFlow<List<Song>> = combine(
+        _searchQuery,
+        _platformFilter
+    ) { query, platform ->
+        Pair(query, platform)
+    }.flatMapLatest { (query, platform) ->
+        when {
+            query.isNotEmpty() && platform != null ->
+                repository.searchSongsInPlaylistByPlatform(query, playlistId, platform)
+            query.isNotEmpty() ->
+                repository.searchSongsInPlaylist(query, playlistId)
+            platform != null ->
+                repository.getSongsInPlaylistByPlatform(playlistId, platform)
+            else ->
+                repository.getSongsInPlaylist(playlistId)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     val syncSources: StateFlow<List<SyncSource>> = repository.getSyncSourcesForPlaylist(playlistId)
         .stateIn(
@@ -48,6 +70,14 @@ class PlaylistDetailViewModel(
 
     private val _syncResult = MutableStateFlow<SyncResult?>(null)
     val syncResult: StateFlow<SyncResult?> = _syncResult.asStateFlow()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun setPlatformFilter(platform: String?) {
+        _platformFilter.value = platform
+    }
 
     fun removeSongFromPlaylist(songId: Long) {
         viewModelScope.launch {
