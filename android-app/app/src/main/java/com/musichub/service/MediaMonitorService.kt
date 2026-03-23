@@ -257,6 +257,15 @@ class MediaMonitorService : NotificationListenerService() {
 
         Log.d(TAG, "Playback state changed from $fromPackage: $currentState (was: $lastPlaybackState), position: $position, duration: $lastMetadataDuration, songEndTriggered: $songEndTriggered")
 
+        // Reactive re-pause: if the old platform starts playing during a cross-platform switch,
+        // immediately pause it to prevent audible bleed of the old platform's next song
+        if (fromPackage != null && isCrossPlatformSwitch && fromPackage == switchingFromPackage &&
+            (currentState == PlaybackState.STATE_PLAYING || currentState == PlaybackState.STATE_BUFFERING)) {
+            Log.d(TAG, "Reactive re-pause: old platform $fromPackage entered state $currentState during cross-platform switch")
+            pauseSpecificPackage(fromPackage)
+            return
+        }
+
         // Only process song-end detection for the current platform
         if (fromPackage != null && currentPlatformPackage != null && fromPackage != currentPlatformPackage) {
             Log.d(TAG, "Ignoring state change from $fromPackage (current platform: $currentPlatformPackage)")
@@ -578,7 +587,6 @@ class MediaMonitorService : NotificationListenerService() {
                 if (state != null && state.state == PlaybackState.STATE_PLAYING) {
                     Log.d(TAG, "Re-pausing media for $packageName (catching auto-advance)")
                     controller.transportControls.pause()
-                    controller.transportControls.stop()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error re-pausing media for $packageName: ${e.message}")
