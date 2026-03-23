@@ -731,6 +731,382 @@ class QQMusicPlatform : PlatformHandler {
         )
     }
 
+    /**
+     * Fetch all available toplists from QQ Music.
+     */
+    suspend fun fetchToplistAll(): List<ChartInfo> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+                val payload = JsonObject().apply {
+                    add("toplist", JsonObject().apply {
+                        addProperty("module", "musicToplist.ToplistInfoServer")
+                        addProperty("method", "GetAll")
+                        add("param", JsonObject())
+                    })
+                }
+
+                val requestBody = payload.toString()
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://y.qq.com/")
+                    .header("Content-Type", "application/json")
+                    .build()
+
+                val charts = mutableListOf<ChartInfo>()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: return@withContext emptyList()
+                        val json = gson.fromJson(body, JsonObject::class.java)
+                        val toplistData = json.getAsJsonObject("toplist")?.getAsJsonObject("data")
+                        val groups = toplistData?.getAsJsonArray("group")
+
+                        if (groups != null) {
+                            for (group in groups) {
+                                val toplist = group.asJsonObject.getAsJsonArray("toplist") ?: continue
+                                for (item in toplist) {
+                                    val obj = item.asJsonObject
+                                    val topId = obj.get("topId")?.asInt ?: continue
+                                    val title = obj.get("title")?.asString ?: continue
+                                    val updateTime = obj.get("updateTime")?.asString ?: ""
+                                    val coverUrl = obj.get("headPicUrl")?.asString
+                                        ?: obj.get("frontPicUrl")?.asString ?: ""
+
+                                    // Only include well-known charts to avoid overwhelming the list
+                                    if (topId in listOf(26, 27, 4, 62, 58, 57, 28, 5)) {
+                                        charts.add(ChartInfo(
+                                            platform = platformName,
+                                            chartId = topId.toString(),
+                                            name = title,
+                                            coverUrl = coverUrl,
+                                            updateFrequency = updateTime
+                                        ))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Log.d(TAG, "Fetched ${charts.size} QQ Music charts")
+                charts
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch QQ Music toplist", e)
+                emptyList()
+            }
+        }
+    }
+
+    /**
+     * Fetch songs for a specific QQ Music toplist.
+     */
+    suspend fun fetchToplistDetail(topId: Int, num: Int = 100): ParsedPlaylist? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+                val payload = JsonObject().apply {
+                    add("detail", JsonObject().apply {
+                        addProperty("module", "musicToplist.ToplistInfoServer")
+                        addProperty("method", "GetDetail")
+                        add("param", JsonObject().apply {
+                            addProperty("topId", topId)
+                            addProperty("offset", 0)
+                            addProperty("num", num)
+                        })
+                    })
+                }
+
+                val requestBody = payload.toString()
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://y.qq.com/")
+                    .header("Content-Type", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@withContext null
+
+                    val body = response.body?.string() ?: return@withContext null
+                    val json = gson.fromJson(body, JsonObject::class.java)
+                    val detailData = json.getAsJsonObject("detail")?.getAsJsonObject("data")
+                    val songInfoList = detailData?.getAsJsonArray("songInfoList")
+
+                    val songs = parseQQSongList(songInfoList)
+                    val title = detailData?.get("title")?.asString ?: ""
+
+                    Log.d(TAG, "Fetched QQ Music toplist detail: $title with ${songs.size} songs")
+                    ParsedPlaylist(
+                        platform = platformName,
+                        playlistId = topId.toString(),
+                        name = title,
+                        songCount = songs.size,
+                        songs = songs
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch QQ Music toplist detail", e)
+                null
+            }
+        }
+    }
+
+    /**
+     * Fetch recommended/popular public playlists from QQ Music.
+     */
+    suspend fun fetchPlaylistSquare(): List<DiscoverPlaylistInfo> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://u.y.qq.com/cgi-bin/musicu.fcg"
+                val payload = JsonObject().apply {
+                    add("req", JsonObject().apply {
+                        addProperty("module", "playlist.PlaylistSquareServer")
+                        addProperty("method", "GetRecommendWhole")
+                        add("param", JsonObject().apply {
+                            addProperty("IsReq498", 1)
+                        })
+                    })
+                }
+
+                val requestBody = payload.toString()
+                    .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://y.qq.com/")
+                    .header("Content-Type", "application/json")
+                    .build()
+
+                val playlists = mutableListOf<DiscoverPlaylistInfo>()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string() ?: return@withContext emptyList()
+                        val json = gson.fromJson(body, JsonObject::class.java)
+                        val data = json.getAsJsonObject("req")?.getAsJsonObject("data")
+                        val vList = data?.getAsJsonArray("v_playlist")
+
+                        if (vList != null) {
+                            for (item in vList) {
+                                try {
+                                    val obj = item.asJsonObject
+                                    playlists.add(DiscoverPlaylistInfo(
+                                        platform = platformName,
+                                        playlistId = obj.get("tid")?.asString
+                                            ?: obj.get("dissid")?.asString ?: continue,
+                                        name = obj.get("title")?.asString
+                                            ?: obj.get("dissname")?.asString ?: "",
+                                        coverUrl = obj.get("cover")?.asString
+                                            ?: obj.get("logo")?.asString ?: "",
+                                        playCount = obj.get("listen_num")?.asLong
+                                            ?: obj.get("listennum")?.asLong ?: 0,
+                                        songCount = obj.get("song_cnt")?.asInt
+                                            ?: obj.get("songnum")?.asInt ?: 0,
+                                        creator = obj.getAsJsonObject("creator")?.get("name")?.asString ?: ""
+                                    ))
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to parse playlist: ${e.message}")
+                                }
+                            }
+                        }
+                    }
+                }
+                Log.d(TAG, "Fetched ${playlists.size} QQ Music playlists")
+                playlists
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch QQ Music playlist square", e)
+                emptyList()
+            }
+        }
+    }
+
+    /**
+     * Fetch personalized daily recommendations.
+     * Requires qqmusic_key auth cookies.
+     * Falls back to public chart if authenticated API fails.
+     */
+    suspend fun fetchDailyRecommendations(authCookies: String): List<ParsedSong> {
+        return withContext(Dispatchers.IO) {
+            // Try authenticated recommendation feed first
+            val personalSongs = try {
+                fetchRecommendFeed(authCookies)
+            } catch (e: Exception) {
+                Log.w(TAG, "Authenticated recommendation feed failed: ${e.message}")
+                null
+            }
+
+            if (!personalSongs.isNullOrEmpty()) {
+                Log.d(TAG, "Fetched ${personalSongs.size} personalized QQ Music recommendations")
+                return@withContext personalSongs
+            }
+
+            // Fallback: use first available chart
+            Log.w(TAG, "Falling back to public chart for QQ Music recommendations")
+            try {
+                val charts = fetchToplistAll()
+                if (charts.isNotEmpty()) {
+                    val topId = charts[0].chartId.toIntOrNull() ?: return@withContext emptyList()
+                    val playlist = fetchToplistDetail(topId, 30)
+                    playlist?.songs ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "fetchDailyRecommendations fallback error: ${e.message}")
+                emptyList()
+            }
+        }
+    }
+
+    /**
+     * Fetch personalized recommendations via the authenticated RecommendFeed API.
+     * Strategy: find the "每日30首" playlist card from the homepage feed,
+     * then fetch its songs via the playlist API.
+     */
+    private suspend fun fetchRecommendFeed(authCookies: String): List<ParsedSong>? {
+        val uin = extractUin(authCookies)
+        val pSkey = extractCookie(authCookies, "p_skey")
+        val gtk = if (pSkey != null) computeGtk(pSkey) else 5381L
+
+        val url = "https://u.y.qq.com/cgi-bin/musicu.fcg?g_tk=$gtk"
+
+        val payload = JsonObject().apply {
+            add("comm", JsonObject().apply {
+                addProperty("ct", 24)
+                addProperty("cv", 0)
+                addProperty("uin", uin)
+                addProperty("format", "json")
+                addProperty("platform", "yqq.json")
+            })
+            add("req_0", JsonObject().apply {
+                addProperty("module", "music.recommend.RecommendFeed")
+                addProperty("method", "get_recommend_feed")
+                add("param", JsonObject().apply {
+                    addProperty("direction", 0)
+                    addProperty("page", 1)
+                    addProperty("s_num", 0)
+                })
+            })
+        }
+
+        val requestBody = payload.toString()
+            .toRequestBody("application/json; charset=utf-8".toMediaType())
+
+        val request = Request.Builder()
+            .url(url)
+            .post(requestBody)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .header("Referer", "https://y.qq.com/")
+            .header("Content-Type", "application/json")
+            .header("Cookie", authCookies)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                Log.w(TAG, "RecommendFeed API returned ${response.code}")
+                return null
+            }
+
+            val body = response.body?.string() ?: return null
+            val json = gson.fromJson(body, JsonObject::class.java)
+
+            val reqData = json.getAsJsonObject("req_0")?.getAsJsonObject("data")
+            if (reqData == null) {
+                Log.w(TAG, "RecommendFeed: no req_0.data in response")
+                return null
+            }
+
+            // Find the daily recommendation playlist ID from the feed
+            val dailyPlaylistId = findDailyRecommendPlaylistId(reqData)
+            if (dailyPlaylistId == null) {
+                Log.w(TAG, "RecommendFeed: could not find daily recommendation playlist")
+                return null
+            }
+
+            Log.d(TAG, "RecommendFeed: found daily playlist ID: $dailyPlaylistId")
+
+            // Fetch the actual songs from the daily recommendation playlist
+            val playlist = fetchPlaylistSongs(dailyPlaylistId)
+            if (playlist != null && playlist.songs.isNotEmpty()) {
+                Log.d(TAG, "RecommendFeed: fetched ${playlist.songs.size} songs from daily playlist")
+                return playlist.songs
+            }
+
+            Log.w(TAG, "RecommendFeed: failed to fetch songs from daily playlist $dailyPlaylistId")
+            return null
+        }
+    }
+
+    /**
+     * Find the daily recommendation playlist ID from the RecommendFeed response.
+     * Looks for cards with title "每日30首" or subtype 510 (daily recommendation).
+     */
+    private fun findDailyRecommendPlaylistId(reqData: JsonObject): String? {
+        val shelves = reqData.getAsJsonArray("v_shelf") ?: return null
+
+        for (shelfItem in shelves) {
+            val shelfObj = shelfItem.asJsonObject
+            val vNiche = shelfObj.getAsJsonArray("v_niche") ?: continue
+
+            for (niche in vNiche) {
+                val nicheObj = niche.asJsonObject
+                val cards = nicheObj.getAsJsonArray("v_card") ?: continue
+
+                for (card in cards) {
+                    val cardObj = card.asJsonObject
+                    val cardTitle = cardObj.get("title")?.asString ?: ""
+                    val subtype = cardObj.get("subtype")?.asInt ?: 0
+                    val cardId = cardObj.get("id")?.asString ?: ""
+
+                    // Match by subtype 510 (daily recommendation) or title containing "每日"
+                    if ((subtype == 510 || cardTitle.contains("每日")) && cardId.isNotEmpty()) {
+                        Log.d(TAG, "RecommendFeed: matched daily card: title='$cardTitle', id=$cardId, subtype=$subtype")
+                        return cardId
+                    }
+                }
+            }
+        }
+
+        return null
+    }
+
+    /**
+     * Extract a specific cookie value from cookie string.
+     */
+    private fun extractCookie(cookies: String, name: String): String? {
+        val regex = Regex("""$name=([^;]+)""")
+        return regex.find(cookies)?.groupValues?.get(1)
+    }
+
+    /**
+     * Compute g_tk (also called bkn) from p_skey or skey cookie.
+     * This is required for QQ Music authenticated API calls.
+     */
+    private fun computeGtk(skey: String): Long {
+        var hash = 5381L
+        for (ch in skey) {
+            hash += (hash shl 5) + ch.code
+        }
+        return hash and 0x7FFFFFFF
+    }
+
+    /**
+     * Extract QQ user number from cookies.
+     * The uin cookie is typically in format "uin=o1234567890" (with 'o' prefix).
+     */
+    private fun extractUin(cookies: String): String {
+        val regex = Regex("""uin=o?(\d+)""")
+        val match = regex.find(cookies)
+        return match?.groupValues?.get(1) ?: ""
+    }
+
     companion object {
         private const val TAG = "QQMusicPlatform"
     }
