@@ -336,8 +336,6 @@ class PlaylistDetailFragment : Fragment() {
                     binding.tvPlaylistDescription.text = playlist.description
                     binding.tvPlaylistDescription.visibility =
                         if (playlist.description.isNotEmpty()) View.VISIBLE else View.GONE
-
-                    binding.toolbar?.title = playlist.name
                 }
             }
         }

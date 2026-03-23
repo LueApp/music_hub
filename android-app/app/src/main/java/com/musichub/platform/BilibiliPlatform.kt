@@ -480,6 +480,79 @@ class BilibiliPlatform : PlatformHandler {
         }
     }
 
+    /**
+     * Fetch Bilibili music zone ranking.
+     */
+    suspend fun fetchMusicRanking(): ParsedPlaylist? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = "https://api.bilibili.com/x/web-interface/ranking/v2?rid=3&type=all"
+
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://www.bilibili.com/")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Log.e(TAG, "Music ranking API failed: ${response.code}")
+                        return@withContext null
+                    }
+
+                    val body = response.body?.string() ?: return@withContext null
+                    val json = gson.fromJson(body, JsonObject::class.java)
+                    val code = json.get("code")?.asInt ?: -1
+
+                    if (code != 0) {
+                        Log.e(TAG, "Music ranking API error: $code")
+                        return@withContext null
+                    }
+
+                    val data = json.getAsJsonObject("data") ?: return@withContext null
+                    val list = data.getAsJsonArray("list") ?: return@withContext null
+
+                    val songs = mutableListOf<ParsedSong>()
+                    for (item in list) {
+                        try {
+                            val obj = item.asJsonObject
+                            val bvid = obj.get("bvid")?.asString ?: continue
+                            val title = obj.get("title")?.asString ?: ""
+                            val owner = obj.getAsJsonObject("owner")
+                            val artist = owner?.get("name")?.asString ?: ""
+                            val pic = obj.get("pic")?.asString?.replace("http://", "https://") ?: ""
+
+                            val platformSongId = "video:$bvid"
+                            songs.add(ParsedSong(
+                                platform = platformName,
+                                platformSongId = platformSongId,
+                                deepLink = generateDeepLink(platformSongId),
+                                fallbackUrl = generateFallbackUrl(platformSongId),
+                                title = title,
+                                artist = artist,
+                                coverUrl = pic
+                            ))
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to parse ranking item: ${e.message}")
+                        }
+                    }
+
+                    Log.d(TAG, "Fetched ${songs.size} items from Bilibili music ranking")
+                    ParsedPlaylist(
+                        platform = platformName,
+                        playlistId = "music_ranking",
+                        name = "音乐排行",
+                        songCount = songs.size,
+                        songs = songs
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch music ranking", e)
+                null
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "BilibiliPlatform"
     }

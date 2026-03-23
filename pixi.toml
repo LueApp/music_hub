@@ -56,3 +56,4 @@ gradle = ">=8.5"
 # Build tools
 unzip = "*"
 wget = "*"
+python-docx = ">=1.2.0,<2"

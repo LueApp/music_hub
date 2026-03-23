@@ -198,4 +198,36 @@
     <string name="sync_ago_days">%d 天前</string>
     <string name="sync_just_now">刚刚</string>
     <string name="sync_manage_sources_title">管理同步源</string>
+
+    <!-- Discover -->
+    <string name="nav_discover_cn">发现</string>
+    <string name="discover_tab_charts">排行榜</string>
+    <string name="discover_tab_browse">歌单</string>
+    <string name="discover_tab_foryou">推荐</string>
+    <string name="discover_add_to_library">添加到曲库</string>
+    <string name="discover_add_to_playlist">添加到歌单…</string>
+    <string name="discover_retry">重试</string>
+    <string name="discover_login">登录</string>
+    <string name="discover_logout">退出登录</string>
+    <string name="discover_sync_playlist">同步此歌单</string>
+    <string name="discover_loading">加载中…</string>
+    <string name="discover_load_failed">加载失败</string>
+    <string name="discover_no_charts">暂无排行榜数据</string>
+    <string name="discover_no_playlists">暂无歌单数据</string>
+    <string name="discover_song_added">歌曲已添加</string>
+    <string name="discover_song_exists">歌曲已在曲库中</string>
+    <string name="discover_added_to_playlist">已添加到歌单</string>
+    <string name="discover_playlist_synced">歌单同步已创建</string>
+    <string name="discover_select_playlist">选择歌单</string>
+    <string name="discover_login_prompt">登录以查看个性化推荐</string>
+    <string name="discover_session_expired">会话已过期，请重新登录</string>
+    <string name="discover_login_title">登录 %s</string>
+    <string name="discover_daily_rec">每日推荐</string>
+    <string name="chart_netease_surge">飙升榜</string>
+    <string name="chart_netease_new">新歌榜</string>
+    <string name="chart_netease_hot">热歌榜</string>
+    <string name="chart_netease_original">原创榜</string>
+    <string name="chart_bilibili_music">音乐排行</string>
+    <string name="chart_update_daily">每日更新</string>
+    <string name="chart_update_weekly">每周更新</string>
 </resources>

@@ -636,6 +636,142 @@ class NetEasePlatform : PlatformHandler {
         return ids.mapNotNull { songMap[it] }
     }
 
+    /**
+     * Fetch popular playlists by category for browse/discover.
+     */
+    suspend fun fetchCategoryPlaylists(category: String, limit: Int = 30, offset: Int = 0): List<DiscoverPlaylistInfo> {
+        return withContext(Dispatchers.IO) {
+            val results = mutableListOf<DiscoverPlaylistInfo>()
+            try {
+                val encodedCat = URLEncoder.encode(category, "UTF-8")
+                val url = "https://music.163.com/api/playlist/list?cat=$encodedCat&order=hot&limit=$limit&offset=$offset"
+
+                val request = Request.Builder()
+                    .url(url)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://music.163.com/")
+                    .header("Accept", "application/json")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string()
+                        if (body != null) {
+                            val json = gson.fromJson(body, JsonObject::class.java)
+                            val playlists = json.getAsJsonArray("playlists")
+
+                            if (playlists != null) {
+                                for (item in playlists) {
+                                    try {
+                                        val pl = item.asJsonObject
+                                        val id = pl.get("id")?.asLong?.toString() ?: continue
+                                        val name = pl.get("name")?.asString ?: ""
+                                        val coverUrl = pl.get("coverImgUrl")?.asString?.replace("http://", "https://") ?: ""
+                                        val playCount = pl.get("playCount")?.asLong ?: 0
+                                        val trackCount = pl.get("trackCount")?.asInt ?: 0
+                                        val creator = pl.getAsJsonObject("creator")?.get("nickname")?.asString ?: ""
+
+                                        results.add(DiscoverPlaylistInfo(
+                                            platform = platformName,
+                                            playlistId = id,
+                                            name = name,
+                                            coverUrl = coverUrl,
+                                            playCount = playCount,
+                                            songCount = trackCount,
+                                            creator = creator
+                                        ))
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "Failed to parse playlist item: ${e.message}")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Log.w(TAG, "fetchCategoryPlaylists failed: ${response.code}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "fetchCategoryPlaylists error: ${e.message}")
+            }
+            Log.d(TAG, "Fetched ${results.size} playlists for category: $category")
+            results
+        }
+    }
+
+    /**
+     * Fetch daily personalized recommendations.
+     * Requires MUSIC_U auth cookie.
+     */
+    suspend fun fetchDailyRecommendations(authCookies: String): List<ParsedSong> {
+        return withContext(Dispatchers.IO) {
+            val songs = mutableListOf<ParsedSong>()
+            try {
+                val url = "https://music.163.com/api/v3/discovery/recommend/songs"
+
+                val formBody = okhttp3.FormBody.Builder()
+                    .add("limit", "30")
+                    .build()
+
+                val request = Request.Builder()
+                    .url(url)
+                    .post(formBody)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("Referer", "https://music.163.com/")
+                    .header("Cookie", authCookies)
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val body = response.body?.string()
+                        if (body != null) {
+                            val json = gson.fromJson(body, JsonObject::class.java)
+                            val data = json.getAsJsonObject("data")
+                            val dailySongs = data?.getAsJsonArray("dailySongs")
+
+                            if (dailySongs != null) {
+                                for (item in dailySongs) {
+                                    try {
+                                        val song = item.asJsonObject
+                                        val songId = song.get("id")?.asLong?.toString() ?: continue
+                                        val title = song.get("name")?.asString ?: ""
+
+                                        val artists = song.getAsJsonArray("ar")
+                                        val artist = if (artists != null && artists.size() > 0) {
+                                            artists.mapNotNull { it.asJsonObject.get("name")?.asString }.joinToString("/")
+                                        } else ""
+
+                                        val album = song.getAsJsonObject("al")
+                                        val albumName = album?.get("name")?.asString ?: ""
+                                        val coverUrl = album?.get("picUrl")?.asString?.replace("http://", "https://") ?: ""
+
+                                        songs.add(ParsedSong(
+                                            platform = platformName,
+                                            platformSongId = songId,
+                                            deepLink = generateDeepLink(songId),
+                                            fallbackUrl = generateFallbackUrl(songId),
+                                            title = title,
+                                            artist = artist,
+                                            album = albumName,
+                                            coverUrl = coverUrl
+                                        ))
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "Failed to parse recommendation: ${e.message}")
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Log.w(TAG, "fetchDailyRecommendations failed: ${response.code}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "fetchDailyRecommendations error: ${e.message}")
+            }
+            Log.d(TAG, "Fetched ${songs.size} daily recommendations")
+            songs
+        }
+    }
+
     companion object {
         private const val TAG = "NetEasePlatform"
     }

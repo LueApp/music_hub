@@ -51,6 +51,25 @@
             </intent-filter>
         </activity>
 
+        <!-- Platform Login Activity (WebView-based auth) -->
+        <!-- singleTask so QQ app OAuth callback triggers onNewIntent() -->
+        <activity
+            android:name=".auth.PlatformLoginActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.MusicHub">
+            <!-- Callback from QQ app after OAuth login -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="y.qq.com"
+                    android:pathPrefix="/portal/wx_redirect.html" />
+            </intent-filter>
+        </activity>
+
         <!-- Floating Window Service -->
         <service
             android:name=".service.FloatingWindowService"

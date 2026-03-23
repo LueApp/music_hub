@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <!-- Chart icon/cover -->
+        <ImageView
+            android:id="@+id/ivChartCover"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_queue_music"
+            android:scaleType="centerCrop"
+            android:contentDescription="@null"
+            app:tint="@color/primary" />
+
+        <!-- Chart info -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:layout_marginStart="16dp">
+
+            <TextView
+                android:id="@+id/tvChartName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="热歌榜" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:id="@+id/tvPlatform"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="@style/PlatformBadge"
+                    android:textSize="10sp"
+                    tools:text="网易云" />
+
+                <TextView
+                    android:id="@+id/tvUpdateFreq"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_hint"
+                    android:layout_marginStart="8dp"
+                    tools:text="每日更新" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Arrow -->
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_arrow_forward"
+            app:tint="@color/text_hint"
+            android:contentDescription="@null" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

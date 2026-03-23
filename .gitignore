@@ -73,3 +73,6 @@ Thumbs.db
 credentials.json
 .env
 .env.local
+
+.venv
+docs
