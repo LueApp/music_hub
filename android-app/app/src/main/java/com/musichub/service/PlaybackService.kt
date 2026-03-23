@@ -438,12 +438,18 @@ class PlaybackService : Service() {
         val handler = getHandlerForPlatform(song.platform)
 
         // Check song availability asynchronously before launching
+        // Skip when in player mode — phones on local hotspot typically have no internet,
+        // and the 10s+10s HTTP timeout would block song advancement for up to 20 seconds
         serviceScope.launch {
-            val availability = try {
-                handler?.checkSongAvailability(song.platformSongId)
-            } catch (e: Exception) {
-                Log.w(TAG, "Availability check exception for ${song.title}: ${e.message}")
-                null // Treat exception as "assume available"
+            val availability = if (RemoteMode.isPlayer()) {
+                null // Skip availability check in player mode
+            } else {
+                try {
+                    handler?.checkSongAvailability(song.platformSongId)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Availability check exception for ${song.title}: ${e.message}")
+                    null // Treat exception as "assume available"
+                }
             }
 
             if (availability != null && !availability.isAvailable) {
