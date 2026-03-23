@@ -20,6 +20,13 @@
             android:defaultValue="true"
             app:iconSpaceReserved="false" />
 
+        <SwitchPreferenceCompat
+            android:key="qqmusic_auto_open_player"
+            android:title="@string/qqmusic_auto_open_player_cn"
+            android:summary="@string/qqmusic_auto_open_player_desc_cn"
+            android:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

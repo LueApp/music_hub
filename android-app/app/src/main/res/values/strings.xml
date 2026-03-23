@@ -172,6 +172,8 @@
 
     <!-- Accessibility Service -->
     <string name="accessibility_service_desc_cn">用于在前台模式下自动打开QQ音乐播放器页面（歌词页面）</string>
+    <string name="qqmusic_auto_open_player_cn">自动进入QQ音乐播放页</string>
+    <string name="qqmusic_auto_open_player_desc_cn">跳转QQ音乐后自动点击歌曲卡片或迷你播放栏进入播放页（需要无障碍服务权限）</string>
 
     <!-- Sync -->
     <string name="sync_last_sync">上次同��: %s</string>

@@ -262,7 +262,14 @@ class MediaMonitorService : NotificationListenerService() {
         if (fromPackage != null && isCrossPlatformSwitch && fromPackage == switchingFromPackage &&
             (currentState == PlaybackState.STATE_PLAYING || currentState == PlaybackState.STATE_BUFFERING)) {
             Log.d(TAG, "Reactive re-pause: old platform $fromPackage entered state $currentState during cross-platform switch")
-            pauseSpecificPackage(fromPackage)
+            activeControllers[fromPackage]?.let { controller ->
+                try {
+                    controller.transportControls.pause()
+                    controller.transportControls.stop()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in reactive re-pause for $fromPackage: ${e.message}")
+                }
+            }
             return
         }
 
@@ -587,6 +594,7 @@ class MediaMonitorService : NotificationListenerService() {
                 if (state != null && state.state == PlaybackState.STATE_PLAYING) {
                     Log.d(TAG, "Re-pausing media for $packageName (catching auto-advance)")
                     controller.transportControls.pause()
+                    controller.transportControls.stop()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error re-pausing media for $packageName: ${e.message}")

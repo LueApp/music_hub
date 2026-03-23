@@ -11,6 +11,7 @@ import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.PreferenceManager
 import androidx.preference.SwitchPreferenceCompat
 import com.musichub.MusicHubApplication
 import com.musichub.R
@@ -209,15 +210,18 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
 
         // Update accessibility service status
+        val a11yEnabled = PlayerAccessibilityService.isEnabled(requireContext())
+        val a11yRunning = PlayerAccessibilityService.getInstance() != null
         findPreference<Preference>("accessibility_access")?.apply {
-            val isEnabled = PlayerAccessibilityService.isEnabled(requireContext())
-            val isRunning = PlayerAccessibilityService.getInstance() != null
             summary = when {
-                isEnabled && isRunning -> "已授权且运行中"
-                isEnabled && !isRunning -> "已授权但未运行 - 请点击重新启用"
+                a11yEnabled && a11yRunning -> "已授权且运行中"
+                a11yEnabled && !a11yRunning -> "已授权但未运行 - 请点击重新启用"
                 else -> "未授权 - 点击授权（QQ音乐需要）"
             }
         }
+
+        // Grey out the auto-open switch when the accessibility service is not running
+        findPreference<SwitchPreferenceCompat>("qqmusic_auto_open_player")?.isEnabled = a11yEnabled && a11yRunning
 
         // Update floating window status
         findPreference<SwitchPreferenceCompat>("floating_window")?.apply {
