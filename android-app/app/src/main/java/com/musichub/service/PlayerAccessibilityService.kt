@@ -31,6 +31,7 @@ class PlayerAccessibilityService : AccessibilityService() {
     private var foundUIElement = false  // Track if we found the actual UI element
     private var lastFoundCard = false  // Track if card was found in last attempt
     private var lastFoundMiniPlayer = false  // Track if mini player was found in last attempt
+    private var hasDumped = false  // Prevent repeated UI tree dumps per click request
 
     // Broadcast receiver to handle click requests from other components
     private val clickRequestReceiver = object : BroadcastReceiver() {
@@ -128,6 +129,7 @@ class PlayerAccessibilityService : AccessibilityService() {
         foundUIElement = false
         lastFoundCard = false
         lastFoundMiniPlayer = false
+        hasDumped = false
         Log.d(TAG, "Mini player click requested")
 
         // Wait 2 seconds for QQ Music card animation to finish before first attempt
@@ -173,11 +175,11 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
 
         try {
-            // Strategy 1: Try the music card (cxy) - appears during song transitions
+            // Strategy 1: Try the music card - appears during song transitions
             val cardNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/cxy"
+                "$QQMUSIC_PACKAGE:id/$ID_MUSIC_CARD"
             )
-            Log.d(TAG, "Found ${cardNodes.size} cxy (card) nodes")
+            Log.d(TAG, "Found ${cardNodes.size} $ID_MUSIC_CARD (card) nodes")
             if (cardNodes.isNotEmpty()) {
                 val node = cardNodes[0]
                 val rect = android.graphics.Rect()
@@ -204,16 +206,16 @@ class PlayerAccessibilityService : AccessibilityService() {
                 return true
             }
 
-            // Strategy 2: Try the mini player container (jrh or jro)
+            // Strategy 2: Try the mini player container
             var miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/jrh"
+                "$QQMUSIC_PACKAGE:id/$ID_MINI_PLAYER_PRIMARY"
             )
-            Log.d(TAG, "Found ${miniPlayerNodes.size} jrh nodes")
+            Log.d(TAG, "Found ${miniPlayerNodes.size} $ID_MINI_PLAYER_PRIMARY nodes")
             if (miniPlayerNodes.isEmpty()) {
                 miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                    "$QQMUSIC_PACKAGE:id/jro"
+                    "$QQMUSIC_PACKAGE:id/$ID_MINI_PLAYER_FALLBACK"
                 )
-                Log.d(TAG, "Found ${miniPlayerNodes.size} jro nodes")
+                Log.d(TAG, "Found ${miniPlayerNodes.size} $ID_MINI_PLAYER_FALLBACK nodes")
             }
             if (miniPlayerNodes.isNotEmpty()) {
                 val node = miniPlayerNodes[0]
@@ -245,14 +247,27 @@ class PlayerAccessibilityService : AccessibilityService() {
                 return true
             }
 
-            // Strategy 3: If no elements found after retries, assume already on player page
+            // Dump UI tree when ID-based strategies fail, for diagnosing ID changes
+            if (cardNodes.isEmpty() && miniPlayerNodes.isEmpty() && retryCount >= 2 && !hasDumped) {
+                hasDumped = true
+                dumpUITree()
+            }
+
+            // Strategy 3: Heuristic - find a bottom-of-screen bar by position and size
+            if (cardNodes.isEmpty() && miniPlayerNodes.isEmpty() && retryCount >= 2) {
+                if (tryHeuristicClick(rootNode)) {
+                    return true
+                }
+            }
+
+            // Strategy 4: If no elements found after retries, assume already on player page
             if (retryCount > 3) {
                 Log.i(TAG, "No clickable elements found after $retryCount retries, assuming player page already open")
                 pendingClick = false
                 return true
             }
 
-            // Strategy 4: Fallback to known position
+            // Strategy 5: Fallback to known position
             Log.d(TAG, "No UI elements found (retry $retryCount), trying fallback position")
             return tryFallbackClick()
         } catch (e: Exception) {
@@ -263,6 +278,97 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
 
         return false
+    }
+
+    /**
+     * Heuristic fallback: find a mini-player-like bar at the bottom of the screen
+     * by structural properties (position, size) rather than resource ID.
+     */
+    private fun tryHeuristicClick(rootNode: AccessibilityNodeInfo): Boolean {
+        val displayMetrics = resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        val screenWidth = displayMetrics.widthPixels
+        val bottomThreshold = screenHeight * 0.8  // bottom 20%
+        val minWidth = screenWidth * 0.8
+        val minHeight = (40 * displayMetrics.density).toInt()  // 40dp
+
+        var bestCandidate: AccessibilityNodeInfo? = null
+        var bestRect = android.graphics.Rect()
+
+        // Search top-level children for a wide bar near the bottom
+        for (i in 0 until rootNode.childCount) {
+            val child = rootNode.getChild(i) ?: continue
+            val rect = android.graphics.Rect()
+            child.getBoundsInScreen(rect)
+
+            // Skip elements that are too small or not in the bottom area
+            if (rect.top < bottomThreshold) continue
+            if (rect.width() < minWidth) continue
+            if (rect.height() < minHeight) continue
+
+            // Skip navigation-like elements by resource ID
+            val resId = child.viewIdResourceName ?: ""
+            if (resId.contains("nav") || resId.contains("tab") || resId.contains("bottom_bar")) {
+                continue
+            }
+
+            // Prefer the candidate closest to the bottom but not the very bottom edge (nav bar)
+            if (bestCandidate == null || rect.top > bestRect.top) {
+                bestCandidate = child
+                bestRect = rect
+            }
+        }
+
+        if (bestCandidate != null) {
+            // Click the left side (album art area)
+            val x = bestRect.left + (bestRect.height() / 2f)
+            val y = (bestRect.top + bestRect.bottom) / 2f
+            Log.i(TAG, "Heuristic: found candidate bar at $bestRect (id=${bestCandidate.viewIdResourceName}), clicking at ($x, $y)")
+            if (performGestureClick(x, y)) {
+                foundUIElement = true
+                return true
+            }
+        }
+
+        return false
+    }
+
+    /**
+     * Dump the QQ Music UI tree to logcat for discovering current resource IDs.
+     * Logs top-level nodes and their immediate children, breadth-first, capped at 50 nodes.
+     */
+    private fun dumpUITree() {
+        val rootNode = rootInActiveWindow ?: return
+        try {
+            Log.w(TAG, "=== UI TREE DUMP (ID-based strategies failed) ===")
+            var count = 0
+            val queue = ArrayDeque<Pair<AccessibilityNodeInfo, Int>>()  // node, depth
+            queue.add(rootNode to 0)
+            while (queue.isNotEmpty() && count < 50) {
+                val (node, depth) = queue.removeFirst()
+                val rect = android.graphics.Rect()
+                node.getBoundsInScreen(rect)
+                val indent = "  ".repeat(depth)
+                Log.w(TAG, "${indent}[${count}] id=${node.viewIdResourceName}, class=${node.className}, " +
+                    "bounds=${rect}, clickable=${node.isClickable}, " +
+                    "desc=${node.contentDescription}, text=${node.text}, " +
+                    "children=${node.childCount}")
+                count++
+                // Only descend to depth 2 (top-level + immediate children)
+                if (depth < 2) {
+                    for (i in 0 until node.childCount) {
+                        val child = node.getChild(i) ?: continue
+                        queue.add(child to depth + 1)
+                    }
+                }
+            }
+            Log.w(TAG, "=== END UI TREE DUMP ($count nodes) ===")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error dumping UI tree: ${e.message}")
+        } finally {
+            @Suppress("DEPRECATION")
+            rootNode.recycle()
+        }
     }
 
     /**
@@ -322,7 +428,7 @@ class PlayerAccessibilityService : AccessibilityService() {
 
         try {
             val closeNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/close_btn"
+                "$QQMUSIC_PACKAGE:id/$ID_CLOSE_BTN"
             )
             if (closeNodes.isNotEmpty()) {
                 val node = closeNodes[0]
@@ -379,6 +485,12 @@ class PlayerAccessibilityService : AccessibilityService() {
         private const val MAX_RETRIES = 16  // 16 * 500ms = 8 seconds
         private const val MAX_TIMEOUT_MS = 8000L
         const val ACTION_REQUEST_CLICK = "com.musichub.action.REQUEST_CLICK_MINIPLAYER"
+
+        // QQ Music obfuscated resource IDs — update these when QQ Music changes them
+        private const val ID_MUSIC_CARD = "cxy"
+        private const val ID_MINI_PLAYER_PRIMARY = "jrh"
+        private const val ID_MINI_PLAYER_FALLBACK = "jro"
+        private const val ID_CLOSE_BTN = "close_btn"
 
         @Volatile
         private var instance: PlayerAccessibilityService? = null
