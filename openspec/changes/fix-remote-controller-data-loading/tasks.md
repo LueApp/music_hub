@@ -30,4 +30,4 @@
 - [x] 6.1 Build with `pixi run build` and verify no compilation errors
 - [ ] 6.2 Deploy to both phones. On player: set mode to Player. On controller: set mode to Controller with player IP. Verify: song list loads, playlists load, playback progress shows in floating window
 - [ ] 6.3 Test error scenarios: stop the player server, verify controller shows error Toast and reconnects when player comes back online
-- [ ] 6.4 Commit all changes
+- [x] 6.4 Commit all changes
