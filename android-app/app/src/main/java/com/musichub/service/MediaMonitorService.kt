@@ -628,6 +628,8 @@ class MediaMonitorService : NotificationListenerService() {
         currentPlatformPackage = packageName
     }
 
+    fun getCurrentPlatformPackage(): String? = currentPlatformPackage
+
     /**
      * Called when a new song starts playing via Music Hub.
      * This disables manual control mode after a delay to re-enable auto-advance detection.

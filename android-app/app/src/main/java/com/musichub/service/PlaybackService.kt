@@ -437,6 +437,19 @@ class PlaybackService : Service() {
         val song = getCurrentSong() ?: return
         val handler = getHandlerForPlatform(song.platform)
 
+        // Pre-emptive pause: if the next song is on a different platform, pause the old
+        // platform immediately BEFORE the availability check. This prevents the old app
+        // from auto-advancing to its next song during the HTTP request delay.
+        val targetPackage = Platforms.PACKAGE_NAMES[song.platform]
+        val monitor = MediaMonitorService.getInstance()
+        if (monitor != null && targetPackage != null) {
+            val currentPlatform = monitor.getCurrentPlatformPackage()
+            if (currentPlatform != null && currentPlatform != targetPackage) {
+                Log.d(TAG, "Pre-emptive cross-platform pause: $currentPlatform -> $targetPackage")
+                monitor.pauseAllMedia(targetPackage)
+            }
+        }
+
         // Check song availability asynchronously before launching
         // Skip when in player mode — phones on local hotspot typically have no internet,
         // and the 10s+10s HTTP timeout would block song advancement for up to 20 seconds
