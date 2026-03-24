@@ -25,6 +25,9 @@ class MediaMonitorService : NotificationListenerService() {
     private var mediaSessionManager: MediaSessionManager? = null
     private var activeControllers = mutableMapOf<String, MediaController>()
     private var controllerCallbacks = mutableMapOf<String, MediaController.Callback>()
+    // Lock for thread-safe access to activeControllers and controllerCallbacks.
+    // The RemoteServer broadcast loop reads these from Dispatchers.IO while the main thread mutates them.
+    private val controllersLock = Any()
     private var lastPlaybackState: Int? = null
     private var lastPosition: Long = 0
     private var maxPositionReached: Long = 0  // Track highest position during song playback
@@ -185,15 +188,17 @@ class MediaMonitorService : NotificationListenerService() {
 
             mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionListener)
 
-            activeControllers.forEach { (pkg, controller) ->
-                try {
-                    controllerCallbacks[pkg]?.let { cb -> controller.unregisterCallback(cb) }
-                } catch (e: Exception) {
-                    // Ignore
+            synchronized(controllersLock) {
+                activeControllers.forEach { (pkg, controller) ->
+                    try {
+                        controllerCallbacks[pkg]?.let { cb -> controller.unregisterCallback(cb) }
+                    } catch (e: Exception) {
+                        // Ignore
+                    }
                 }
+                activeControllers.clear()
+                controllerCallbacks.clear()
             }
-            activeControllers.clear()
-            controllerCallbacks.clear()
 
             Log.d(TAG, "Stopped monitoring media sessions")
         } catch (e: Exception) {
@@ -211,41 +216,43 @@ class MediaMonitorService : NotificationListenerService() {
             Platforms.PACKAGE_NAMES[Platforms.BILIBILI]
         )
 
-        // Remove old controllers
-        val currentPackages = controllers.map { it.packageName }.toSet()
-        val toRemove = activeControllers.keys - currentPackages
-        toRemove.forEach { pkg ->
-            controllerCallbacks[pkg]?.let { cb ->
-                activeControllers[pkg]?.unregisterCallback(cb)
+        synchronized(controllersLock) {
+            // Remove old controllers
+            val currentPackages = controllers.map { it.packageName }.toSet()
+            val toRemove = activeControllers.keys - currentPackages
+            toRemove.forEach { pkg ->
+                controllerCallbacks[pkg]?.let { cb ->
+                    activeControllers[pkg]?.unregisterCallback(cb)
+                }
+                activeControllers.remove(pkg)
+                controllerCallbacks.remove(pkg)
+                Log.d(TAG, "Removed media controller for: $pkg")
             }
-            activeControllers.remove(pkg)
-            controllerCallbacks.remove(pkg)
-            Log.d(TAG, "Removed media controller for: $pkg")
-        }
 
-        // Add new controllers
-        controllers.forEach { controller ->
-            val pkg = controller.packageName
-            if (pkg in targetPackages && pkg !in activeControllers) {
-                try {
-                    val cb = createCallbackForPackage(pkg)
-                    controller.registerCallback(cb, handler)
-                    activeControllers[pkg] = controller
-                    controllerCallbacks[pkg] = cb
-                    Log.d(TAG, "Added media controller for: $pkg")
+            // Add new controllers
+            controllers.forEach { controller ->
+                val pkg = controller.packageName
+                if (pkg in targetPackages && pkg !in activeControllers) {
+                    try {
+                        val cb = createCallbackForPackage(pkg)
+                        controller.registerCallback(cb, handler)
+                        activeControllers[pkg] = controller
+                        controllerCallbacks[pkg] = cb
+                        Log.d(TAG, "Added media controller for: $pkg")
 
-                    // Get initial metadata for duration (only for current platform)
-                    if (currentPlatformPackage == null || pkg == currentPlatformPackage) {
-                        controller.metadata?.let { metadata ->
-                            lastMetadataDuration = metadata.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
-                            Log.d(TAG, "Initial duration for $pkg: $lastMetadataDuration ms")
+                        // Get initial metadata for duration (only for current platform)
+                        if (currentPlatformPackage == null || pkg == currentPlatformPackage) {
+                            controller.metadata?.let { metadata ->
+                                lastMetadataDuration = metadata.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
+                                Log.d(TAG, "Initial duration for $pkg: $lastMetadataDuration ms")
+                            }
                         }
-                    }
 
-                    // Check current state
-                    handlePlaybackStateChange(controller.playbackState, pkg)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to register callback for $pkg: ${e.message}")
+                        // Check current state
+                        handlePlaybackStateChange(controller.playbackState, pkg)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to register callback for $pkg: ${e.message}")
+                    }
                 }
             }
         }
@@ -382,7 +389,10 @@ class MediaMonitorService : NotificationListenerService() {
     private fun pollCurrentPosition() {
         // Poll position from all active controllers, but only trigger song-end
         // detection for the current platform's controller
-        activeControllers.forEach { (pkg, controller) ->
+        val controllerSnapshot = synchronized(controllersLock) {
+            activeControllers.entries.map { (pkg, controller) -> pkg to controller }
+        }
+        controllerSnapshot.forEach { (pkg, controller) ->
             try {
                 val state = controller.playbackState
                 if (state != null && state.state == PlaybackState.STATE_PLAYING) {
@@ -521,7 +531,10 @@ class MediaMonitorService : NotificationListenerService() {
         // platform's controller exists (regardless of current playback state).
         // This fixes a race condition where the controller may have already transitioned
         // to PAUSED by the time we check, but the app can still auto-advance to a new song.
-        activeControllers.forEach { (pkg, controller) ->
+        val controllerSnapshot = synchronized(controllersLock) {
+            activeControllers.entries.map { (pkg, controller) -> pkg to controller }
+        }
+        controllerSnapshot.forEach { (pkg, controller) ->
             try {
                 if (targetPlatformPackage != null && targetPlatformPackage != pkg) {
                     // This controller belongs to a different platform than the target
@@ -588,13 +601,16 @@ class MediaMonitorService : NotificationListenerService() {
      * Pause a specific package's media controller.
      */
     private fun pauseSpecificPackage(packageName: String) {
-        activeControllers[packageName]?.let { controller ->
+        val controller = synchronized(controllersLock) {
+            activeControllers[packageName]
+        }
+        controller?.let {
             try {
-                val state = controller.playbackState
+                val state = it.playbackState
                 if (state != null && state.state == PlaybackState.STATE_PLAYING) {
                     Log.d(TAG, "Re-pausing media for $packageName (catching auto-advance)")
-                    controller.transportControls.pause()
-                    controller.transportControls.stop()
+                    it.transportControls.pause()
+                    it.transportControls.stop()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error re-pausing media for $packageName: ${e.message}")
@@ -643,8 +659,16 @@ class MediaMonitorService : NotificationListenerService() {
      * Returns null if no active playback.
      */
     fun getPlaybackInfo(): PlaybackInfo? {
+        // Snapshot controllers under lock, then iterate outside lock to avoid
+        // holding the lock during potentially slow MediaController IPC calls.
+        // This prevents ConcurrentModificationException when the broadcast thread
+        // calls this while the main thread modifies activeControllers.
+        val controllerSnapshot = synchronized(controllersLock) {
+            activeControllers.values.toList()
+        }
+
         // First pass: find a controller that is actively playing
-        activeControllers.values.forEach { controller ->
+        controllerSnapshot.forEach { controller ->
             try {
                 val state = controller.playbackState
                 val metadata = controller.metadata
@@ -671,7 +695,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // Second pass: find any controller with valid metadata (paused state)
-        activeControllers.values.forEach { controller ->
+        controllerSnapshot.forEach { controller ->
             try {
                 val state = controller.playbackState
                 val metadata = controller.metadata
@@ -700,8 +724,12 @@ class MediaMonitorService : NotificationListenerService() {
      * Prioritizes controllers that are actively playing.
      */
     fun togglePlayPause() {
+        val controllerSnapshot = synchronized(controllersLock) {
+            activeControllers.values.toList()
+        }
+
         // First, try to find a playing controller to pause
-        activeControllers.values.forEach { controller ->
+        controllerSnapshot.forEach { controller ->
             try {
                 val state = controller.playbackState
                 if (state != null && state.state == PlaybackState.STATE_PLAYING) {
@@ -715,7 +743,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // No playing controller found, try to resume any paused controller
-        activeControllers.values.forEach { controller ->
+        controllerSnapshot.forEach { controller ->
             try {
                 val state = controller.playbackState
                 if (state != null && state.state == PlaybackState.STATE_PAUSED) {
@@ -729,7 +757,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // Last resort: try the first controller with any state
-        activeControllers.values.firstOrNull()?.let { controller ->
+        controllerSnapshot.firstOrNull()?.let { controller ->
             try {
                 Log.d(TAG, "Attempting to play ${controller.packageName}")
                 controller.transportControls.play()
@@ -744,8 +772,12 @@ class MediaMonitorService : NotificationListenerService() {
      * @param positionMs The position to seek to in milliseconds
      */
     fun seekTo(positionMs: Long) {
+        val controllerSnapshot = synchronized(controllersLock) {
+            activeControllers.values.toList()
+        }
+
         // Find the currently active controller (playing or paused)
-        activeControllers.values.forEach { controller ->
+        controllerSnapshot.forEach { controller ->
             try {
                 val state = controller.playbackState
                 if (state != null && (state.state == PlaybackState.STATE_PLAYING ||
