@@ -297,6 +297,10 @@ class PlaybackService : Service() {
         if (currentIndex in queue.indices) queue[currentIndex] else null
     }
 
+    fun getCurrentPlatform(): String? = synchronized(queueLock) {
+        if (currentIndex in queue.indices) queue[currentIndex].platform else null
+    }
+
     fun getCurrentIndex(): Int = currentIndex
 
     fun getRemainingCount(): Int = synchronized(queueLock) {
@@ -535,14 +539,32 @@ class PlaybackService : Service() {
 
         Log.d(TAG, "Launching song: ${song.title} (platform=${song.platform}, isPlatformSwitch=$isPlatformSwitch, delay=${launchDelay}ms)")
 
+        // For same-platform NetEase switches, detect if we need a deep link re-send.
+        // NetEase auto-advances to its own next song ~1.5s after the current song ends.
+        // Early song-end detection fires ~1.5s before the end, so we send the deep link
+        // once immediately and once after 2s to override NetEase's auto-advance.
+        val isSamePlatformNetEase = !isPlatformSwitch && song.platform == Platforms.NETEASE
+            && previousSong?.platform == Platforms.NETEASE
+        val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
         // Delay to ensure pause takes effect before launching new app
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+        mainHandler.postDelayed({
             // Launch the song in the native app
             DeepLinkLauncher.launch(this, song.deepLink, fallbackUrl)
 
             // Notify MediaMonitorService that we've started a new song
             // This re-enables auto-advance detection after a delay
             MediaMonitorService.getInstance()?.onNewSongStarted()
+
+            // Re-send deep link after 2s for same-platform NetEase switches
+            // to override NetEase's internal auto-advance to its own next song
+            if (isSamePlatformNetEase) {
+                Log.d(TAG, "Scheduling deep link re-send for same-platform NetEase switch")
+                mainHandler.postDelayed({
+                    Log.d(TAG, "Re-sending deep link to override NetEase auto-advance: ${song.title}")
+                    DeepLinkLauncher.launch(this, song.deepLink, fallbackUrl, skipAutoRotate = true)
+                }, 2000L)
+            }
         }, launchDelay)
 
         // Update notification and notify listeners

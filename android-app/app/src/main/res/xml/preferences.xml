@@ -51,6 +51,12 @@
             android:summary="用于横屏时自动修复网易云音乐方向检测"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="usage_stats_access"
+            android:title="应用使用情况权限"
+            android:summary="用于浮窗双击智能导航功能"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

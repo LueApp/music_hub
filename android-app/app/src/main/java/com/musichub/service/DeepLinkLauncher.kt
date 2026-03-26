@@ -40,16 +40,17 @@ object DeepLinkLauncher {
      * @param context Android context
      * @param deepLink The app-specific deep link (e.g., orpheus://song/123)
      * @param fallbackUrl The web URL fallback (e.g., https://music.163.com/song?id=123)
+     * @param skipAutoRotate Skip auto-rotate toggle (for double-click navigation)
      * @return true if launch was successful
      */
-    fun launch(context: Context, deepLink: String, fallbackUrl: String = ""): Boolean {
+    fun launch(context: Context, deepLink: String, fallbackUrl: String = "", skipAutoRotate: Boolean = false): Boolean {
         val isScreenLocked = isScreenLocked(context)
-        Log.d(TAG, "Launch requested: deepLink=$deepLink, screenLocked=$isScreenLocked")
+        Log.d(TAG, "Launch requested: deepLink=$deepLink, screenLocked=$isScreenLocked, skipAutoRotate=$skipAutoRotate")
 
         return if (isScreenLocked) {
             launchForLockedScreen(context, deepLink, fallbackUrl)
         } else {
-            launchNormal(context, deepLink, fallbackUrl)
+            launchNormal(context, deepLink, fallbackUrl, skipAutoRotate)
         }
     }
 
@@ -67,7 +68,7 @@ object DeepLinkLauncher {
         return isKeyguardLocked || !isScreenOn
     }
 
-    private fun launchNormal(context: Context, deepLink: String, fallbackUrl: String): Boolean {
+    private fun launchNormal(context: Context, deepLink: String, fallbackUrl: String, skipAutoRotate: Boolean = false): Boolean {
         val resolvedLink = convertLegacyBilibiliDeepLink(deepLink)
         Log.d(TAG, "Launching deep link: $resolvedLink (original: $deepLink)")
 
@@ -100,7 +101,7 @@ object DeepLinkLauncher {
             // NetEase doesn't detect the current orientation on activity start when
             // the device is already in landscape; toggling auto-rotate forces the
             // system to re-deliver the orientation configuration.
-            if (resolvedLink.startsWith("orpheus://")) {
+            if (resolvedLink.startsWith("orpheus://") && !skipAutoRotate) {
                 toggleAutoRotate(context)
             }
 

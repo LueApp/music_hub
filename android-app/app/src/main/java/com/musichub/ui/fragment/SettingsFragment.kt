@@ -2,6 +2,7 @@ package com.musichub.ui.fragment
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -84,6 +85,15 @@ class SettingsFragment : PreferenceFragmentCompat() {
                     }
                     startActivity(intent)
                 }
+                true
+            }
+        }
+
+        // Usage stats permission (for double-click navigation)
+        findPreference<Preference>("usage_stats_access")?.apply {
+            setOnPreferenceClickListener {
+                val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                startActivity(intent)
                 true
             }
         }
@@ -236,6 +246,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
             summary = if (canWrite) "已授权" else "未授权 - 点击授权"
         }
 
+        // Update usage stats permission status
+        findPreference<Preference>("usage_stats_access")?.apply {
+            val isGranted = hasUsageStatsPermission()
+            summary = if (isGranted) "已授权" else "未授权 - 点击授权（浮窗双击导航需要）"
+        }
+
         // Update remote control status
         updateRemoteStatus()
         val currentMode = when (RemoteMode.currentMode) {
@@ -249,5 +265,25 @@ class SettingsFragment : PreferenceFragmentCompat() {
     override fun onDestroyView() {
         super.onDestroyView()
         RemoteClient.removeConnectionListener(connectionListener)
+    }
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = requireContext().getSystemService(android.content.Context.APP_OPS_SERVICE) as? android.app.AppOpsManager
+            ?: return false
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                requireContext().packageName
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                requireContext().packageName
+            )
+        }
+        return mode == android.app.AppOpsManager.MODE_ALLOWED
     }
 }
