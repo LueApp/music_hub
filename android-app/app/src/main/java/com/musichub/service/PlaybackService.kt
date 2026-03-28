@@ -49,7 +49,7 @@ class PlaybackService : Service() {
     private val MAX_CONSECUTIVE_SKIPS = 10
 
     // Post-launch playback timeout: detect songs that fail to play at runtime
-    private val PLAYBACK_TIMEOUT_MS = 15000L
+    private val PLAYBACK_TIMEOUT_MS = 5000L
     private var playbackTimeoutRunnable: Runnable? = null
     private var lastLaunchedSongId: Long = -1L
     private val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
