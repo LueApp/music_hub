@@ -294,20 +294,21 @@ Song switching always brings the target music app to the foreground. Android's `
 
 **Conclusion**: There is no reliable way on Android to send a deep link to a third-party app without bringing it to the foreground. The app uses foreground-only playback mode.
 
-### NetEase Landscape Orientation Detection
+### NetEase Landscape Orientation (Workaround Implemented)
 
-When launching NetEase Cloud Music via `orpheus://` deep link while the phone is in landscape orientation, NetEase opens in portrait mode and requires manual rotation (portrait→landscape) to trigger landscape mode.
+NetEase Cloud Music has a separate `PlayerLandscapeActivity` that is only triggered when its internal `OrientationEventListener` detects a portrait→landscape rotation. The listener reads the hardware accelerometer directly and only fires on fresh registration (not when the device is already in landscape).
 
-**Root cause**: NetEase reads the accelerometer sensor directly via `OrientationEventListener` and ignores system-level rotation configuration changes. When launched via deep link with `FLAG_ACTIVITY_NEW_TASK`, NetEase's activity starts before its sensor listener is registered, missing the initial orientation state.
+**Working workaround** (implemented in `DeepLinkLauncher.kt`):
+1. Detect landscape orientation before launch
+2. Force portrait system rotation (`ACCELEROMETER_ROTATION=0`, `USER_ROTATION=0`)
+3. Launch deep link with `FLAG_ACTIVITY_CLEAR_TASK` (forces fresh `PlayerActivity` + new listener)
+4. Wait for `MediaMonitorService` to detect `STATE_PLAYING` (event-driven, ~7s typical)
+5. Restore auto-rotation → accelerometer detects landscape → listener fires → `PlayerLandscapeActivity` launches
 
-**Attempted solutions** (all failed):
-- System settings manipulation (`ACCELEROMETER_ROTATION`, `USER_ROTATION`)
-- Portrait→landscape transition simulation
-- Activity recreation flags (`FLAG_ACTIVITY_CLEAR_TOP`)
-- Extended delays (2.5s+) for sensor initialization
-- `adb shell settings put` and `wm user-rotation` commands
-
-**Conclusion**: No programmatic workaround exists. NetEase only responds to actual physical sensor events, which cannot be simulated from software. Users must manually rotate the phone to portrait and back to landscape after NetEase opens.
+**Known trade-offs**:
+- ~7-10 second delay for splash screen + player initialization (unavoidable with CLEAR_TASK)
+- Brief "third song" audio during NetEase-to-NetEase transitions (double-send is skipped in landscape to avoid breaking `PlayerLandscapeActivity`)
+- Requires `WRITE_SETTINGS` permission (already granted)
 
 ---
 
