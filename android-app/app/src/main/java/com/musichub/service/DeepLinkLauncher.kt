@@ -4,6 +4,7 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -22,13 +23,19 @@ object DeepLinkLauncher {
     // Delay for locked screen launches (needs more time for app to process)
     private const val LOCKED_SCREEN_LAUNCH_DELAY_MS = 500L
 
-    // Delay before toggling auto-rotate (let the target app's activity fully start)
-    private const val AUTO_ROTATE_TOGGLE_DELAY_MS = 1000L
-
-    // Duration to keep auto-rotate disabled before re-enabling
-    private const val AUTO_ROTATE_OFF_DURATION_MS = 200L
+    // Timeout for waiting for NetEase playback to start before restoring auto-rotation
+    private const val LANDSCAPE_ROTATION_TIMEOUT_MS = 15000L
 
     private const val BILIBILI_PACKAGE = "tv.danmaku.bili"
+    private const val NETEASE_PACKAGE = "com.netease.cloudmusic"
+
+    // Track whether we're in the middle of the landscape workaround.
+    // When true, the playback timeout should be extended and further launches
+    // should know that the device WAS in landscape before we forced portrait.
+    @Volatile
+    var landscapeWorkaroundActive = false
+        private set
+
 
     // Patterns for converting legacy HTTPS Bilibili deep links to bilibili:// scheme
     private val bilibiliVideoPattern = Regex("""https?://(?:www\.)?bilibili\.com/video/((?:BV[a-zA-Z0-9]+|av\d+))""")
@@ -40,7 +47,7 @@ object DeepLinkLauncher {
      * @param context Android context
      * @param deepLink The app-specific deep link (e.g., orpheus://song/123)
      * @param fallbackUrl The web URL fallback (e.g., https://music.163.com/song?id=123)
-     * @param skipAutoRotate Skip auto-rotate toggle (for double-click navigation)
+     * @param skipAutoRotate Skip landscape rotation workaround (for re-sends)
      * @return true if launch was successful
      */
     fun launch(context: Context, deepLink: String, fallbackUrl: String = "", skipAutoRotate: Boolean = false): Boolean {
@@ -72,9 +79,31 @@ object DeepLinkLauncher {
         val resolvedLink = convertLegacyBilibiliDeepLink(deepLink)
         Log.d(TAG, "Launching deep link: $resolvedLink (original: $deepLink)")
 
+        // For NetEase in landscape: force portrait before launch, use CLEAR_TASK,
+        // then restore auto-rotation when playback starts (event-driven).
+        // Also check landscapeWorkaroundActive: if we already forced portrait for a
+        // previous launch (e.g., playback timeout triggered a skip), the device reports
+        // portrait but we still need the workaround since the user's phone is landscape.
+        val isNeteaseLandscape = resolvedLink.startsWith("orpheus://") &&
+            !skipAutoRotate &&
+            (isDeviceLandscape(context) || landscapeWorkaroundActive)
+
+        if (isNeteaseLandscape && !landscapeWorkaroundActive) {
+            if (!forcePortraitRotation(context)) {
+                Log.w(TAG, "Cannot force portrait (WRITE_SETTINGS not granted), launching normally")
+            } else {
+                landscapeWorkaroundActive = true
+                Log.d(TAG, "Forced portrait rotation for NetEase landscape workaround")
+            }
+        }
+
         val intent = Intent(Intent.ACTION_VIEW).apply {
             data = Uri.parse(resolvedLink)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (isNeteaseLandscape) {
+                // CLEAR_TASK forces a fresh PlayerActivity with a new OrientationEventListener
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            }
             if (resolvedLink.startsWith("bilibili://")) {
                 setPackage(BILIBILI_PACKAGE)
             }
@@ -97,17 +126,31 @@ object DeepLinkLauncher {
                 }, 2500)
             }
 
-            // For NetEase, toggle auto-rotate to force orientation re-detection.
-            // NetEase doesn't detect the current orientation on activity start when
-            // the device is already in landscape; toggling auto-rotate forces the
-            // system to re-deliver the orientation configuration.
-            if (resolvedLink.startsWith("orpheus://") && !skipAutoRotate) {
-                toggleAutoRotate(context)
+            // For NetEase landscape: register callback to restore auto-rotation
+            // when NetEase reports STATE_PLAYING (meaning player is loaded)
+            if (isNeteaseLandscape) {
+                val monitor = MediaMonitorService.getInstance()
+                if (monitor != null) {
+                    monitor.onNextPlaybackStart(NETEASE_PACKAGE, LANDSCAPE_ROTATION_TIMEOUT_MS) {
+                        Log.d(TAG, "NetEase playback detected, restoring auto-rotation")
+                        restoreAutoRotation(context)
+                    }
+                } else {
+                    // No monitor available, restore after timeout
+                    Log.w(TAG, "MediaMonitorService not available, scheduling fallback rotation restore")
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        restoreAutoRotation(context)
+                    }, LANDSCAPE_ROTATION_TIMEOUT_MS)
+                }
             }
 
             true
         } catch (e: Exception) {
             Log.w(TAG, "Failed to launch deep link: ${e.message}")
+            // Restore rotation if we forced portrait but launch failed
+            if (isNeteaseLandscape) {
+                restoreAutoRotation(context)
+            }
             // For bilibili:// links, fall back to HTTPS URL (browser)
             if (resolvedLink.startsWith("bilibili://") && fallbackUrl.isNotEmpty()) {
                 Log.d(TAG, "Bilibili app not available, falling back to browser: $fallbackUrl")
@@ -235,58 +278,68 @@ object DeepLinkLauncher {
     }
 
     /**
-     * Toggle auto-rotate off and back on to force the foreground app to
-     * re-detect the current device orientation. This works around apps
-     * (like NetEase Cloud Music) that don't detect orientation on activity
-     * start when the device is already rotated.
+     * Check if the device is currently in landscape orientation.
      */
-    private fun toggleAutoRotate(context: Context) {
+    private fun isDeviceLandscape(context: Context): Boolean {
+        return context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    }
+
+    /**
+     * Force the device into portrait rotation by disabling auto-rotate
+     * and setting user rotation to portrait. Returns false if WRITE_SETTINGS
+     * permission is not granted.
+     */
+    private fun forcePortraitRotation(context: Context): Boolean {
         if (!Settings.System.canWrite(context)) {
-            Log.w(TAG, "WRITE_SETTINGS permission not granted, skipping auto-rotate toggle")
-            return
+            return false
         }
 
         try {
             val currentAutoRotate = Settings.System.getInt(
                 context.contentResolver,
                 Settings.System.ACCELEROMETER_ROTATION,
-                1 // default: auto-rotate enabled
+                1
             )
 
             if (currentAutoRotate != 1) {
-                Log.d(TAG, "Auto-rotate is disabled by user, skipping toggle")
-                return
+                Log.d(TAG, "Auto-rotate is disabled by user, skipping landscape workaround")
+                return false
             }
 
-            Handler(Looper.getMainLooper()).postDelayed({
-                try {
-                    // Disable auto-rotate
-                    Settings.System.putInt(
-                        context.contentResolver,
-                        Settings.System.ACCELEROMETER_ROTATION,
-                        0
-                    )
-                    Log.d(TAG, "Auto-rotate disabled for orientation toggle")
-
-                    // Re-enable after a brief pause
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        try {
-                            Settings.System.putInt(
-                                context.contentResolver,
-                                Settings.System.ACCELEROMETER_ROTATION,
-                                1
-                            )
-                            Log.d(TAG, "Auto-rotate re-enabled")
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to re-enable auto-rotate: ${e.message}")
-                        }
-                    }, AUTO_ROTATE_OFF_DURATION_MS)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to toggle auto-rotate: ${e.message}")
-                }
-            }, AUTO_ROTATE_TOGGLE_DELAY_MS)
+            Settings.System.putInt(
+                context.contentResolver,
+                Settings.System.ACCELEROMETER_ROTATION,
+                0
+            )
+            Settings.System.putInt(
+                context.contentResolver,
+                Settings.System.USER_ROTATION,
+                0 // ROTATION_0 = portrait
+            )
+            Log.d(TAG, "Forced portrait rotation (auto-rotate off, user-rotation=portrait)")
+            return true
         } catch (e: Exception) {
-            Log.e(TAG, "Error reading auto-rotate setting: ${e.message}")
+            Log.e(TAG, "Failed to force portrait rotation: ${e.message}")
+            return false
+        }
+    }
+
+    /**
+     * Restore auto-rotation (re-enable accelerometer-based rotation).
+     * After restoring, run any deferred action (e.g., double-send for NetEase).
+     */
+    private fun restoreAutoRotation(context: Context) {
+        try {
+            Settings.System.putInt(
+                context.contentResolver,
+                Settings.System.ACCELEROMETER_ROTATION,
+                1
+            )
+            landscapeWorkaroundActive = false
+            Log.d(TAG, "Auto-rotation restored")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restore auto-rotation: ${e.message}")
         }
     }
 

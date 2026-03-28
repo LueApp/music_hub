@@ -543,6 +543,9 @@ class PlaybackService : Service() {
         // NetEase auto-advances to its own next song ~1.5s after the current song ends.
         // Early song-end detection fires ~1.5s before the end, so we send the deep link
         // once immediately and once after 2s to override NetEase's auto-advance.
+        // Detect same-platform NetEase switch for double-send logic
+        val isLandscapeForDoubleSend = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
+            DeepLinkLauncher.landscapeWorkaroundActive
         val isSamePlatformNetEase = !isPlatformSwitch && song.platform == Platforms.NETEASE
             && previousSong?.platform == Platforms.NETEASE
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -557,8 +560,11 @@ class PlaybackService : Service() {
             MediaMonitorService.getInstance()?.onNewSongStarted()
 
             // Re-send deep link after 2s for same-platform NetEase switches
-            // to override NetEase's internal auto-advance to its own next song
-            if (isSamePlatformNetEase) {
+            // to override NetEase's internal auto-advance to its own next song.
+            // Skip in landscape mode: the re-send opens a portrait PlayerActivity
+            // on top of the landscape one, which breaks the landscape player.
+            // CLEAR_TASK already clears NetEase's activity stack, minimizing auto-advance.
+            if (isSamePlatformNetEase && !isLandscapeForDoubleSend) {
                 Log.d(TAG, "Scheduling deep link re-send for same-platform NetEase switch")
                 mainHandler.postDelayed({
                     Log.d(TAG, "Re-sending deep link to override NetEase auto-advance: ${song.title}")
@@ -754,8 +760,15 @@ class PlaybackService : Service() {
         }
 
         playbackTimeoutRunnable = runnable
-        timeoutHandler.postDelayed(runnable, PLAYBACK_TIMEOUT_MS)
-        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${PLAYBACK_TIMEOUT_MS}ms)")
+        // Extend timeout for NetEase in landscape: CLEAR_TASK forces a fresh app start
+        // with splash screen, which takes 8-10+ seconds before playback begins.
+        // Check both current orientation AND the workaround flag (which persists after
+        // we've already forced portrait for a previous launch in this sequence).
+        val isLandscapeForTimeout = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
+            DeepLinkLauncher.landscapeWorkaroundActive
+        val timeoutMs = if (song.platform == Platforms.NETEASE && isLandscapeForTimeout) 20000L else PLAYBACK_TIMEOUT_MS
+        timeoutHandler.postDelayed(runnable, timeoutMs)
+        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${timeoutMs}ms)")
     }
 
     companion object {
