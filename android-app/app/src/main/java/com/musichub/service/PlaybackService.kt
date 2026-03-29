@@ -49,7 +49,10 @@ class PlaybackService : Service() {
     private val MAX_CONSECUTIVE_SKIPS = 10
 
     // Post-launch playback timeout: detect songs that fail to play at runtime
-    private val PLAYBACK_TIMEOUT_MS = 5000L
+    // Warm start: app already has an active MediaSession (player initialized)
+    // Cold start: no MediaSession, app needs splash screen + initialization
+    private val PLAYBACK_TIMEOUT_WARM_MS = 5000L
+    private val PLAYBACK_TIMEOUT_COLD_MS = 25000L
     private var playbackTimeoutRunnable: Runnable? = null
     private var lastLaunchedSongId: Long = -1L
     private val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -760,15 +763,15 @@ class PlaybackService : Service() {
         }
 
         playbackTimeoutRunnable = runnable
-        // Extend timeout for NetEase in landscape: CLEAR_TASK forces a fresh app start
-        // with splash screen, which takes 8-10+ seconds before playback begins.
-        // Check both current orientation AND the workaround flag (which persists after
-        // we've already forced portrait for a previous launch in this sequence).
-        val isLandscapeForTimeout = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
-            DeepLinkLauncher.landscapeWorkaroundActive
-        val timeoutMs = if (song.platform == Platforms.NETEASE && isLandscapeForTimeout) 20000L else PLAYBACK_TIMEOUT_MS
+        // Smart timeout: check if the target app has an active MediaController.
+        // If yes (warm start), app is already running → 5s is enough.
+        // If no (cold start), app needs splash screen + init → 15s.
+        val targetPackage = Platforms.PACKAGE_NAMES[song.platform]
+        val hasController = targetPackage != null &&
+            MediaMonitorService.getInstance()?.hasActiveController(targetPackage) == true
+        val timeoutMs = if (hasController) PLAYBACK_TIMEOUT_WARM_MS else PLAYBACK_TIMEOUT_COLD_MS
         timeoutHandler.postDelayed(runnable, timeoutMs)
-        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${timeoutMs}ms)")
+        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${timeoutMs}ms, ${if (hasController) "warm" else "cold"} start)")
     }
 
     companion object {

@@ -717,6 +717,17 @@ class MediaMonitorService : NotificationListenerService() {
     )
 
     /**
+     * Check whether an active MediaController exists for the given package.
+     * Used to determine if the app is in a warm-start state (player initialized)
+     * or cold-start state (needs splash screen).
+     */
+    fun hasActiveController(packageName: String): Boolean {
+        return synchronized(controllersLock) {
+            activeControllers.containsKey(packageName)
+        }
+    }
+
+    /**
      * Get current playback info from any active media session.
      * Prioritizes controllers that are actively playing.
      * Returns null if no active playback.
