@@ -55,6 +55,9 @@ class PlaybackService : Service() {
     private val PLAYBACK_TIMEOUT_COLD_MS = 25000L
     private var playbackTimeoutRunnable: Runnable? = null
     private var lastLaunchedSongId: Long = -1L
+    private var lastTimedOutSongTitle: String? = null
+    private var playbackTimeoutRetried: Boolean = false
+    private var desyncCheckRunnable: Runnable? = null
     private val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     // Wake lock to keep CPU running while playing
@@ -547,11 +550,18 @@ class PlaybackService : Service() {
         // Early song-end detection fires ~1.5s before the end, so we send the deep link
         // once immediately and once after 2s to override NetEase's auto-advance.
         // Detect same-platform NetEase switch for double-send logic
+        val windowManager = getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager
+        val physicalRotation = windowManager?.defaultDisplay?.rotation
+        val physicalLandscape = physicalRotation == android.view.Surface.ROTATION_90 || physicalRotation == android.view.Surface.ROTATION_270
         val isLandscapeForDoubleSend = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
-            DeepLinkLauncher.landscapeWorkaroundActive
+            physicalLandscape || DeepLinkLauncher.landscapeWorkaroundActive
         val isSamePlatformNetEase = !isPlatformSwitch && song.platform == Platforms.NETEASE
             && previousSong?.platform == Platforms.NETEASE
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+        // Check if this is a cold start (no active controller = app not running)
+        val isColdStart = targetPackage != null &&
+            MediaMonitorService.getInstance()?.hasActiveController(targetPackage) != true
 
         // Delay to ensure pause takes effect before launching new app
         mainHandler.postDelayed({
@@ -564,15 +574,47 @@ class PlaybackService : Service() {
 
             // Re-send deep link after 2s for same-platform NetEase switches
             // to override NetEase's internal auto-advance to its own next song.
-            // Skip in landscape mode: the re-send opens a portrait PlayerActivity
-            // on top of the landscape one, which breaks the landscape player.
-            // CLEAR_TASK already clears NetEase's activity stack, minimizing auto-advance.
+            // In landscape mode: do NOT re-send (breaks landscape PlayerActivity).
+            // Instead, pause the auto-advanced "third song" to silence it while
+            // the CLEAR_TASK deep link loads the correct song (~6s).
             if (isSamePlatformNetEase && !isLandscapeForDoubleSend) {
                 Log.d(TAG, "Scheduling deep link re-send for same-platform NetEase switch")
                 mainHandler.postDelayed({
                     Log.d(TAG, "Re-sending deep link to override NetEase auto-advance: ${song.title}")
                     DeepLinkLauncher.launch(this, song.deepLink, fallbackUrl, skipAutoRotate = true)
                 }, 2000L)
+            } else if (isSamePlatformNetEase && isLandscapeForDoubleSend) {
+                // Landscape mode: pause NetEase to silence the auto-advanced third song.
+                // NetEase auto-advances ~600ms after the old song is paused, so we send
+                // multiple pauses: at 500ms (catch it early) and 1200ms (catch late starts).
+                // In landscape mode the target song takes 5-7s (CLEAR_TASK restart),
+                // so there's no risk of pausing the target song.
+                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression (landscape mode)")
+                mainHandler.postDelayed({
+                    Log.d(TAG, "Pausing NetEase auto-advanced song (landscape, early)")
+                    MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
+                }, 500L)
+                mainHandler.postDelayed({
+                    Log.d(TAG, "Pausing NetEase auto-advanced song (landscape, late)")
+                    MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
+                }, 1200L)
+            }
+
+            // Cold start re-send: when QQ Music was not running, the splash screen may
+            // consume the deep link without processing it. Re-send after the app has
+            // had time to fully initialize. Only re-send if playback hasn't started.
+            // Only for QQ Music — NetEase landscape workaround takes ~7-10s and a
+            // re-send at 5s would open a portrait PlayerActivity, breaking landscape.
+            if (isColdStart && song.platform == Platforms.QQMUSIC) {
+                Log.d(TAG, "Cold start detected, scheduling deep link re-send for ${song.title}")
+                mainHandler.postDelayed({
+                    if (song.id != lastLaunchedSongId) return@postDelayed
+                    val info = MediaMonitorService.getInstance()?.getPlaybackInfo()
+                    if (info?.isPlaying != true) {
+                        Log.d(TAG, "Cold start re-send: playback not started, re-sending deep link for ${song.title}")
+                        DeepLinkLauncher.launch(this, song.deepLink, fallbackUrl, skipAutoRotate = true)
+                    }
+                }, 5000L)
             }
         }, launchDelay)
 
@@ -593,7 +635,7 @@ class PlaybackService : Service() {
         FloatingWindowService.updateCurrentSong(this, song)
 
         // Schedule playback timeout to detect runtime failures
-        schedulePlaybackTimeout(song)
+        schedulePlaybackTimeout(song, isPlatformSwitch)
 
         Log.i(TAG, "Now playing: ${song.title} by ${song.artist} (${song.platform})")
     }
@@ -714,9 +756,10 @@ class PlaybackService : Service() {
             timeoutHandler.removeCallbacks(it)
             playbackTimeoutRunnable = null
         }
+        cancelDesyncRecovery()
     }
 
-    private fun schedulePlaybackTimeout(song: Song) {
+    private fun schedulePlaybackTimeout(song: Song, isPlatformSwitch: Boolean = false) {
         // Don't schedule for controller mode (MediaMonitorService runs on player phone)
         if (RemoteMode.isController()) {
             return
@@ -724,6 +767,7 @@ class PlaybackService : Service() {
 
         cancelPlaybackTimeout()
         lastLaunchedSongId = song.id
+        playbackTimeoutRetried = false
 
         val runnable = Runnable {
             // Verify this timeout is still for the current song
@@ -734,15 +778,60 @@ class PlaybackService : Service() {
 
             val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
             if (playbackInfo?.isPlaying == true) {
-                // Song is playing fine — reset consecutive skips
-                Log.d(TAG, "Playback timeout check: ${song.title} is playing, all good")
+                // For NetEase, skip title verification — NetEase cycles lyrics/credits
+                // as the metadata title, making title matching unreliable.
+                // For QQ Music, verify song identity to detect desync.
+                val actualTitle = playbackInfo.title
+                val isNetease = song.platform == Platforms.NETEASE
+                val titleMismatch = !isNetease && actualTitle != null && !titleMatches(song.title, actualTitle)
+
+                if (titleMismatch) {
+                    Log.w(TAG, "Playback timeout: wrong song playing! Expected '${song.title}', actual '$actualTitle' - treating as timeout")
+                } else {
+                    // Song is playing (correct or NetEase where we can't verify) — reset consecutive skips
+                    Log.d(TAG, "Playback timeout check: ${song.title} is playing, all good" +
+                        if (isNetease && actualTitle != null) " (NetEase title: '$actualTitle', skipping verification)" else "")
+                    consecutiveSkips = 0
+                    lastTimedOutSongTitle = null
+                    return@Runnable
+                }
+            }
+
+            // If song is paused but has made progress on the CORRECT platform,
+            // the user paused it manually — don't skip it.
+            // Must verify package matches to avoid reading stale state from a different platform's controller.
+            val expectedPackage = Platforms.PACKAGE_NAMES[song.platform]
+            if (playbackInfo != null && !playbackInfo.isPlaying && playbackInfo.position > 1000L
+                && expectedPackage != null && playbackInfo.packageName == expectedPackage) {
+                Log.d(TAG, "Playback timeout check: ${song.title} is paused at ${playbackInfo.position}ms on ${playbackInfo.packageName} — user paused, not a timeout")
                 consecutiveSkips = 0
+                lastTimedOutSongTitle = null
                 return@Runnable
             }
 
-            // Song failed to start playing
+            // If the correct song is loaded on the correct platform but stuck at position=0
+            // (e.g., audio focus issue, transient buffering), try a play nudge before giving up.
+            if (!playbackTimeoutRetried && expectedPackage != null && playbackInfo != null
+                && playbackInfo.packageName == expectedPackage && playbackInfo.position < 1000L) {
+                val actualTitle = playbackInfo.title
+                val titleOk = actualTitle == null || titleMatches(song.title, actualTitle)
+                if (titleOk) {
+                    Log.d(TAG, "Playback timeout: ${song.title} loaded but not playing (pos=${playbackInfo.position}ms), sending play nudge and retrying")
+                    playbackTimeoutRetried = true
+                    MediaMonitorService.getInstance()?.playPackage(expectedPackage)
+                    // Re-schedule a shorter retry timeout
+                    val retryRunnable = playbackTimeoutRunnable
+                    if (retryRunnable != null) {
+                        timeoutHandler.postDelayed(retryRunnable, 3000L)
+                    }
+                    return@Runnable
+                }
+            }
+
+            // Song failed to start playing (or wrong song is playing)
             Log.w(TAG, "Playback timeout: ${song.title} by ${song.artist} (${song.platform}/${song.platformSongId}) - skipping [skip ${consecutiveSkips + 1}/$MAX_CONSECUTIVE_SKIPS]")
             consecutiveSkips++
+            lastTimedOutSongTitle = song.title
 
             if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
                 showToast("连续多首歌曲不可用，已停止播放")
@@ -751,6 +840,9 @@ class PlaybackService : Service() {
             }
 
             showToast("跳过: ${song.title} (播放超时)")
+
+            // Schedule desync recovery to catch the timed-out song if it starts playing late
+            scheduleDesyncRecovery()
 
             // For QQ Music, dismiss the error dialog before skipping to next song
             if (song.platform == Platforms.QQMUSIC) {
@@ -763,15 +855,84 @@ class PlaybackService : Service() {
         }
 
         playbackTimeoutRunnable = runnable
-        // Smart timeout: check if the target app has an active MediaController.
-        // If yes (warm start), app is already running → 5s is enough.
-        // If no (cold start), app needs splash screen + init → 15s.
+
+        // Determine timeout duration based on context:
+        // 1. Landscape workaround + NetEase → cold (CLEAR_TASK restarts app)
+        // 2. Cross-platform switch → cold (pause/stop + new deep link needs extra time)
+        // 3. Has active controller → warm
+        // 4. Otherwise → cold
         val targetPackage = Platforms.PACKAGE_NAMES[song.platform]
         val hasController = targetPackage != null &&
             MediaMonitorService.getInstance()?.hasActiveController(targetPackage) == true
-        val timeoutMs = if (hasController) PLAYBACK_TIMEOUT_WARM_MS else PLAYBACK_TIMEOUT_COLD_MS
+
+        // Check both the flag AND physical orientation — the flag may have been reset
+        // by the rotation-restore callback before this timeout is scheduled.
+        // Use WindowManager rotation for physical orientation (config orientation may
+        // reflect a portrait app's window rather than how the user holds the device).
+        val timeoutWindowManager = getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager
+        val timeoutRotation = timeoutWindowManager?.defaultDisplay?.rotation
+        val isDeviceLandscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
+            timeoutRotation == android.view.Surface.ROTATION_90 || timeoutRotation == android.view.Surface.ROTATION_270
+        val isLandscapeWorkaround = (DeepLinkLauncher.landscapeWorkaroundActive || isDeviceLandscape) && song.platform == Platforms.NETEASE
+
+        val (timeoutMs, reason) = when {
+            isLandscapeWorkaround -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (landscape workaround)"
+            isPlatformSwitch -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (cross-platform)"
+            hasController -> PLAYBACK_TIMEOUT_WARM_MS to "warm start"
+            else -> PLAYBACK_TIMEOUT_COLD_MS to "cold start"
+        }
+
         timeoutHandler.postDelayed(runnable, timeoutMs)
-        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${timeoutMs}ms, ${if (hasController) "warm" else "cold"} start)")
+        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${timeoutMs}ms, $reason)")
+    }
+
+    private fun titleMatches(expected: String, actual: String): Boolean {
+        return actual.contains(expected, ignoreCase = true) ||
+            expected.contains(actual, ignoreCase = true)
+    }
+
+    /**
+     * Schedule desync recovery checks after a timeout skip.
+     * If the timed-out song starts playing late, pause it and re-launch the correct song.
+     * Checks at 3s and 6s after the skip to catch late-starting songs.
+     */
+    private fun scheduleDesyncRecovery() {
+        cancelDesyncRecovery()
+        val checkDelays = listOf(3000L, 6000L)
+        val currentSongAtSkip = getCurrentSong() ?: return
+
+        desyncCheckRunnable = Runnable {
+            val timedOutTitle = lastTimedOutSongTitle ?: return@Runnable
+            val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
+            val actualTitle = playbackInfo?.title
+
+            if (playbackInfo?.isPlaying == true && actualTitle != null && titleMatches(timedOutTitle, actualTitle)) {
+                Log.w(TAG, "Desync recovery: timed-out song '$timedOutTitle' started playing late, pausing and re-launching '${currentSongAtSkip.title}'")
+                // Pause the wrong song
+                MediaMonitorService.getInstance()?.pauseAllMedia(
+                    Platforms.PACKAGE_NAMES[currentSongAtSkip.platform] ?: ""
+                )
+                lastTimedOutSongTitle = null
+                // Re-launch the correct song's deep link
+                val handler = getHandlerForPlatform(currentSongAtSkip.platform)
+                val fallbackUrl = handler?.generateFallbackUrl(currentSongAtSkip.platformSongId) ?: ""
+                timeoutHandler.postDelayed({
+                    DeepLinkLauncher.launch(this, currentSongAtSkip.deepLink, fallbackUrl)
+                    MediaMonitorService.getInstance()?.onNewSongStarted()
+                }, 500L)
+            }
+        }
+
+        for (delay in checkDelays) {
+            timeoutHandler.postDelayed(desyncCheckRunnable!!, delay)
+        }
+    }
+
+    private fun cancelDesyncRecovery() {
+        desyncCheckRunnable?.let {
+            timeoutHandler.removeCallbacks(it)
+            desyncCheckRunnable = null
+        }
     }
 
     companion object {

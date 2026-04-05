@@ -143,11 +143,17 @@ class QQMusicPlatform : PlatformHandler {
                         return@withContext SongAvailability(false, "歌曲不存在")
                     }
 
-                    // Check fnote field - QQ Music uses this to indicate takedown
+                    // Check fnote field - QQ Music uses this to indicate availability.
+                    // Known values: 4009 = available, 4001 = taken down, 4010 = unavailable/restricted.
+                    // Treat any fnote that isn't 0 (unknown) or 4009 (available) as unavailable.
                     val fnote = trackInfo.get("fnote")?.asInt ?: 0
-                    if (fnote == 4001) {
+                    if (fnote != 0 && fnote != 4009) {
                         Log.d(TAG, "Song $platformSongId unavailable: fnote=$fnote")
-                        return@withContext SongAvailability(false, "歌曲已下架")
+                        val reason = when (fnote) {
+                            4001 -> "歌曲已下架"
+                            else -> "歌曲不可用 (fnote=$fnote)"
+                        }
+                        return@withContext SongAvailability(false, reason)
                     }
 
                     SongAvailability(true)

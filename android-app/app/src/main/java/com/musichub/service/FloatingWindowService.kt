@@ -97,10 +97,24 @@ class FloatingWindowService : Service() {
     // Remote state listener for controller mode
     private val remoteStateListener: (RemoteState) -> Unit = { state ->
         // Update current song info from remote state
+        val oldTitle = currentSongTitle
         state.currentSong?.let { song ->
             currentSongTitle = (song.title as String?) ?: ""
             currentArtist = (song.artist as String?) ?: ""
             currentCoverUrl = (song.coverUrl as String?) ?: ""
+        }
+        // When the song changes, refresh the queue display on the main thread
+        if (currentSongTitle != oldTitle) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                if (isMiniMode) {
+                    updateMiniBall()
+                } else {
+                    updateFloatingWindow()
+                }
+                if (isQueueVisible) {
+                    updateQueueData()
+                }
+            }
         }
     }
 
@@ -613,13 +627,19 @@ class FloatingWindowService : Service() {
             try {
                 val remoteSongs = RemoteClient.fetchQueue()
                 val songs = remoteSongs.map { it.toSong() }
-                val currentIndex = RemoteClient.currentState?.currentIndex ?: -1
+                val state = RemoteClient.currentState
+                val currentIndex = state?.currentIndex ?: -1
+                val shuffleOrder = state?.shuffleOrder
 
                 launch(Dispatchers.Main) {
                     floatingView?.findViewById<TextView>(R.id.tvQueueHeader)?.text =
-                        "播放队列 (${songs.size}首)"
-                    queueAdapter?.updateData(songs, currentIndex, null)
-                    scrollToCurrentSong(currentIndex, null)
+                        if (shuffleOrder != null) {
+                            "播放队列 (随机模式)"
+                        } else {
+                            "播放队列 (${songs.size}首)"
+                        }
+                    queueAdapter?.updateData(songs, currentIndex, shuffleOrder)
+                    scrollToCurrentSong(currentIndex, shuffleOrder)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch remote queue: ${e.message}")

@@ -195,8 +195,7 @@ class PlaylistDetailFragment : Fragment() {
 
         binding.btnShuffle.setOnClickListener {
             if (RemoteMode.isController()) {
-                RemoteClient.playPlaylist(args.playlistId)
-                RemoteClient.toggleShuffle()
+                RemoteClient.playPlaylist(args.playlistId, shuffle = true)
                 FloatingWindowService.start(requireContext())
             } else {
                 val songs = songAdapter.currentList.shuffled()

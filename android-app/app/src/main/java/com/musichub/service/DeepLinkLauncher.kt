@@ -279,9 +279,21 @@ object DeepLinkLauncher {
 
     /**
      * Check if the device is currently in landscape orientation.
+     * Uses both configuration orientation AND physical device rotation,
+     * because the config orientation may reflect the foreground app's orientation
+     * (e.g., portrait QQ Music) rather than how the user is holding the device.
      */
     private fun isDeviceLandscape(context: Context): Boolean {
-        return context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val configLandscape = context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        // Also check physical device rotation via WindowManager
+        val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager
+        val rotation = windowManager?.defaultDisplay?.rotation
+        val physicalLandscape = rotation == android.view.Surface.ROTATION_90 || rotation == android.view.Surface.ROTATION_270
+        val result = configLandscape || physicalLandscape
+        if (result) {
+            Log.d(TAG, "Device landscape detected (config=$configLandscape, physical=$physicalLandscape, rotation=$rotation)")
+        }
+        return result
     }
 
     /**
