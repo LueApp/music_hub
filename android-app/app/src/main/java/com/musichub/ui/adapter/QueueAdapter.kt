@@ -85,4 +85,42 @@ class QueueAdapter(
         playOrder = newPlayOrder
         notifyDataSetChanged()
     }
+
+    /** Get the adapter position for a given actual queue index. */
+    fun getDisplayPosition(queueIndex: Int): Int {
+        val order = playOrder
+        return if (order != null) {
+            order.indexOf(queueIndex).takeIf { it >= 0 } ?: queueIndex
+        } else {
+            queueIndex
+        }
+    }
+
+    /** Get the actual queue index for a given adapter position. */
+    fun getQueueIndex(adapterPosition: Int): Int {
+        val order = playOrder
+        return if (order != null && adapterPosition in order.indices) {
+            order[adapterPosition]
+        } else {
+            adapterPosition
+        }
+    }
+
+    /** Move an item within the adapter for immediate visual feedback during drag. */
+    fun moveItem(fromPosition: Int, toPosition: Int) {
+        val mutableSongs = songs.toMutableList()
+        val song = mutableSongs.removeAt(fromPosition)
+        mutableSongs.add(toPosition, song)
+        songs = mutableSongs
+
+        // Adjust currentIndex to follow the currently playing song
+        currentIndex = when {
+            currentIndex == fromPosition -> toPosition
+            fromPosition < currentIndex && toPosition >= currentIndex -> currentIndex - 1
+            fromPosition > currentIndex && toPosition <= currentIndex -> currentIndex + 1
+            else -> currentIndex
+        }
+
+        notifyItemMoved(fromPosition, toPosition)
+    }
 }

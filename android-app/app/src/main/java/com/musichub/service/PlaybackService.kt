@@ -339,6 +339,25 @@ class PlaybackService : Service() {
         if (valid) launchCurrentSong()
     }
 
+    fun moveInQueue(from: Int, to: Int) {
+        synchronized(queueLock) {
+            if (from !in queue.indices || to !in queue.indices || from == to) return
+            val song = queue.removeAt(from)
+            queue.add(to, song)
+
+            // Adjust currentIndex to keep tracking the currently playing song
+            currentIndex = when {
+                currentIndex == from -> to
+                from < currentIndex && to >= currentIndex -> currentIndex - 1
+                from > currentIndex && to <= currentIndex -> currentIndex + 1
+                else -> currentIndex
+            }
+
+            Log.d(TAG, "Moved queue item from $from to $to, currentIndex=$currentIndex")
+        }
+        notifyQueueChangeListeners(queue.toList())
+    }
+
     fun playNext(): Boolean {
         // Handle repeat one mode - just replay current song
         if (repeatMode == RepeatMode.ONE) {

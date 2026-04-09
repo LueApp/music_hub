@@ -33,8 +33,10 @@ import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.widget.Toast
 import coil.load
 import com.google.android.material.card.MaterialCardView
 import com.musichub.R
@@ -314,18 +316,115 @@ class FloatingWindowService : Service() {
         }
     }
 
+    // Double-tap detection state
+    private var lastTapIndex = -1
+    private var lastTapTime = 0L
+    private val doubleTapTimeout = 300L
+
     private fun setupQueueView() {
         floatingView?.apply {
             queueRecyclerView = findViewById<RecyclerView>(R.id.rvQueue)
             val recyclerView = queueRecyclerView ?: return@apply
             queueAdapter = QueueAdapter(
                 onItemClick = { index ->
-                    Log.d(TAG, "Queue item clicked: $index")
-                    // TODO: Could add tap-to-play functionality here
+                    val now = System.currentTimeMillis()
+                    if (index == lastTapIndex && now - lastTapTime < doubleTapTimeout) {
+                        // Double-tap detected - play this song
+                        Log.d(TAG, "Queue item double-tapped: $index")
+                        lastTapIndex = -1
+                        lastTapTime = 0L
+                        if (RemoteMode.isController()) {
+                            RemoteClient.playAtIndex(index)
+                        } else {
+                            PlaybackService.getInstance()?.playAtIndex(index)
+                        }
+                    } else {
+                        // First tap - show visual feedback
+                        lastTapIndex = index
+                        lastTapTime = now
+                        // Flash highlight on tapped item
+                        val vh = recyclerView.findViewHolderForAdapterPosition(
+                            queueAdapter?.getDisplayPosition(index) ?: return@QueueAdapter
+                        )
+                        vh?.itemView?.let { view ->
+                            val originalBg = view.background
+                            view.setBackgroundColor(getColor(R.color.primary) and 0x40FFFFFF)
+                            view.postDelayed({
+                                view.background = originalBg
+                            }, doubleTapTimeout)
+                        }
+                    }
                 }
             )
             recyclerView.layoutManager = LinearLayoutManager(this@FloatingWindowService)
             recyclerView.adapter = queueAdapter
+
+            // Attach drag-to-reorder
+            var dragStartIndex = -1  // Track original position when drag starts
+            val touchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0
+            ) {
+                override fun isLongPressDragEnabled(): Boolean {
+                    // Disable drag in shuffle mode
+                    val shuffled = if (RemoteMode.isController()) {
+                        RemoteClient.currentState?.shuffleOrder != null
+                    } else {
+                        PlaybackService.getInstance()?.isShuffleEnabled() == true
+                    }
+                    if (shuffled) {
+                        Handler(Looper.getMainLooper()).post {
+                            Toast.makeText(this@FloatingWindowService, "随机模式下无法排序", Toast.LENGTH_SHORT).show()
+                        }
+                        return false
+                    }
+                    return true
+                }
+
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder
+                ): Boolean {
+                    val fromPos = viewHolder.bindingAdapterPosition
+                    val toPos = target.bindingAdapterPosition
+                    val adapter = queueAdapter ?: return false
+
+                    // Only update adapter visually during drag — defer queue update to clearView
+                    adapter.moveItem(fromPos, toPos)
+                    return true
+                }
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+
+                override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                    super.onSelectedChanged(viewHolder, actionState)
+                    if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                        viewHolder?.itemView?.elevation = 8f
+                        // Record the original queue index when drag starts
+                        val pos = viewHolder?.bindingAdapterPosition ?: -1
+                        dragStartIndex = queueAdapter?.getQueueIndex(pos) ?: -1
+                    }
+                }
+
+                override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                    super.clearView(recyclerView, viewHolder)
+                    viewHolder.itemView.elevation = 0f
+
+                    // Drag finished — commit the move to the playback queue
+                    val endPos = viewHolder.bindingAdapterPosition
+                    val endIndex = queueAdapter?.getQueueIndex(endPos) ?: -1
+                    if (dragStartIndex >= 0 && endIndex >= 0 && dragStartIndex != endIndex) {
+                        Log.d(TAG, "Queue drag: $dragStartIndex -> $endIndex")
+                        if (RemoteMode.isController()) {
+                            RemoteClient.moveInQueue(dragStartIndex, endIndex)
+                        } else {
+                            PlaybackService.getInstance()?.moveInQueue(dragStartIndex, endIndex)
+                        }
+                    }
+                    dragStartIndex = -1
+                }
+            })
+            touchHelper.attachToRecyclerView(recyclerView)
 
             // Initial update
             updateQueueData()
