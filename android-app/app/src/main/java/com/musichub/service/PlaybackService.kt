@@ -15,6 +15,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.musichub.MusicHubApplication
 import com.musichub.R
 import com.musichub.data.model.Song
 import com.musichub.platform.Platforms
@@ -499,6 +500,15 @@ class PlaybackService : Service() {
                 consecutiveSkips++
                 Log.w(TAG, "Song unavailable: ${song.title} (${song.platform}/${song.platformSongId}) - ${availability.reason} [skip $consecutiveSkips/$MAX_CONSECUTIVE_SKIPS]")
                 showToast("跳过: ${song.title} (${availability.reason})")
+                serviceScope.launch(Dispatchers.IO) {
+                    try {
+                        MusicHubApplication.getInstance().repository.logSkip(
+                            song.title, song.artist, song.platform, song.platformSongId, availability.reason
+                        )
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to log skip: ${e.message}")
+                    }
+                }
 
                 if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
                     Log.w(TAG, "Too many consecutive skips ($consecutiveSkips), stopping playback")
@@ -859,6 +869,15 @@ class PlaybackService : Service() {
             }
 
             showToast("跳过: ${song.title} (播放超时)")
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    MusicHubApplication.getInstance().repository.logSkip(
+                        song.title, song.artist, song.platform, song.platformSongId, "播放超时"
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to log skip: ${e.message}")
+                }
+            }
 
             // Schedule desync recovery to catch the timed-out song if it starts playing late
             scheduleDesyncRecovery()

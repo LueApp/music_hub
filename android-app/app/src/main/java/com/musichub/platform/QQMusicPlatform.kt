@@ -144,16 +144,16 @@ class QQMusicPlatform : PlatformHandler {
                     }
 
                     // Check fnote field - QQ Music uses this to indicate availability.
-                    // Known values: 4009 = available, 4001 = taken down, 4010 = unavailable/restricted.
-                    // Treat any fnote that isn't 0 (unknown) or 4009 (available) as unavailable.
+                    // Known values: 4009 = available, 4001 = taken down, 4010 = unavailable/restricted,
+                    // 8013 = VIP-only. Only block songs that are definitively removed (4001);
+                    // VIP/pay-wall songs (8013, etc.) are playable if the user has a subscription.
                     val fnote = trackInfo.get("fnote")?.asInt ?: 0
+                    if (fnote == 4001) {
+                        Log.d(TAG, "Song $platformSongId taken down: fnote=$fnote")
+                        return@withContext SongAvailability(false, "歌曲已下架")
+                    }
                     if (fnote != 0 && fnote != 4009) {
-                        Log.d(TAG, "Song $platformSongId unavailable: fnote=$fnote")
-                        val reason = when (fnote) {
-                            4001 -> "歌曲已下架"
-                            else -> "歌曲不可用 (fnote=$fnote)"
-                        }
-                        return@withContext SongAvailability(false, reason)
+                        Log.d(TAG, "Song $platformSongId has fnote=$fnote (VIP/restricted), allowing playback attempt")
                     }
 
                     SongAvailability(true)

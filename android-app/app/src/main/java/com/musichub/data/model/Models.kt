@@ -102,6 +102,27 @@ data class PlaylistWithCount(
 )
 
 /**
+ * Skip log entry recording when a song was skipped during playback.
+ */
+@Entity(
+    tableName = "skip_log",
+    indices = [Index(value = ["timestamp"])]
+)
+data class SkipLogEntry(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    @ColumnInfo(name = "song_title")
+    val songTitle: String,
+    @ColumnInfo(name = "song_artist")
+    val songArtist: String,
+    val platform: String,
+    @ColumnInfo(name = "platform_song_id")
+    val platformSongId: String,
+    val reason: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+/**
  * Sync source entity linking a playlist to a remote source playlist.
  * A playlist can have multiple sync sources from different platforms.
  */

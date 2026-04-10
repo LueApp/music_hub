@@ -7,11 +7,12 @@ import androidx.room.RoomDatabase
 import com.musichub.data.model.Playlist
 import com.musichub.data.model.PlaylistItem
 import com.musichub.data.model.Song
+import com.musichub.data.model.SkipLogEntry
 import com.musichub.data.model.SyncSource
 
 @Database(
-    entities = [Song::class, Playlist::class, PlaylistItem::class, SyncSource::class],
-    version = 2,
+    entities = [Song::class, Playlist::class, PlaylistItem::class, SyncSource::class, SkipLogEntry::class],
+    version = 3,
     exportSchema = false
 )
 abstract class MusicHubDatabase : RoomDatabase() {
@@ -20,6 +21,7 @@ abstract class MusicHubDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
     abstract fun playlistItemDao(): PlaylistItemDao
     abstract fun syncSourceDao(): SyncSourceDao
+    abstract fun skipLogDao(): SkipLogDao
 
     companion object {
         @Volatile

@@ -123,6 +123,13 @@
     <string name="version">Version %s</string>
     <string name="version_cn">版本 %s</string>
 
+    <!-- Skip Log -->
+    <string name="skip_log_title">跳过记录</string>
+    <string name="skip_log_desc">查看播放时被跳过的歌曲</string>
+    <string name="skip_log_empty">暂无跳过记录</string>
+    <string name="skip_log_clear">清空记录</string>
+    <string name="skip_log_clear_confirm">确定要清空所有跳过记录吗？</string>
+
     <!-- Dialogs -->
     <string name="confirm">Confirm</string>
     <string name="confirm_cn">确认</string>
