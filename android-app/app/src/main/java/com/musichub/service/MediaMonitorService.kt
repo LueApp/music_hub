@@ -478,12 +478,17 @@ class MediaMonitorService : NotificationListenerService() {
                             val percentPlayed = (estimatedPosition.toDouble() / lastMetadataDuration.toDouble()) * 100
                             val remainingTime = lastMetadataDuration - estimatedPosition
 
-                            // Trigger early if:
-                            // 1. We've played at least 99% of the song, OR
-                            // 2. Less than 2 seconds remaining
-                            // AND we've played enough to not be a false trigger (> 30 seconds)
-                            if (estimatedPosition > MIN_POSITION_FOR_END_MS &&
+                            // If position exceeds duration, the duration is likely stale/wrong
+                            // (e.g. after service restart, or NetEase reporting incorrect duration).
+                            // Don't treat this as song end — wait for metadata change detection instead.
+                            if (estimatedPosition > lastMetadataDuration) {
+                                Log.d(TAG, "Position ($estimatedPosition) exceeds duration ($lastMetadataDuration), stale duration — skipping early end detection")
+                            } else if (estimatedPosition > MIN_POSITION_FOR_END_MS &&
                                 (percentPlayed >= 99.0 || remainingTime <= 2000L)) {
+                                // Trigger early if:
+                                // 1. We've played at least 99% of the song, OR
+                                // 2. Less than 2 seconds remaining
+                                // AND we've played enough to not be a false trigger (> 30 seconds)
                                 Log.d(TAG, "Early song end detected! percentPlayed=${String.format("%.1f", percentPlayed)}%, remaining=${remainingTime}ms")
                                 songEndTriggered = true
                                 sendSongFinishedBroadcast()
