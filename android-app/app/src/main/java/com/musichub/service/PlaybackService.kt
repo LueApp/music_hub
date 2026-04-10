@@ -885,8 +885,9 @@ class PlaybackService : Service() {
             // For QQ Music, dismiss the error dialog before skipping to next song
             if (song.platform == Platforms.QQMUSIC) {
                 PlayerAccessibilityService.dismissQQMusicDialog()
-                // Delay to let dialog close animation complete before launching next song
-                timeoutHandler.postDelayed({ playNext() }, 500L)
+                // Delay to let dialog dismissal + verification complete before launching next song
+                // (dismissErrorDialog has a 300ms verification check, so wait 800ms total)
+                timeoutHandler.postDelayed({ playNext() }, 800L)
             } else {
                 playNext()
             }
