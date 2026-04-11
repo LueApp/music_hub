@@ -29,6 +29,7 @@ class MediaMonitorService : NotificationListenerService() {
     // The RemoteServer broadcast loop reads these from Dispatchers.IO while the main thread mutates them.
     private val controllersLock = Any()
     private var lastPlaybackState: Int? = null
+    private var lastPlaybackStatePackage: String? = null  // Which package set lastPlaybackState
     private var lastPosition: Long = 0
     private var maxPositionReached: Long = 0  // Track highest position during song playback
     private var lastMetadataDuration: Long = 0
@@ -322,7 +323,12 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // Only detect song end when transitioning from PLAYING to PAUSED/STOPPED/NONE
+        // AND the transition is from the same package that set PLAYING — after a service
+        // restart, multiple packages fire initial state callbacks and a cross-package
+        // PLAYING(QQ)→PAUSED(NetEase) transition would falsely trigger song end.
+        val isSamePackageTransition = fromPackage == null || lastPlaybackStatePackage == null || fromPackage == lastPlaybackStatePackage
         if (lastPlaybackState == PlaybackState.STATE_PLAYING &&
+            isSamePackageTransition &&
             (currentState == PlaybackState.STATE_STOPPED ||
              currentState == PlaybackState.STATE_PAUSED ||
              currentState == PlaybackState.STATE_NONE)) {
@@ -368,6 +374,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         lastPlaybackState = currentState
+        lastPlaybackStatePackage = fromPackage
         // Only update positions if not during manual control (song switching).
         // Stale state callbacks from the old song can re-set these after pauseAllMedia resets them,
         // causing false song-end detection when the old position exceeds the new song's duration.
