@@ -467,6 +467,13 @@ class PlaybackService : Service() {
         val song = getCurrentSong() ?: return
         val handler = getHandlerForPlatform(song.platform)
 
+        // Arm manual control mode IMMEDIATELY to suppress any auto-advance detection
+        // that could fire during the async availability check below. Without this,
+        // a song-finished broadcast (e.g. from early end-detection or metadata change)
+        // could race with playPrevious() and call playNext(), undoing the index change
+        // and making the Previous button appear to just replay the current song.
+        MediaMonitorService.getInstance()?.armManualControl()
+
         // Pre-emptive pause: if the next song is on a different platform, pause the old
         // platform immediately BEFORE the availability check. This prevents the old app
         // from auto-advancing to its next song during the HTTP request delay.
@@ -601,32 +608,32 @@ class PlaybackService : Service() {
             // This re-enables auto-advance detection after a delay
             MediaMonitorService.getInstance()?.onNewSongStarted()
 
-            // Re-send deep link after 2s for same-platform NetEase switches
-            // to override NetEase's internal auto-advance to its own next song.
-            // In landscape mode: do NOT re-send (breaks landscape PlayerActivity).
-            // Instead, pause the auto-advanced "third song" to silence it while
-            // the CLEAR_TASK deep link loads the correct song (~6s).
+            // Same-platform NetEase: pause the auto-advanced "third song" that
+            // NetEase plays ~1s after the deep link is sent. Send frequent pauses
+            // from 500ms-1500ms to catch the auto-advance as soon as it starts.
+            // The target song loaded via deep link takes 3-6s to start playback,
+            // so these pauses won't affect it. Applied in BOTH portrait and landscape.
+            if (isSamePlatformNetEase) {
+                val orientationLabel = if (isLandscapeForDoubleSend) "landscape" else "portrait"
+                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression ($orientationLabel mode)")
+                val pauseDelays = listOf(500L, 700L, 900L, 1100L, 1300L, 1500L)
+                pauseDelays.forEach { delay ->
+                    mainHandler.postDelayed({
+                        Log.d(TAG, "Pausing NetEase auto-advance at ${delay}ms ($orientationLabel)")
+                        MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
+                    }, delay)
+                }
+            }
+
+            // Portrait only: re-send deep link after 2s to override NetEase's
+            // internal auto-advance. In landscape mode, skip re-send to avoid
+            // breaking PlayerLandscapeActivity (CLEAR_TASK handles it instead).
             if (isSamePlatformNetEase && !isLandscapeForDoubleSend) {
-                Log.d(TAG, "Scheduling deep link re-send for same-platform NetEase switch")
+                Log.d(TAG, "Scheduling deep link re-send for same-platform NetEase switch (portrait)")
                 mainHandler.postDelayed({
                     Log.d(TAG, "Re-sending deep link to override NetEase auto-advance: ${song.title}")
                     DeepLinkLauncher.launch(this, song.deepLink, fallbackUrl, skipAutoRotate = true)
                 }, 2000L)
-            } else if (isSamePlatformNetEase && isLandscapeForDoubleSend) {
-                // Landscape mode: pause NetEase to silence the auto-advanced third song.
-                // NetEase auto-advances ~600ms after the old song is paused, so we send
-                // multiple pauses: at 500ms (catch it early) and 1200ms (catch late starts).
-                // In landscape mode the target song takes 5-7s (CLEAR_TASK restart),
-                // so there's no risk of pausing the target song.
-                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression (landscape mode)")
-                mainHandler.postDelayed({
-                    Log.d(TAG, "Pausing NetEase auto-advanced song (landscape, early)")
-                    MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
-                }, 500L)
-                mainHandler.postDelayed({
-                    Log.d(TAG, "Pausing NetEase auto-advanced song (landscape, late)")
-                    MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
-                }, 1200L)
             }
 
             // Cold start re-send: when QQ Music was not running, the splash screen may
