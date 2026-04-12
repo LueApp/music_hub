@@ -108,19 +108,30 @@ class QueueAdapter(
 
     /** Move an item within the adapter for immediate visual feedback during drag. */
     fun moveItem(fromPosition: Int, toPosition: Int) {
-        val mutableSongs = songs.toMutableList()
-        val song = mutableSongs.removeAt(fromPosition)
-        mutableSongs.add(toPosition, song)
-        songs = mutableSongs
+        if (playOrder != null) {
+            // Shuffle mode: reorder the play order, not the songs list
+            val mutableOrder = playOrder!!.toMutableList()
+            val idx = mutableOrder.removeAt(fromPosition)
+            mutableOrder.add(toPosition, idx)
+            playOrder = mutableOrder
+        } else {
+            val mutableSongs = songs.toMutableList()
+            val song = mutableSongs.removeAt(fromPosition)
+            mutableSongs.add(toPosition, song)
+            songs = mutableSongs
 
-        // Adjust currentIndex to follow the currently playing song
-        currentIndex = when {
-            currentIndex == fromPosition -> toPosition
-            fromPosition < currentIndex && toPosition >= currentIndex -> currentIndex - 1
-            fromPosition > currentIndex && toPosition <= currentIndex -> currentIndex + 1
-            else -> currentIndex
+            // Adjust currentIndex to follow the currently playing song
+            currentIndex = when {
+                currentIndex == fromPosition -> toPosition
+                fromPosition < currentIndex && toPosition >= currentIndex -> currentIndex - 1
+                fromPosition > currentIndex && toPosition <= currentIndex -> currentIndex + 1
+                else -> currentIndex
+            }
         }
 
         notifyItemMoved(fromPosition, toPosition)
     }
+
+    /** Whether this adapter is currently displaying in shuffle order. */
+    fun isShuffleMode(): Boolean = playOrder != null
 }

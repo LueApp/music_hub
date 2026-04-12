@@ -58,6 +58,7 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
                 // Queue
                 method == Method.GET && uri == "/api/queue" -> handleGetQueue()
                 method == Method.POST && uri.matches(Regex("/api/queue/move/\\d+/\\d+")) -> handleMoveInQueue(uri)
+                method == Method.POST && uri.matches(Regex("/api/shuffle/move/\\d+/\\d+")) -> handleMoveInShuffleOrder(uri)
 
                 // Library
                 method == Method.GET && uri == "/api/playlists" -> handleGetPlaylists()
@@ -137,6 +138,17 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
         val to = parts[1].toIntOrNull()
             ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid to index"))
         mainHandler.post { PlaybackService.getInstance()?.moveInQueue(from, to) }
+        return jsonResponse(Response.Status.OK, mapOf("ok" to true))
+    }
+
+    private fun handleMoveInShuffleOrder(uri: String): Response {
+        val parts = uri.removePrefix("/api/shuffle/move/").split("/")
+        if (parts.size != 2) return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid format"))
+        val from = parts[0].toIntOrNull()
+            ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid from index"))
+        val to = parts[1].toIntOrNull()
+            ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid to index"))
+        mainHandler.post { PlaybackService.getInstance()?.moveInShuffleOrder(from, to) }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 

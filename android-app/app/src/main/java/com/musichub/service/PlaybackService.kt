@@ -359,6 +359,24 @@ class PlaybackService : Service() {
         notifyQueueChangeListeners(queue.toList())
     }
 
+    fun moveInShuffleOrder(from: Int, to: Int) {
+        if (!shuffleEnabled || shuffledIndices.isEmpty()) return
+        if (from !in shuffledIndices.indices || to !in shuffledIndices.indices || from == to) return
+
+        val idx = shuffledIndices.removeAt(from)
+        shuffledIndices.add(to, idx)
+
+        // Adjust shufflePosition to keep tracking the currently playing song
+        shufflePosition = when {
+            shufflePosition == from -> to
+            from < shufflePosition && to >= shufflePosition -> shufflePosition - 1
+            from > shufflePosition && to <= shufflePosition -> shufflePosition + 1
+            else -> shufflePosition
+        }
+
+        Log.d(TAG, "Moved shuffle order from $from to $to, shufflePosition=$shufflePosition")
+    }
+
     fun playNext(): Boolean {
         // Handle repeat one mode - just replay current song
         if (repeatMode == RepeatMode.ONE) {

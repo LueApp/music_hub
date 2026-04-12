@@ -232,6 +232,9 @@ class FloatingWindowService : Service() {
                     modeCooldownUntil = System.currentTimeMillis() + 2000
                 } else {
                     sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_SHUFFLE)
+                    // Immediately toggle icon for visual feedback
+                    val btn = it as ImageButton
+                    btn.alpha = if (btn.alpha < 1.0f) 1.0f else 0.5f
                 }
             }
 
@@ -364,21 +367,7 @@ class FloatingWindowService : Service() {
             val touchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
                 ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0
             ) {
-                override fun isLongPressDragEnabled(): Boolean {
-                    // Disable drag in shuffle mode
-                    val shuffled = if (RemoteMode.isController()) {
-                        RemoteClient.currentState?.shuffleOrder != null
-                    } else {
-                        PlaybackService.getInstance()?.isShuffleEnabled() == true
-                    }
-                    if (shuffled) {
-                        Handler(Looper.getMainLooper()).post {
-                            Toast.makeText(this@FloatingWindowService, "随机模式下无法排序", Toast.LENGTH_SHORT).show()
-                        }
-                        return false
-                    }
-                    return true
-                }
+                override fun isLongPressDragEnabled(): Boolean = true
 
                 override fun onMove(
                     recyclerView: RecyclerView,
@@ -400,9 +389,11 @@ class FloatingWindowService : Service() {
                     super.onSelectedChanged(viewHolder, actionState)
                     if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
                         viewHolder?.itemView?.elevation = 8f
-                        // Record the original queue index when drag starts
                         val pos = viewHolder?.bindingAdapterPosition ?: -1
-                        dragStartIndex = queueAdapter?.getQueueIndex(pos) ?: -1
+                        val inShuffle = queueAdapter?.isShuffleMode() == true
+                        // In shuffle mode, record adapter position (= shuffle position)
+                        // In normal mode, record the actual queue index
+                        dragStartIndex = if (inShuffle) pos else (queueAdapter?.getQueueIndex(pos) ?: -1)
                     }
                 }
 
@@ -410,15 +401,28 @@ class FloatingWindowService : Service() {
                     super.clearView(recyclerView, viewHolder)
                     viewHolder.itemView.elevation = 0f
 
-                    // Drag finished — commit the move to the playback queue
                     val endPos = viewHolder.bindingAdapterPosition
-                    val endIndex = queueAdapter?.getQueueIndex(endPos) ?: -1
-                    if (dragStartIndex >= 0 && endIndex >= 0 && dragStartIndex != endIndex) {
-                        Log.d(TAG, "Queue drag: $dragStartIndex -> $endIndex")
-                        if (RemoteMode.isController()) {
-                            RemoteClient.moveInQueue(dragStartIndex, endIndex)
-                        } else {
-                            PlaybackService.getInstance()?.moveInQueue(dragStartIndex, endIndex)
+                    val inShuffle = queueAdapter?.isShuffleMode() == true
+                    if (inShuffle) {
+                        // Shuffle mode: reorder the shuffle order
+                        if (dragStartIndex >= 0 && endPos >= 0 && dragStartIndex != endPos) {
+                            Log.d(TAG, "Shuffle order drag: $dragStartIndex -> $endPos")
+                            if (RemoteMode.isController()) {
+                                RemoteClient.moveInShuffleOrder(dragStartIndex, endPos)
+                            } else {
+                                PlaybackService.getInstance()?.moveInShuffleOrder(dragStartIndex, endPos)
+                            }
+                        }
+                    } else {
+                        // Normal mode: reorder the actual queue
+                        val endIndex = queueAdapter?.getQueueIndex(endPos) ?: -1
+                        if (dragStartIndex >= 0 && endIndex >= 0 && dragStartIndex != endIndex) {
+                            Log.d(TAG, "Queue drag: $dragStartIndex -> $endIndex")
+                            if (RemoteMode.isController()) {
+                                RemoteClient.moveInQueue(dragStartIndex, endIndex)
+                            } else {
+                                PlaybackService.getInstance()?.moveInQueue(dragStartIndex, endIndex)
+                            }
                         }
                     }
                     dragStartIndex = -1
@@ -803,6 +807,7 @@ class FloatingWindowService : Service() {
             playbackService.setOnPlaybackModeChangeListener { repeatMode, shuffleEnabled ->
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     updateModeIcons(repeatMode, shuffleEnabled)
+                    updateQueueData()
                 }
             }
 
