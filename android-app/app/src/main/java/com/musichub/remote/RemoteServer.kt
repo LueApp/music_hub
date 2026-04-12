@@ -1,5 +1,7 @@
 package com.musichub.remote
 
+import android.content.Context
+import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -22,6 +24,8 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
     private val TAG = "RemoteServer"
     private val gson = Gson()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val audioManager = MusicHubApplication.getInstance()
+        .getSystemService(Context.AUDIO_SERVICE) as AudioManager
     private val connectedClients = mutableListOf<RemoteWebSocket>()
     private var broadcastJob: Job? = null
     private val broadcastScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -54,6 +58,10 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
                 method == Method.POST && uri.startsWith("/api/seek/") -> handleSeek(uri)
                 method == Method.POST && uri == "/api/shuffle" -> handleToggleShuffle()
                 method == Method.POST && uri == "/api/repeat" -> handleToggleRepeat()
+
+                // Volume
+                method == Method.GET && uri == "/api/volume" -> handleGetVolume()
+                method == Method.POST && uri.matches(Regex("/api/volume/\\d+")) -> handleSetVolume(uri)
 
                 // Queue
                 method == Method.GET && uri == "/api/queue" -> handleGetQueue()
@@ -102,7 +110,9 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
             currentSong = currentSong?.toRemoteSong(),
             currentIndex = playback?.getCurrentIndex() ?: -1,
             queueSize = playback?.getQueue()?.size ?: 0,
-            shuffleOrder = playback?.getShuffleOrder()
+            shuffleOrder = playback?.getShuffleOrder(),
+            volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC),
+            maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         )
     }
 
@@ -167,6 +177,23 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
     private fun handleToggleRepeat(): Response {
         mainHandler.post { PlaybackService.getInstance()?.toggleRepeatMode() }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
+    }
+
+    // --- Volume ---
+
+    private fun handleGetVolume(): Response {
+        val volume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        return jsonResponse(Response.Status.OK, mapOf("volume" to volume, "maxVolume" to maxVolume))
+    }
+
+    private fun handleSetVolume(uri: String): Response {
+        val level = uri.substringAfterLast("/").toIntOrNull()
+            ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid volume level"))
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val clamped = level.coerceIn(0, maxVolume)
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, clamped, 0)
+        return jsonResponse(Response.Status.OK, mapOf("ok" to true, "volume" to clamped))
     }
 
     // --- Queue ---

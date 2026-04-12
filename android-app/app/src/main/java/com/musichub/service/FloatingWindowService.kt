@@ -12,6 +12,7 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -71,6 +72,7 @@ class FloatingWindowService : Service() {
     private var currentCoverUrl = ""
     private var remainingCount = 0
     private var isQueueVisible = false
+    private var isVolumeVisible = false
     private var queueAdapter: QueueAdapter? = null
     private var queueRecyclerView: RecyclerView? = null
 
@@ -81,6 +83,9 @@ class FloatingWindowService : Service() {
     private var isUserSeeking = false  // Track if user is dragging seekbar
     private var seekCooldownUntil = 0L  // Ignore remote position updates until this time
     private var modeCooldownUntil = 0L  // Ignore remote mode updates until this time
+    private var isUserAdjustingVolume = false  // Track if user is dragging volume slider
+    private var volumeCooldownUntil = 0L  // Ignore remote volume updates until this time
+    private var audioManager: AudioManager? = null
 
     // Store window positions for both modes
     private var fullModeParams: WindowManager.LayoutParams? = null
@@ -173,6 +178,7 @@ class FloatingWindowService : Service() {
         startForegroundService()
 
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         Log.d(TAG, "WindowManager obtained: $windowManager")
 
         // Inflate floating view with themed context
@@ -281,6 +287,12 @@ class FloatingWindowService : Service() {
                 }
             }
 
+            // Volume toggle button
+            findViewById<ImageButton>(R.id.btnVolume)?.setOnClickListener {
+                Log.d(TAG, "Volume button clicked")
+                toggleVolumePanel()
+            }
+
             // Queue button
             findViewById<ImageButton>(R.id.btnQueue)?.setOnClickListener {
                 Log.d(TAG, "Queue button clicked")
@@ -292,6 +304,9 @@ class FloatingWindowService : Service() {
 
             // Setup progress bar (SeekBar is display-only, no seeking for external apps)
             setupProgressBar()
+
+            // Setup volume panel
+            setupVolumePanel()
 
             // Close button
             findViewById<ImageButton>(R.id.btnClose)?.setOnClickListener {
@@ -481,9 +496,133 @@ class FloatingWindowService : Service() {
         startProgressUpdates()
     }
 
+    private fun setupVolumePanel() {
+        floatingView?.apply {
+            val seekBarVolume = findViewById<SeekBar>(R.id.seekBarVolume) ?: return@apply
+
+            // Initialize max and current volume
+            if (RemoteMode.isController()) {
+                val state = RemoteClient.currentState
+                if (state != null && state.maxVolume > 0) {
+                    seekBarVolume.max = state.maxVolume
+                    seekBarVolume.progress = state.volume.coerceIn(0, state.maxVolume)
+                }
+            } else {
+                val am = audioManager ?: return@apply
+                seekBarVolume.max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                seekBarVolume.progress = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            }
+            updateVolumeButtonIcon()
+
+            seekBarVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        if (RemoteMode.isController()) {
+                            RemoteClient.setVolume(progress)
+                            volumeCooldownUntil = System.currentTimeMillis() + 2000
+                        } else {
+                            audioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0)
+                        }
+                        updateVolumeButtonIcon()
+                    }
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                    isUserAdjustingVolume = true
+                }
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    isUserAdjustingVolume = false
+                }
+            })
+
+            // Volume down/up buttons inside the panel
+            findViewById<ImageButton>(R.id.btnVolumeDown)?.setOnClickListener {
+                adjustVolume(-1)
+            }
+            findViewById<ImageButton>(R.id.btnVolumeUp)?.setOnClickListener {
+                adjustVolume(1)
+            }
+        }
+    }
+
+    private fun toggleVolumePanel() {
+        floatingView?.apply {
+            val volumeContainer = findViewById<LinearLayout>(R.id.volumeContainer) ?: return@apply
+            val volumeButton = findViewById<ImageButton>(R.id.btnVolume)
+
+            isVolumeVisible = !isVolumeVisible
+            Log.d(TAG, "Volume panel visibility toggled: $isVolumeVisible")
+            if (isVolumeVisible) {
+                // Sync slider before showing
+                updateVolumeSlider()
+                volumeContainer.visibility = View.VISIBLE
+                volumeButton?.alpha = 1.0f
+            } else {
+                volumeContainer.visibility = View.GONE
+                volumeButton?.alpha = 0.7f
+            }
+
+            // Update window layout
+            windowManager?.updateViewLayout(floatingView, floatingView?.layoutParams)
+        }
+    }
+
+    private fun adjustVolume(delta: Int) {
+        if (RemoteMode.isController()) {
+            val state = RemoteClient.currentState ?: return
+            val newLevel = (state.volume + delta).coerceIn(0, state.maxVolume)
+            RemoteClient.setVolume(newLevel)
+            volumeCooldownUntil = System.currentTimeMillis() + 2000
+            floatingView?.findViewById<SeekBar>(R.id.seekBarVolume)?.progress = newLevel
+        } else {
+            val am = audioManager ?: return
+            val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val current = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val newLevel = (current + delta).coerceIn(0, maxVol)
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, newLevel, 0)
+            floatingView?.findViewById<SeekBar>(R.id.seekBarVolume)?.progress = newLevel
+        }
+        updateVolumeButtonIcon()
+    }
+
+    private fun updateVolumeButtonIcon() {
+        floatingView?.apply {
+            val btn = findViewById<ImageButton>(R.id.btnVolume) ?: return@apply
+            val volume = findViewById<SeekBar>(R.id.seekBarVolume)?.progress ?: 0
+            when {
+                volume == 0 -> btn.setImageResource(R.drawable.ic_volume_off)
+                volume <= (findViewById<SeekBar>(R.id.seekBarVolume)?.max ?: 15) / 2 ->
+                    btn.setImageResource(R.drawable.ic_volume_down)
+                else -> btn.setImageResource(R.drawable.ic_volume_up)
+            }
+        }
+    }
+
+    private fun updateVolumeSlider() {
+        if (isUserAdjustingVolume) return
+        floatingView?.apply {
+            val seekBarVolume = findViewById<SeekBar>(R.id.seekBarVolume) ?: return@apply
+            if (RemoteMode.isController()) {
+                if (System.currentTimeMillis() < volumeCooldownUntil) return@apply
+                val state = RemoteClient.currentState ?: return@apply
+                if (state.maxVolume > 0) {
+                    seekBarVolume.max = state.maxVolume
+                    seekBarVolume.progress = state.volume.coerceIn(0, state.maxVolume)
+                }
+            } else {
+                val am = audioManager ?: return@apply
+                seekBarVolume.max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                seekBarVolume.progress = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            }
+            updateVolumeButtonIcon()
+        }
+    }
+
     private val progressUpdateRunnable = object : Runnable {
         override fun run() {
             updateProgress()
+            if (!isMiniMode && isVolumeVisible) updateVolumeSlider()
             if (isProgressUpdating) {
                 progressHandler.postDelayed(this, progressUpdateInterval)
             }
