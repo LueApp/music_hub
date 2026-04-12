@@ -49,6 +49,12 @@ class MediaMonitorService : NotificationListenerService() {
     private var manualControlTimestamp: Long = 0
     private val MANUAL_CONTROL_TIMEOUT_MS = 5000L  // 5 second timeout for manual control mode
 
+    // Tracks same-platform NetEase switch for reactive auto-advance suppression.
+    // Set by PlaybackService when scheduling pauses, expires after a short window
+    // (auto-advance happens within ~2s, target song takes 3-8s).
+    private var samePlatformNetEasePauseUntil: Long = 0
+
+
     // One-shot callback for detecting when a platform starts playing.
     // Used by DeepLinkLauncher to restore auto-rotation after NetEase loads.
     private var pendingPlaybackCallback: (() -> Unit)? = null
@@ -316,6 +322,31 @@ class MediaMonitorService : NotificationListenerService() {
             return
         }
 
+        // Reactive pause for same-platform NetEase: during the pause window
+        // (set by PlaybackService), if NetEase starts playing a new song (position near 0),
+        // this is NetEase's auto-advance to its own queue — pause it immediately.
+        // The scheduled pauses cover 500-1500ms, but NetEase may auto-advance later
+        // (~1900ms observed). This reactive catch handles any timing within the window.
+        // Uses a dedicated short window (2500ms) to avoid pausing the target song
+        // which loads after 3-8s.
+        // Uses pause()+stop() because NetEase fights back against pause() alone,
+        // resuming playback immediately and letting audio leak for hundreds of ms.
+        if (android.os.SystemClock.elapsedRealtime() < samePlatformNetEasePauseUntil &&
+            fromPackage == "com.netease.cloudmusic" &&
+            (currentState == PlaybackState.STATE_PLAYING || currentState == PlaybackState.STATE_BUFFERING) &&
+            position <= 100) {
+            Log.d(TAG, "Reactive pause: NetEase auto-advanced during pause window (position=$position), pausing+stopping")
+            activeControllers[fromPackage]?.let { controller ->
+                try {
+                    controller.transportControls.pause()
+                    controller.transportControls.stop()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in reactive same-platform pause: ${e.message}")
+                }
+            }
+            return
+        }
+
         // Only process song-end detection for the current platform
         if (fromPackage != null && currentPlatformPackage != null && fromPackage != currentPlatformPackage) {
             Log.d(TAG, "Ignoring state change from $fromPackage (current platform: $currentPlatformPackage)")
@@ -497,6 +528,19 @@ class MediaMonitorService : NotificationListenerService() {
                                 // 2. Less than 2 seconds remaining
                                 // AND we've played enough to not be a false trigger (> 30 seconds)
                                 Log.d(TAG, "Early song end detected! percentPlayed=${String.format("%.1f", percentPlayed)}%, remaining=${remainingTime}ms")
+                                // Pause NetEase immediately to prevent it from finishing the song
+                                // and auto-advancing to its own next track. This must happen BEFORE
+                                // the broadcast so there's no window for auto-advance.
+                                if (currentPlatformPackage == "com.netease.cloudmusic") {
+                                    activeControllers["com.netease.cloudmusic"]?.let { controller ->
+                                        try {
+                                            controller.transportControls.pause()
+                                            Log.d(TAG, "Pre-emptive pause sent to NetEase on early song end")
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error pre-emptively pausing NetEase: ${e.message}")
+                                        }
+                                    }
+                                }
                                 songEndTriggered = true
                                 sendSongFinishedBroadcast()
                             }
@@ -733,6 +777,20 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     /**
+     * Arm manual control mode immediately, without pausing anything.
+     * Called at the very start of a Music Hub-initiated song transition so that
+     * any auto-advance detection (early song-end, metadata change, etc.) that fires
+     * during the async availability check is suppressed. Without this, pressing
+     * Previous could race with a song-finished broadcast that immediately calls
+     * playNext() and undoes the index change.
+     */
+    fun armManualControl() {
+        Log.d(TAG, "armManualControl called - suppressing auto-advance detection during transition")
+        manualControlActive = true
+        manualControlTimestamp = System.currentTimeMillis()
+    }
+
+    /**
      * Called when a new song starts playing via Music Hub.
      * This disables manual control mode after a delay to re-enable auto-advance detection.
      */
@@ -759,6 +817,19 @@ class MediaMonitorService : NotificationListenerService() {
     )
 
     /**
+     * Arm reactive pause window for same-platform NetEase switches.
+     * During this window, any new playback (position ~0) from NetEase will be
+     * immediately paused as it's NetEase's auto-advance to its own queue.
+     * Also mutes the music stream as a guaranteed fallback since NetEase ignores
+     * pause+stop commands. Unmute happens when the target song's playback callback fires.
+     * Window is 2500ms — auto-advance happens within ~2s, target song takes 3-8s.
+     */
+    fun armSamePlatformNetEasePause() {
+        samePlatformNetEasePauseUntil = android.os.SystemClock.elapsedRealtime() + 2500L
+        Log.d(TAG, "Armed same-platform NetEase reactive pause window (2500ms)")
+    }
+
+    /**
      * Lightweight pause for a specific package. Does NOT reset tracking state
      * or set manualControlActive. Used to silence auto-advanced songs during
      * same-platform switches without interfering with pending deep links.
@@ -770,7 +841,8 @@ class MediaMonitorService : NotificationListenerService() {
         if (controller != null) {
             try {
                 controller.transportControls.pause()
-                Log.d(TAG, "Lightweight pause sent to $packageName")
+                controller.transportControls.stop()
+                Log.d(TAG, "Lightweight pause+stop sent to $packageName")
             } catch (e: Exception) {
                 Log.e(TAG, "Error pausing $packageName: ${e.message}")
             }

@@ -56,6 +56,7 @@ class PlaybackService : Service() {
     private val PLAYBACK_TIMEOUT_COLD_MS = 25000L
     private var playbackTimeoutRunnable: Runnable? = null
     private var lastLaunchedSongId: Long = -1L
+    private var lastLaunchedPlatform: String? = null
     private var lastTimedOutSongTitle: String? = null
     private var playbackTimeoutRetried: Boolean = false
     private var desyncCheckRunnable: Runnable? = null
@@ -587,14 +588,9 @@ class PlaybackService : Service() {
         val fallbackUrl = handler?.generateFallbackUrl(song.platformSongId) ?: ""
 
         // Determine delay based on platform switching
-        // Longer delay when switching between different platforms to ensure pause takes effect
-        val previousSong = synchronized(queueLock) {
-            if (currentIndex > 0 && currentIndex - 1 < queue.size) {
-                queue.getOrNull(currentIndex - 1)
-            } else null
-        }
-
-        val isPlatformSwitch = previousSong != null && previousSong.platform != song.platform
+        // Use lastLaunchedPlatform (the actually played song) instead of queue position,
+        // because queue order may not match play order (e.g., shuffle, skips)
+        val isPlatformSwitch = lastLaunchedPlatform != null && lastLaunchedPlatform != song.platform
         val launchDelay = if (isPlatformSwitch) 300L else 100L  // Longer delay for platform switch
 
         Log.d(TAG, "Launching song: ${song.title} (platform=${song.platform}, isPlatformSwitch=$isPlatformSwitch, delay=${launchDelay}ms)")
@@ -610,7 +606,7 @@ class PlaybackService : Service() {
         val isLandscapeForDoubleSend = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
             physicalLandscape || DeepLinkLauncher.landscapeWorkaroundActive
         val isSamePlatformNetEase = !isPlatformSwitch && song.platform == Platforms.NETEASE
-            && previousSong?.platform == Platforms.NETEASE
+            && lastLaunchedPlatform == Platforms.NETEASE
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
         // Check if this is a cold start (no active controller = app not running)
@@ -634,6 +630,9 @@ class PlaybackService : Service() {
             if (isSamePlatformNetEase) {
                 val orientationLabel = if (isLandscapeForDoubleSend) "landscape" else "portrait"
                 Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression ($orientationLabel mode)")
+                // Arm reactive pause in MediaMonitorService — instantly pauses any
+                // new playback (position ~0) from NetEase within a 2500ms window
+                MediaMonitorService.getInstance()?.armSamePlatformNetEasePause()
                 val pauseDelays = listOf(500L, 700L, 900L, 1100L, 1300L, 1500L)
                 pauseDelays.forEach { delay ->
                     mainHandler.postDelayed({
@@ -821,6 +820,7 @@ class PlaybackService : Service() {
 
         cancelPlaybackTimeout()
         lastLaunchedSongId = song.id
+        lastLaunchedPlatform = song.platform
         playbackTimeoutRetried = false
 
         val runnable = Runnable {
