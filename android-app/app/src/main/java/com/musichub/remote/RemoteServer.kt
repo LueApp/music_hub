@@ -67,6 +67,7 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
                 method == Method.GET && uri == "/api/queue" -> handleGetQueue()
                 method == Method.POST && uri.matches(Regex("/api/queue/move/\\d+/\\d+")) -> handleMoveInQueue(uri)
                 method == Method.POST && uri.matches(Regex("/api/shuffle/move/\\d+/\\d+")) -> handleMoveInShuffleOrder(uri)
+                method == Method.POST && uri.matches(Regex("/api/queue/remove/\\d+")) -> handleRemoveFromQueue(uri)
 
                 // Library
                 method == Method.GET && uri == "/api/playlists" -> handleGetPlaylists()
@@ -148,6 +149,13 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
         val to = parts[1].toIntOrNull()
             ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid to index"))
         mainHandler.post { PlaybackService.getInstance()?.moveInQueue(from, to) }
+        return jsonResponse(Response.Status.OK, mapOf("ok" to true))
+    }
+
+    private fun handleRemoveFromQueue(uri: String): Response {
+        val index = uri.removePrefix("/api/queue/remove/").toIntOrNull()
+            ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid index"))
+        mainHandler.post { PlaybackService.getInstance()?.removeFromQueue(index) }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 

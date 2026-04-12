@@ -378,6 +378,62 @@ class PlaybackService : Service() {
         Log.d(TAG, "Moved shuffle order from $from to $to, shufflePosition=$shufflePosition")
     }
 
+    /**
+     * Remove a song from the queue by its queue index.
+     * Returns true if the currently playing song was removed (caller should launch next).
+     */
+    fun removeFromQueue(queueIndex: Int): Boolean {
+        var removedCurrent = false
+        synchronized(queueLock) {
+            if (queueIndex !in queue.indices) return false
+            val removedSong = queue.removeAt(queueIndex)
+            Log.d(TAG, "Removed from queue at $queueIndex: ${removedSong.title}, queue size=${queue.size}")
+
+            if (queue.isEmpty()) {
+                currentIndex = -1
+                isPlaying = false
+                removedCurrent = true
+            } else if (queueIndex == currentIndex) {
+                // Removed the currently playing song — play the song now at this index
+                // (which is the next song), or wrap to last if we removed the tail
+                if (currentIndex >= queue.size) {
+                    currentIndex = queue.size - 1
+                }
+                removedCurrent = true
+            } else if (queueIndex < currentIndex) {
+                currentIndex--
+            }
+
+            // Update shuffle indices: remove the queue index and adjust remaining
+            if (shuffleEnabled && shuffledIndices.isNotEmpty()) {
+                val shufflePos = shuffledIndices.indexOf(queueIndex)
+                if (shufflePos >= 0) {
+                    shuffledIndices.removeAt(shufflePos)
+                    if (shufflePosition > shufflePos) shufflePosition--
+                    else if (shufflePosition == shufflePos && shufflePosition >= shuffledIndices.size) {
+                        shufflePosition = (shuffledIndices.size - 1).coerceAtLeast(0)
+                    }
+                }
+                // Adjust indices that were above the removed index
+                for (i in shuffledIndices.indices) {
+                    if (shuffledIndices[i] > queueIndex) {
+                        shuffledIndices[i] = shuffledIndices[i] - 1
+                    }
+                }
+            }
+        }
+        notifyQueueChangeListeners(queue.toList())
+
+        if (removedCurrent) {
+            if (queue.isEmpty()) {
+                showToast("队列已空")
+            } else {
+                launchCurrentSong()
+            }
+        }
+        return removedCurrent
+    }
+
     fun playNext(): Boolean {
         // Handle repeat one mode - just replay current song
         if (repeatMode == RepeatMode.ONE) {

@@ -132,6 +132,49 @@ class QueueAdapter(
         notifyItemMoved(fromPosition, toPosition)
     }
 
+    /** Remove an item at the given adapter position for immediate visual feedback. */
+    fun removeItem(adapterPosition: Int) {
+        if (adapterPosition !in 0 until itemCount) return
+
+        if (playOrder != null) {
+            // Shuffle mode: remove from play order
+            val mutableOrder = playOrder!!.toMutableList()
+            val removedQueueIndex = mutableOrder.removeAt(adapterPosition)
+            // Adjust remaining indices that were above the removed queue index
+            for (i in mutableOrder.indices) {
+                if (mutableOrder[i] > removedQueueIndex) {
+                    mutableOrder[i] = mutableOrder[i] - 1
+                }
+            }
+            playOrder = mutableOrder
+
+            // Adjust currentIndex
+            if (currentIndex == removedQueueIndex) {
+                // Will be updated by queue change listener
+            } else if (currentIndex > removedQueueIndex) {
+                currentIndex--
+            }
+
+            // Remove from songs list
+            val mutableSongs = songs.toMutableList()
+            mutableSongs.removeAt(removedQueueIndex)
+            songs = mutableSongs
+        } else {
+            // Normal mode: remove directly
+            val mutableSongs = songs.toMutableList()
+            mutableSongs.removeAt(adapterPosition)
+            songs = mutableSongs
+
+            if (currentIndex == adapterPosition) {
+                // Will be updated by queue change listener
+            } else if (currentIndex > adapterPosition) {
+                currentIndex--
+            }
+        }
+
+        notifyItemRemoved(adapterPosition)
+    }
+
     /** Whether this adapter is currently displaying in shuffle order. */
     fun isShuffleMode(): Boolean = playOrder != null
 }

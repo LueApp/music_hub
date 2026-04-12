@@ -380,7 +380,7 @@ class FloatingWindowService : Service() {
             // Attach drag-to-reorder
             var dragStartIndex = -1  // Track original position when drag starts
             val touchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-                ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0
+                ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.LEFT
             ) {
                 override fun isLongPressDragEnabled(): Boolean = true
 
@@ -398,7 +398,23 @@ class FloatingWindowService : Service() {
                     return true
                 }
 
-                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                    val adapterPos = viewHolder.bindingAdapterPosition
+                    val adapter = queueAdapter ?: return
+                    val queueIndex = adapter.getQueueIndex(adapterPos)
+
+                    Log.d(TAG, "Swiped to remove queue item: adapterPos=$adapterPos, queueIndex=$queueIndex")
+
+                    // Visual feedback first
+                    adapter.removeItem(adapterPos)
+
+                    // Then update the actual queue
+                    if (RemoteMode.isController()) {
+                        RemoteClient.removeFromQueue(queueIndex)
+                    } else {
+                        PlaybackService.getInstance()?.removeFromQueue(queueIndex)
+                    }
+                }
 
                 override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
                     super.onSelectedChanged(viewHolder, actionState)
