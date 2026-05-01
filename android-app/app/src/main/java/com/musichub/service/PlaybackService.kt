@@ -979,8 +979,10 @@ class PlaybackService : Service() {
         // Determine timeout duration based on context:
         // 1. Landscape workaround + NetEase → cold (CLEAR_TASK restarts app)
         // 2. Cross-platform switch → cold (pause/stop + new deep link needs extra time)
-        // 3. Has active controller → warm
-        // 4. Otherwise → cold
+        // 3. Bilibili with an active controller → cold timeout (the app can keep
+        //    a MediaSession alive while video-page deep links still load slowly)
+        // 4. Has active controller → warm
+        // 5. Otherwise → cold
         val targetPackage = Platforms.PACKAGE_NAMES[song.platform]
         val hasController = targetPackage != null &&
             MediaMonitorService.getInstance()?.hasActiveController(targetPackage) == true
@@ -998,6 +1000,7 @@ class PlaybackService : Service() {
         val (timeoutMs, reason) = when {
             isLandscapeWorkaround -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (landscape workaround)"
             isPlatformSwitch -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (cross-platform)"
+            song.platform == Platforms.BILIBILI && hasController -> PLAYBACK_TIMEOUT_COLD_MS to "extended start (bilibili)"
             hasController -> PLAYBACK_TIMEOUT_WARM_MS to "warm start"
             else -> PLAYBACK_TIMEOUT_COLD_MS to "cold start"
         }

@@ -5,8 +5,9 @@ After launching a song via deep link, PlaybackService SHALL schedule a timeout c
 
 1. If `DeepLinkLauncher.landscapeWorkaroundActive` is true AND the target platform is NetEase → use `PLAYBACK_TIMEOUT_COLD_MS` (landscape workaround uses CLEAR_TASK, making warm state irrelevant)
 2. If the launch is a cross-platform switch (`isPlatformSwitch == true`) → use `PLAYBACK_TIMEOUT_COLD_MS` (cross-platform switches need extra time for pause/stop + new deep link processing)
-3. If the target app has an active MediaController → use `PLAYBACK_TIMEOUT_WARM_MS` (warm start)
-4. Otherwise → use `PLAYBACK_TIMEOUT_COLD_MS` (cold start)
+3. If the target platform is Bilibili and it has an active MediaController → use `PLAYBACK_TIMEOUT_COLD_MS` (Bilibili can keep a MediaSession alive while video-page deep links still load slowly)
+4. If the target app has an active MediaController → use `PLAYBACK_TIMEOUT_WARM_MS` (warm start)
+5. Otherwise → use `PLAYBACK_TIMEOUT_COLD_MS` (cold start)
 
 If no active playback (PLAYING state with correct song title) is detected when the timeout fires, the system SHALL treat the song as a playback failure.
 
@@ -17,6 +18,10 @@ If no active playback (PLAYING state with correct song title) is detected when t
 #### Scenario: Cross-platform switch uses cold timeout
 - **WHEN** a QQ Music song is launched after a NetEase song (isPlatformSwitch=true) AND QQ Music has an active MediaController
 - **THEN** the timeout SHALL be `PLAYBACK_TIMEOUT_COLD_MS` (not warm) AND the log SHALL indicate "cold start (cross-platform)"
+
+#### Scenario: Bilibili warm controller uses extended timeout
+- **WHEN** a Bilibili song is launched AND Bilibili has an active MediaController AND this is not a cross-platform switch
+- **THEN** the timeout SHALL be `PLAYBACK_TIMEOUT_COLD_MS` (not warm) AND the log SHALL indicate "extended start (bilibili)"
 
 #### Scenario: Same-platform warm start unchanged
 - **WHEN** a QQ Music song is launched after another QQ Music song AND QQ Music has an active MediaController AND no landscape workaround is active
