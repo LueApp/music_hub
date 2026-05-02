@@ -57,7 +57,7 @@ const translations = {
     downloadTitle: '获取 Music Hub 预览版',
     downloadCopy: '下载 debug APK 后在 Android 8.0 及以上设备安装。首次使用需要按提示授予悬浮窗、通知和无障碍相关权限。',
     downloadButton: '下载 APK',
-    downloadNote: '下载地址可在 Cloudflare Pages 环境变量 VITE_DOWNLOAD_URL 中配置。',
+    downloadNote: 'APK 会随 Cloudflare Pages 构建一起生成；也可用 VITE_DOWNLOAD_URL 指向外部下载地址。',
     footerText: '跨平台音乐播放列表管理器和启动器。'
   },
   en: {
@@ -113,7 +113,7 @@ const translations = {
     downloadTitle: 'Get the Music Hub preview',
     downloadCopy: 'Download the debug APK and install it on Android 8.0 or later. First use requires overlay, notification, and accessibility permissions.',
     downloadButton: 'Download APK',
-    downloadNote: 'The download URL can be configured with the Cloudflare Pages VITE_DOWNLOAD_URL environment variable.',
+    downloadNote: 'The APK is generated during the Cloudflare Pages build; VITE_DOWNLOAD_URL can point to an external download instead.',
     footerText: 'Cross-platform music playlist manager and launcher.'
   }
 };

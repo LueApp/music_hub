@@ -5,11 +5,39 @@
 set -e
 
 ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
-CMDLINE_TOOLS_VERSION="11076708"  # Latest as of 2024
+CMDLINE_TOOLS_VERSION="14742923"
 CMDLINE_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-${CMDLINE_TOOLS_VERSION}_latest.zip"
 
 echo "=== Android SDK Setup ==="
 echo "ANDROID_HOME: $ANDROID_HOME"
+
+download_file() {
+    local url="$1"
+    local output="$2"
+
+    if command -v wget >/dev/null 2>&1; then
+        wget -q --show-progress -O "$output" "$url"
+    elif command -v curl >/dev/null 2>&1; then
+        curl -fL "$url" -o "$output"
+    else
+        echo "Missing download tool: install wget or curl." >&2
+        exit 1
+    fi
+}
+
+extract_zip() {
+    local archive="$1"
+    local destination="$2"
+
+    if command -v unzip >/dev/null 2>&1; then
+        unzip -q "$archive" -d "$destination"
+    elif command -v python3 >/dev/null 2>&1; then
+        python3 -m zipfile -e "$archive" "$destination"
+    else
+        echo "Missing zip extraction tool: install unzip or python3." >&2
+        exit 1
+    fi
+}
 
 # Create SDK directory
 mkdir -p "$ANDROID_HOME/cmdline-tools"
@@ -18,10 +46,10 @@ mkdir -p "$ANDROID_HOME/cmdline-tools"
 if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
     echo "Downloading Android command-line tools..."
     TEMP_ZIP="/tmp/cmdline-tools.zip"
-    wget -q --show-progress -O "$TEMP_ZIP" "$CMDLINE_TOOLS_URL"
+    download_file "$CMDLINE_TOOLS_URL" "$TEMP_ZIP"
 
     echo "Extracting..."
-    unzip -q "$TEMP_ZIP" -d "$ANDROID_HOME/cmdline-tools"
+    extract_zip "$TEMP_ZIP" "$ANDROID_HOME/cmdline-tools"
     mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
     rm "$TEMP_ZIP"
     echo "Command-line tools installed."
@@ -38,10 +66,10 @@ yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
 # Install required SDK components
 echo "Installing SDK components..."
-sdkmanager --install \
+yes | sdkmanager --install \
     "platform-tools" \
-    "platforms;android-34" \
-    "build-tools;34.0.0"
+    "platforms;android-35" \
+    "build-tools;35.0.0"
 
 echo ""
 echo "=== Setup Complete ==="

@@ -90,6 +90,8 @@ pixi run logcat-app
 
 项目主页位于 `site/`，推荐在 Cloudflare Pages 网站中连接 GitHub 仓库并配置构建，不需要在仓库中保存 Cloudflare 部署 Token。
 
+当前 Pages 构建会自动安装 Android SDK、构建 debug APK，并把 APK 放入网页产物的 `downloads/` 目录，供下载按钮使用。
+
 Cloudflare Pages 构建设置：
 
 | 设置 | 值 |
@@ -100,7 +102,7 @@ Cloudflare Pages 构建设置：
 | Build output directory | `site/dist` |
 | Node.js version | `24` |
 
-如果 APK 不随网页构建产物一起上传，请在 Cloudflare Pages 的环境变量中配置 `VITE_DOWNLOAD_URL`，值为 APK 的下载地址。未配置时，网页默认链接到 `./downloads/music-hub-<version>-debug.apk`，适合本地先运行 `npm run prepare:apk` 后再构建。
+如果不想在 Pages 中构建 APK，也可以把 Build command 改为 `npm ci && npm run build:site`，并在 Cloudflare Pages 环境变量中配置 `VITE_DOWNLOAD_URL` 为外部 APK 下载地址。
 
 本地预览：
 
