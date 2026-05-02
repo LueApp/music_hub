@@ -76,3 +76,6 @@ credentials.json
 
 .venv
 docs
+
+# Node / landing site
+node_modules/

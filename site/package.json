@@ -1,0 +1,16 @@
+{
+  "name": "music-hub-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "build:with-apk": "npm run prepare:apk && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "prepare:apk": "node scripts/prepare-apk.mjs"
+  },
+  "devDependencies": {
+    "vite": "^8.0.10"
+  }
+}
