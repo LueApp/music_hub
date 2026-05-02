@@ -1,0 +1,9 @@
+{
+  "name": "music-hub",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix site ci && npm --prefix site run build",
+    "dev": "npm --prefix site run dev",
+    "preview": "npm --prefix site run preview"
+  }
+}

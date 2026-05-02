@@ -95,9 +95,9 @@ Cloudflare Pages 构建设置：
 | 设置 | 值 |
 |---|---|
 | Framework preset | Vite |
-| Root directory | `site` |
+| Root directory | 留空，使用仓库根目录 |
 | Build command | `npm ci && npm run build` |
-| Build output directory | `dist` |
+| Build output directory | `site/dist` |
 | Node.js version | `24` |
 
 如果 APK 不随网页构建产物一起上传，请在 Cloudflare Pages 的环境变量中配置 `VITE_DOWNLOAD_URL`，值为 APK 的下载地址。未配置时，网页默认链接到 `./downloads/music-hub-<version>-debug.apk`，适合本地先运行 `npm run prepare:apk` 后再构建。
