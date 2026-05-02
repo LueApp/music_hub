@@ -1,9 +1,7 @@
-import './styles.css';
-
 const APP_VERSION = typeof __APP_VERSION__ === 'undefined' ? '1.0.0' : __APP_VERSION__;
 const APK_FILENAME =
   typeof __APK_FILENAME__ === 'undefined' ? `music-hub-${APP_VERSION}-debug.apk` : __APK_FILENAME__;
-const DOWNLOAD_URL = import.meta.env.VITE_DOWNLOAD_URL || `./downloads/${APK_FILENAME}`;
+const DOWNLOAD_URL = import.meta.env?.VITE_DOWNLOAD_URL || `./downloads/${APK_FILENAME}`;
 
 const translations = {
   zh: {
