@@ -1,14 +1,16 @@
 # Music Hub 音乐枢纽
 
-跨平台音乐播放列表管理器和启动器，支持网易云音乐和QQ音乐。
+跨平台音乐播放列表管理器和启动器，支持网易云音乐、QQ音乐和哔哩哔哩。
 
-A cross-platform music playlist manager and launcher for Chinese music platforms (NetEase Cloud Music & QQ Music).
+A cross-platform music playlist manager and launcher for Chinese music platforms (NetEase Cloud Music, QQ Music & Bilibili).
 
 ## 功能特点 Features
 
-- **统一音乐库** - 将网易云音乐和QQ音乐的歌曲整合到一个库中
-- **跨平台播放列表** - 创建包含两个平台歌曲的播放列表
+- **统一音乐库** - 将网易云音乐、QQ音乐和哔哩哔哩的歌曲整合到一个库中
+- **跨平台播放列表** - 创建包含多个平台歌曲的播放列表
 - **一键播放** - 点击歌曲自动打开对应的音乐App播放
+- **自动切歌** - 通过监听通知检测歌曲结束，自动播放下一首
+- **悬浮窗控制** - 悬浮窗覆盖在其他App上方，提供播放控制
 - **分享接收** - 从其他App分享链接直接添加歌曲
 - **本地存储** - 所有数据保存在本地，无需联网
 
@@ -18,9 +20,8 @@ A cross-platform music playlist manager and launcher for Chinese music platforms
 
 ### 环境要求 Requirements
 
-- Python 3.10+
-- [Pixi](https://pixi.sh/) (推荐) 或 pip
-- Android 手机 (用于测试APK)
+- [Pixi](https://pixi.sh/) (提供 JDK 17 和 Gradle)
+- Android 8.0+ 手机 (用于测试)
 
 ### 安装 Installation
 
@@ -34,22 +35,29 @@ curl -fsSL https://pixi.sh/install.sh | bash
 
 # 安装依赖
 pixi install
+
+# 下载 Android SDK (~3GB，仅首次)
+pixi run setup-sdk
+
+# 按脚本提示添加到 shell 配置:
+export ANDROID_HOME="$HOME/Android/Sdk"
+export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+# 生成 Gradle wrapper
+pixi run setup-gradle
 ```
 
-### 运行 Running
+### 构建和部署 Build & Deploy
 
 ```bash
-# 桌面模拟器 (开发用)
-pixi run run
+# 构建 debug APK
+pixi run build
 
-# 运行测试
-pixi run test
-
-# 构建 Android APK
-pixi run build-android
-
-# 部署到手机
+# 构建并安装到手机
 pixi run deploy
+
+# 查看应用日志
+pixi run logcat-app
 ```
 
 ---
@@ -58,15 +66,15 @@ pixi run deploy
 
 | 命令 | 说明 |
 |---|---|
-| `pixi run run` | 在桌面运行应用 (360x640窗口) |
-| `pixi run test` | 运行pytest测试 |
-| `pixi run build-android` | 构建debug APK |
+| `pixi run build` | 构建 debug APK |
+| `pixi run build-release` | 构建 release APK |
 | `pixi run deploy` | 构建并部署到手机 |
-| `pixi run deploy-watch` | 部署并查看日志 |
-| `pixi run logcat` | 查看设备日志 |
-| `pixi run logcat-python` | 查看Python日志 (过滤后) |
+| `pixi run install` | 安装已构建的 APK |
+| `pixi run test` | 运行单元测试 |
+| `pixi run logcat` | 查看所有设备日志 |
+| `pixi run logcat-app` | 查看应用日志 (已过滤) |
+| `pixi run devices` | 列出已连接设备 |
 | `pixi run clean` | 清理构建缓存 |
-| `pixi run rebuild` | 完全重新构建 |
 
 ---
 
@@ -74,29 +82,34 @@ pixi run deploy
 
 ```
 music-hub/
-├── main.py                # 入口文件
-├── src/
-│   ├── app.py             # 主应用类
-│   ├── db/                # 数据库层
-│   │   ├── database.py    # SQLite封装
-│   │   └── models.py      # 数据模型
-│   ├── platforms/         # 平台处理器
-│   │   ├── netease.py     # 网易云音乐
-│   │   └── qqmusic.py     # QQ音乐
-│   ├── services/          # 服务层
-│   │   ├── launcher.py    # 深度链接启动器
-│   │   ├── link_parser.py # 链接解析
-│   │   └── share_receiver.py  # 分享接收
-│   └── ui/                # 界面
-│       ├── screens/       # 屏幕类
-│       └── widgets/       # 组件
-├── ui/                    # Kivy布局文件 (.kv)
-├── assets/                # 资源文件
-│   ├── icons/             # 图标
-│   └── fonts/             # 字体
-├── tests/                 # 测试文件
-├── buildozer.spec         # Android构建配置
-└── pixi.toml              # Pixi环境配置
+├── CLAUDE.md                 # AI 助手说明
+├── pixi.toml                 # Pixi 环境和任务
+├── android-app/              # === 原生 Kotlin Android 应用 ===
+│   └── app/src/main/java/com/musichub/
+│       ├── MusicHubApplication.kt
+│       ├── data/              # Room 数据库层
+│       │   ├── model/         # 实体模型
+│       │   ├── local/         # DAO + Database
+│       │   └── repository/    # Repository
+│       ├── platform/          # 平台处理器
+│       │   ├── NetEasePlatform.kt
+│       │   ├── QQMusicPlatform.kt
+│       │   ├── BilibiliPlatform.kt
+│       │   └── LinkParser.kt
+│       ├── service/           # 服务层
+│       │   ├── PlaybackService.kt
+│       │   ├── FloatingWindowService.kt
+│       │   ├── MediaMonitorService.kt
+│       │   ├── DeepLinkLauncher.kt
+│       │   ├── PlayerAccessibilityService.kt
+│       │   └── ShareReceiver.kt
+│       └── ui/                # 界面层
+│           ├── MainActivity.kt
+│           ├── fragment/
+│           ├── adapter/
+│           └── viewmodel/
+├── src/                       # Python/Kivy 原型 (旧版，不再维护)
+└── tests/                     # Python 测试 (旧版)
 ```
 
 ---
@@ -105,24 +118,55 @@ music-hub/
 
 | 组件 | 技术 |
 |---|---|
-| 语言 | Python 3.10+ |
-| UI框架 | Kivy 2.3+ |
-| Android打包 | Buildozer |
-| Java桥接 | Pyjnius |
-| 数据库 | SQLite (桌面) / Android原生SQLite (手机) |
-| 环境管理 | Pixi |
+| 语言 | Kotlin 1.9+ |
+| 最低 SDK | Android 8.0 (API 26) |
+| 目标 SDK | Android 14 (API 34) |
+| UI | Material 3 + ViewBinding |
+| 导航 | Jetpack Navigation Component |
+| 数据库 | Room (SQLite) |
+| 网络 | OkHttp |
+| 图片加载 | Coil |
+| 异步 | Kotlin Coroutines + Flow |
+| 架构 | MVVM (ViewModel + Repository) |
+| 构建 | Gradle 8.5 + Kotlin DSL |
+| 环境管理 | Pixi (提供 JDK 17 + Gradle) |
 
 ---
 
 ## 支持的平台 Supported Platforms
 
 ### 网易云音乐 NetEase Cloud Music
-- 支持链接格式: `music.163.com/song?id=xxx`
+- 包名: `com.netease.cloudmusic`
+- 支持链接: `music.163.com/song?id=xxx`
 - 深度链接: `orpheus://song/{id}`
 
 ### QQ音乐 QQ Music
-- 支持链接格式: `y.qq.com/n/ryqq/songDetail/xxx`
+- 包名: `com.tencent.qqmusic`
+- 支持链接: `y.qq.com/n/ryqq/songDetail/xxx`
 - 深度链接: `qqmusic://qq.com/ui/openUrl?p=...`
+
+### 哔哩哔哩 Bilibili
+- 包名: `tv.danmaku.bili`
+- 支持视频链接 (BV/av) 和音频链接 (au)
+- 使用 HTTPS 回退链接 (无自定义 URI scheme)
+
+---
+
+## 权限说明 Permissions
+
+应用需要以下特殊权限:
+
+1. **悬浮窗权限** (SYSTEM_ALERT_WINDOW) - 用于悬浮窗播放控制
+2. **通知使用权** (BIND_NOTIFICATION_LISTENER_SERVICE) - 用于监听其他App的播放状态
+3. **无障碍服务** (BIND_ACCESSIBILITY_SERVICE) - 用于自动打开QQ音乐播放器页面
+4. **通知权限** (POST_NOTIFICATIONS) - 用于前台服务通知
+
+---
+
+## 已知限制 Known Limitations
+
+### 无后台切歌
+切歌时会将目标音乐App切换到前台。Android 的 `startActivity()` (深度链接所必需) 总是会将目标应用切到前台，目前没有可靠的方法在后台完成切歌。
 
 ---
 
@@ -131,7 +175,7 @@ music-hub/
 ### 添加歌曲
 
 1. **手动添加**: 在"添加歌曲"页面粘贴歌曲链接
-2. **分享添加**: 从网易云/QQ音乐App分享歌曲到Music Hub
+2. **分享添加**: 从网易云/QQ音乐/哔哩哔哩App分享歌曲到 Music Hub
 
 ### 播放歌曲
 
@@ -141,45 +185,20 @@ music-hub/
 
 - 创建自定义播放列表
 - 添加来自不同平台的歌曲
-- 拖拽排序
+- 支持顺序播放、列表循环、单曲循环和随机播放
 
 ---
 
 ## 常见问题 Troubleshooting
 
-### 构建失败
-```bash
-pixi run clean
-pixi run rebuild
-```
-
-### 中文显示异常
-确保 `assets/fonts/ChineseFont.ttf` 存在。
-
-### APK安装后闪退
-1. 运行 `pixi run logcat-python` 查看错误
-2. 检查所有Android代码是否在 `if platform == 'android':` 内
-
-### 深度链接打开浏览器而非App
-确保使用自定义URI scheme (`orpheus://`, `qqmusic://`)，而非 `https://`。
-
----
-
-## 开发说明 Development Notes
-
-### 调试流程
-
-1. 在桌面开发和测试: `pixi run run`
-2. 运行单元测试: `pixi run test`
-3. 部署到真机测试: `pixi run deploy`
-4. 查看日志: `pixi run logcat-python`
-
-### 添加新平台
-
-1. 在 `src/platforms/` 创建新的平台处理器
-2. 继承 `PlatformHandler` 基类
-3. 实现 `can_handle()`, `parse_song_url()`, `generate_deep_link()` 等方法
-4. 在 `link_parser.py` 中注册新平台
+| 问题 | 解决方案 |
+|---|---|
+| `ANDROID_HOME` 未设置 | 运行 `pixi run setup-sdk` 并添加环境变量 |
+| Gradle 同步失败 | 检查 JDK 17: `java -version` |
+| APK 安装失败 | 启用 USB 调试，运行 `adb devices` 确认连接 |
+| 悬浮窗不显示 | 设置中授予"显示在其他应用上方"权限 |
+| 无法检测播放状态 | 设置中授予"通知使用权" |
+| 构建失败提示 SDK 未找到 | 设置 `ANDROID_HOME` 环境变量 |
 
 ---
 
