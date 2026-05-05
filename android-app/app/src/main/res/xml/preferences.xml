@@ -41,6 +41,24 @@
             android:summary="@string/notification_access_desc_cn"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="accessibility_access"
+            android:title="无障碍服务权限"
+            android:summary="用于前台模式下自动打开QQ音乐播放器页面"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:title="数据管理"
+        app:iconSpaceReserved="false">
+
+        <Preference
+            android:key="delete_all_songs"
+            android:title="删除所有歌曲"
+            android:summary="清空歌曲库（不影响播放列表）"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

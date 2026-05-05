@@ -144,17 +144,10 @@ object DeepLinkLauncher {
     private fun launchNormal(context: Context, deepLink: String, fallbackUrl: String): Boolean {
         Log.d(TAG, "Launching deep link (foreground mode): $deepLink")
 
-        // Ensure target app is running first (cold start scenario)
-        val preLaunchDelay = ensureAppRunning(context, deepLink)
-        if (preLaunchDelay > 0) {
-            Log.d(TAG, "App not running, waiting ${preLaunchDelay}ms for it to start before deep link")
-            // Schedule the actual deep link launch after app starts
-            Handler(Looper.getMainLooper()).postDelayed({
-                performNormalLaunch(context, deepLink, fallbackUrl)
-            }, preLaunchDelay)
-            return true
-        }
-
+        // In foreground mode, launch the deep link directly without pre-launching the app.
+        // Pre-launching opens the app's home screen first, which prevents the deep link
+        // from navigating to the song detail/player page (e.g., NetEase's orpheus://song/{id}
+        // opens the player page only when it's the first intent the app receives).
         return performNormalLaunch(context, deepLink, fallbackUrl)
     }
 
@@ -170,6 +163,21 @@ object DeepLinkLauncher {
         return try {
             context.startActivity(intent)
             Log.i(TAG, "Successfully launched: $deepLink")
+
+            // For QQ Music in foreground mode, use accessibility service to click mini player
+            if (deepLink.contains("qqmusic://")) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val a11yService = PlayerAccessibilityService.getInstance()
+                    if (a11yService != null) {
+                        a11yService.requestClickMiniPlayer()
+                        Log.i(TAG, "Requested accessibility service to open QQ Music player")
+                    } else {
+                        // Service not running - just log it, don't bother the user
+                        Log.d(TAG, "Accessibility service not running, skipping auto-open player")
+                    }
+                }, 2500)
+            }
+
             true
         } catch (e: Exception) {
             Log.w(TAG, "Failed to launch deep link, trying fallback: ${e.message}")

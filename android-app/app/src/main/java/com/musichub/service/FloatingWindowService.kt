@@ -400,6 +400,7 @@ class FloatingWindowService : Service() {
             val queueButton = findViewById<ImageButton>(R.id.btnQueue)
 
             isQueueVisible = !isQueueVisible
+            Log.d(TAG, "Queue visibility toggled: $isQueueVisible")
             if (isQueueVisible) {
                 queueContainer.visibility = View.VISIBLE
                 queueButton?.alpha = 1.0f
@@ -415,10 +416,16 @@ class FloatingWindowService : Service() {
     }
 
     private fun updateQueueData() {
-        val playbackService = PlaybackService.getInstance() ?: return
+        val playbackService = PlaybackService.getInstance()
+        if (playbackService == null) {
+            Log.w(TAG, "PlaybackService is null, cannot update queue")
+            return
+        }
         val queue = playbackService.getQueue()
         val currentIndex = playbackService.getCurrentIndex()
         val shuffleOrder = playbackService.getShuffleOrder()
+
+        Log.d(TAG, "Updating queue data: ${queue.size} songs, currentIndex=$currentIndex")
 
         // Update header text
         floatingView?.findViewById<TextView>(R.id.tvQueueHeader)?.text =
@@ -468,6 +475,8 @@ class FloatingWindowService : Service() {
                 currentArtist = currentSong.artist
                 currentCoverUrl = currentSong.coverUrl ?: ""
                 remainingCount = playbackService.getRemainingCount()
+            } else {
+                Log.w(TAG, "PlaybackService has no current song")
             }
 
             // Sync playback mode states
@@ -512,7 +521,7 @@ class FloatingWindowService : Service() {
             // Initial queue update (in case queue was already set)
             updateQueueData()
         } else {
-            Log.d(TAG, "PlaybackService not available for sync")
+            Log.w(TAG, "PlaybackService not available for sync")
         }
     }
 
@@ -581,6 +590,7 @@ class FloatingWindowService : Service() {
                 coverView?.load(currentCoverUrl) {
                     placeholder(R.drawable.ic_album)
                     error(R.drawable.ic_album)
+                    allowHardware(false) // Overlay windows use software rendering
                 }
             } else {
                 coverView?.setImageResource(R.drawable.ic_album)
@@ -673,7 +683,14 @@ class FloatingWindowService : Service() {
 
         // Setup mini ball UI
         setupMiniBallView()
+
+        // Sync with PlaybackService to get current song
+        syncWithPlaybackService()
+
         updateMiniBall()
+
+        // Start progress updates for mini ball
+        startProgressUpdates()
     }
 
     /**
@@ -821,6 +838,7 @@ class FloatingWindowService : Service() {
                 coverView?.load(currentCoverUrl) {
                     placeholder(R.drawable.ic_music_note)
                     error(R.drawable.ic_music_note)
+                    allowHardware(false) // Overlay windows use software rendering
                     listener(
                         onSuccess = { _, _ -> Log.d(TAG, "Cover image loaded successfully") },
                         onError = { _, result -> Log.e(TAG, "Cover image load failed: ${result.throwable}") }

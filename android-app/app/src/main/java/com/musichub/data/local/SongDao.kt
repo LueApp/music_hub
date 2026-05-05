@@ -48,4 +48,7 @@ interface SongDao {
 
     @Query("SELECT COUNT(*) FROM songs WHERE platform = :platform")
     fun getCountByPlatform(platform: String): Flow<Int>
+
+    @Query("DELETE FROM songs")
+    suspend fun deleteAll(): Int
 }

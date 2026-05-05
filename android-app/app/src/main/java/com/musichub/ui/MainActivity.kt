@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.view.View
@@ -72,11 +73,6 @@ class MainActivity : AppCompatActivity() {
         navController = navHostFragment.navController
 
         binding.bottomNavigation.setupWithNavController(navController)
-
-        // Update toolbar title based on destination
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            binding.toolbar.title = destination.label
-        }
     }
 
     private fun setupNowPlayingBar() {
@@ -114,6 +110,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindPlaybackService() {
         Intent(this, PlaybackService::class.java).also { intent ->
+            // Start the service to keep it alive independently of binding
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
             bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
     }
