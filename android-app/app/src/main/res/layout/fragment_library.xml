@@ -129,28 +129,38 @@
 
     </LinearLayout>
 
-    <!-- Locate current song FAB -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabLocate"
+    <!-- FAB container -->
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="150dp"
-        android:src="@drawable/ic_locate"
-        app:fabSize="mini"
-        app:tint="@android:color/white"
-        android:contentDescription="@string/locate_current_song" />
+        android:layout_marginBottom="16dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabPlayAll"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="80dp"
-        android:src="@drawable/ic_play_circle"
-        app:tint="@android:color/white"
-        android:contentDescription="@string/play_all" />
+        <!-- Locate current song FAB (mini, on top) -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabLocate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:src="@drawable/ic_locate"
+            app:fabSize="mini"
+            app:backgroundTint="@color/secondary"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/locate_current_song" />
+
+        <!-- Play all FAB (main, larger, at bottom) -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabPlayAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_play_circle"
+            app:backgroundTint="@color/primary"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/play_all" />
+
+    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
