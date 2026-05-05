@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
+import com.google.android.material.navigation.NavigationBarView
 import coil.load
 import com.musichub.R
 import com.musichub.data.model.Song
@@ -123,7 +124,11 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
 
-        binding.bottomNavigation.setupWithNavController(navController)
+        // NavigationRailView for landscape, BottomNavigationView for portrait
+        val navView: NavigationBarView = binding.navigationRail
+            ?: binding.bottomNavigation
+            ?: return
+        navView.setupWithNavController(navController)
     }
 
     private fun setupNowPlayingBar() {

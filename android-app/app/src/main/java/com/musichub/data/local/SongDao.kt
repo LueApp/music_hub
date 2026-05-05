@@ -51,4 +51,36 @@ interface SongDao {
 
     @Query("DELETE FROM songs")
     suspend fun deleteAll(): Int
+
+    @Query("""
+        SELECT * FROM songs
+        WHERE id NOT IN (SELECT song_id FROM playlist_items WHERE playlist_id = :playlistId)
+        ORDER BY created_at DESC
+    """)
+    fun getSongsNotInPlaylist(playlistId: Long): Flow<List<Song>>
+
+    @Query("""
+        SELECT * FROM songs
+        WHERE id NOT IN (SELECT song_id FROM playlist_items WHERE playlist_id = :playlistId)
+        AND (title LIKE '%' || :query || '%' OR artist LIKE '%' || :query || '%')
+        ORDER BY created_at DESC
+    """)
+    fun searchSongsNotInPlaylist(query: String, playlistId: Long): Flow<List<Song>>
+
+    @Query("""
+        SELECT * FROM songs
+        WHERE id NOT IN (SELECT song_id FROM playlist_items WHERE playlist_id = :playlistId)
+        AND platform = :platform
+        ORDER BY created_at DESC
+    """)
+    fun getSongsByPlatformNotInPlaylist(platform: String, playlistId: Long): Flow<List<Song>>
+
+    @Query("""
+        SELECT * FROM songs
+        WHERE id NOT IN (SELECT song_id FROM playlist_items WHERE playlist_id = :playlistId)
+        AND platform = :platform
+        AND (title LIKE '%' || :query || '%' OR artist LIKE '%' || :query || '%')
+        ORDER BY created_at DESC
+    """)
+    fun searchSongsByPlatformNotInPlaylist(query: String, platform: String, playlistId: Long): Flow<List<Song>>
 }

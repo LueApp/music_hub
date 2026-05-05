@@ -224,6 +224,17 @@ object RemoteClient {
         return fetchList("/api/songs")
     }
 
+    fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
+        val url = baseUrl() + "/api/playlists/$playlistId/import"
+        val json = gson.toJson(songIds)
+        val request = Request.Builder()
+            .url(url)
+            .post(json.toRequestBody("application/json".toMediaType()))
+            .build()
+        val response = httpClient.newCall(request).execute()
+        response.close()
+    }
+
     fun fetchState(): RemoteState? {
         val url = baseUrl() + "/api/state"
         val request = Request.Builder().url(url).get().build()

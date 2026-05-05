@@ -93,6 +93,9 @@ dependencies {
     // Preferences
     implementation("androidx.preference:preference-ktx:1.2.1")
 
+    // Security (EncryptedSharedPreferences for auth cookie storage)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 

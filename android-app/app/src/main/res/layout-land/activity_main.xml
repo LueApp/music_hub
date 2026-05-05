@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    tools:context=".ui.MainActivity">
+
+    <com.google.android.material.navigationrail.NavigationRailView
+        android:id="@+id/navigation_rail"
+        android:layout_width="72dp"
+        android:layout_height="match_parent"
+        app:labelVisibilityMode="unlabeled"
+        app:menu="@menu/bottom_navigation" />
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:fitsSystemWindows="true">
+
+        <TextView
+            android:id="@+id/tvConnectionStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/warning"
+            android:gravity="center"
+            android:padding="6dp"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/nav_host_fragment"
+            android:name="androidx.navigation.fragment.NavHostFragment"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:defaultNavHost="true"
+            app:navGraph="@navigation/nav_graph" />
+
+        <!-- Now Playing Bar -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/nowPlayingBar"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_gravity="bottom"
+            android:visibility="gone"
+            app:cardElevation="8dp"
+            app:cardCornerRadius="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:background="?attr/colorSurface">
+
+                <ImageView
+                    android:id="@+id/ivNowPlayingCover"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:src="@drawable/ic_album"
+                    android:scaleType="centerCrop"
+                    android:contentDescription="@string/now_playing" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:layout_marginStart="12dp">
+
+                    <TextView
+                        android:id="@+id/tvNowPlayingTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        tools:text="Song Title" />
+
+                    <TextView
+                        android:id="@+id/tvNowPlayingArtist"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:maxLines="1"
+                        android:ellipsize="end"
+                        tools:text="Artist Name" />
+
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btnNowPlayingPrev"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_skip_previous"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/previous" />
+
+                <ImageButton
+                    android:id="@+id/btnNowPlayingNext"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_skip_next"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/next" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+</LinearLayout>
