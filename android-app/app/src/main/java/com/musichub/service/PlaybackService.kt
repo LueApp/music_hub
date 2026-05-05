@@ -18,9 +18,14 @@ import androidx.core.app.NotificationCompat
 import com.musichub.R
 import com.musichub.data.model.Song
 import com.musichub.platform.Platforms
+import com.musichub.platform.PlatformHandler
 import com.musichub.platform.NetEasePlatform
 import com.musichub.platform.QQMusicPlatform
 import com.musichub.platform.BilibiliPlatform
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Service that manages the playback queue and coordinates with other services.
@@ -32,6 +37,14 @@ class PlaybackService : Service() {
     private var queue: MutableList<Song> = mutableListOf()
     private var currentIndex: Int = -1
     private var isPlaying: Boolean = false
+
+    // Coroutine scope for async operations (availability checks)
+    private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
+
+    // Track skipped songs to prevent infinite loops when all songs are unavailable
+    private var consecutiveSkips: Int = 0
+    private val MAX_CONSECUTIVE_SKIPS = 10
 
     // Wake lock to keep CPU running while playing
     private var wakeLock: PowerManager.WakeLock? = null
@@ -127,6 +140,7 @@ class PlaybackService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        serviceJob.cancel()
         releaseWakeLock()
         releaseScreenWakeLock()
         try {
@@ -400,6 +414,52 @@ class PlaybackService : Service() {
 
     private fun launchCurrentSong() {
         val song = getCurrentSong() ?: return
+        val handler = getHandlerForPlatform(song.platform)
+
+        // Check song availability asynchronously before launching
+        serviceScope.launch {
+            val availability = try {
+                handler?.checkSongAvailability(song.platformSongId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Availability check exception for ${song.title}: ${e.message}")
+                null // Treat exception as "assume available"
+            }
+
+            if (availability != null && !availability.isAvailable) {
+                // Song is unavailable - skip it
+                consecutiveSkips++
+                Log.w(TAG, "Song unavailable: ${song.title} (${song.platform}/${song.platformSongId}) - ${availability.reason} [skip $consecutiveSkips/$MAX_CONSECUTIVE_SKIPS]")
+                showToast("跳过: ${song.title} (${availability.reason})")
+
+                if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
+                    Log.w(TAG, "Too many consecutive skips ($consecutiveSkips), stopping playback")
+                    consecutiveSkips = 0
+                    isPlaying = false
+                    showToast("连续多首歌曲不可用，已停止播放")
+                    return@launch
+                }
+
+                // Auto-skip to next song
+                playNext()
+                return@launch
+            }
+
+            // Song is available (or check failed/skipped) - proceed with launch
+            consecutiveSkips = 0
+            doLaunchSong(song, handler)
+        }
+    }
+
+    private fun getHandlerForPlatform(platform: String): PlatformHandler? {
+        return when (platform) {
+            Platforms.NETEASE -> NetEasePlatform()
+            Platforms.QQMUSIC -> QQMusicPlatform()
+            Platforms.BILIBILI -> BilibiliPlatform()
+            else -> null
+        }
+    }
+
+    private fun doLaunchSong(song: Song, handler: PlatformHandler?) {
         isPlaying = true
 
         // Acquire wake lock to keep CPU active for playback control
@@ -415,14 +475,6 @@ class PlaybackService : Service() {
         // Pass the target package so we know if this is a same-platform or cross-platform switch
         // For same-platform switches, we skip repeated pause attempts to avoid pausing the new song
         MediaMonitorService.getInstance()?.pauseAllMedia(targetPackage)
-
-        // Get the appropriate platform handler
-        val handler = when (song.platform) {
-            Platforms.NETEASE -> NetEasePlatform()
-            Platforms.QQMUSIC -> QQMusicPlatform()
-            Platforms.BILIBILI -> BilibiliPlatform()
-            else -> null
-        }
 
         val fallbackUrl = handler?.generateFallbackUrl(song.platformSongId) ?: ""
 
