@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- Progress ring (circular progress indicator) -->
+    <ProgressBar
+        android:id="@+id/progressRing"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:indeterminate="false"
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/progress_ring"
+        android:rotation="-90" />
+
+    <!-- Album cover (circular) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardCover"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="center"
+        app:cardCornerRadius="22dp"
+        app:strokeWidth="0dp"
+        app:cardElevation="2dp">
+
+        <ImageView
+            android:id="@+id/ivBallCover"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:src="@drawable/ic_music_note"
+            android:scaleType="centerCrop"
+            android:background="@color/surface"
+            android:contentDescription="@string/now_playing" />
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Play/Pause indicator (small badge at bottom-right) -->
+    <FrameLayout
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="2dp"
+        android:layout_marginBottom="2dp"
+        android:background="@drawable/bg_play_indicator_circle">
+
+        <ImageView
+            android:id="@+id/ivPlayIndicator"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_pause_circle"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/play_state" />
+
+    </FrameLayout>
+
+</FrameLayout>

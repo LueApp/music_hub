@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Playback mode options -->
+    <string-array name="playback_mode_entries">
+        <item>后台模式 - 保持在当前应用</item>
+        <item>前台模式 - 切换到音乐应用</item>
+    </string-array>
+    <string-array name="playback_mode_values">
+        <item>background</item>
+        <item>foreground</item>
+    </string-array>
+</resources>
