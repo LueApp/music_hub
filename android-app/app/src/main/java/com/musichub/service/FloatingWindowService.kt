@@ -12,6 +12,7 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
@@ -33,8 +34,10 @@ import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.widget.Toast
 import coil.load
 import com.google.android.material.card.MaterialCardView
 import com.musichub.R
@@ -69,6 +72,7 @@ class FloatingWindowService : Service() {
     private var currentCoverUrl = ""
     private var remainingCount = 0
     private var isQueueVisible = false
+    private var isVolumeVisible = false
     private var queueAdapter: QueueAdapter? = null
     private var queueRecyclerView: RecyclerView? = null
 
@@ -79,6 +83,9 @@ class FloatingWindowService : Service() {
     private var isUserSeeking = false  // Track if user is dragging seekbar
     private var seekCooldownUntil = 0L  // Ignore remote position updates until this time
     private var modeCooldownUntil = 0L  // Ignore remote mode updates until this time
+    private var isUserAdjustingVolume = false  // Track if user is dragging volume slider
+    private var volumeCooldownUntil = 0L  // Ignore remote volume updates until this time
+    private var audioManager: AudioManager? = null
 
     // Store window positions for both modes
     private var fullModeParams: WindowManager.LayoutParams? = null
@@ -171,6 +178,7 @@ class FloatingWindowService : Service() {
         startForegroundService()
 
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         Log.d(TAG, "WindowManager obtained: $windowManager")
 
         // Inflate floating view with themed context
@@ -230,6 +238,9 @@ class FloatingWindowService : Service() {
                     modeCooldownUntil = System.currentTimeMillis() + 2000
                 } else {
                     sendPlaybackCommand(PlaybackService.ACTION_TOGGLE_SHUFFLE)
+                    // Immediately toggle icon for visual feedback
+                    val btn = it as ImageButton
+                    btn.alpha = if (btn.alpha < 1.0f) 1.0f else 0.5f
                 }
             }
 
@@ -276,6 +287,12 @@ class FloatingWindowService : Service() {
                 }
             }
 
+            // Volume toggle button
+            findViewById<ImageButton>(R.id.btnVolume)?.setOnClickListener {
+                Log.d(TAG, "Volume button clicked")
+                toggleVolumePanel()
+            }
+
             // Queue button
             findViewById<ImageButton>(R.id.btnQueue)?.setOnClickListener {
                 Log.d(TAG, "Queue button clicked")
@@ -287,6 +304,9 @@ class FloatingWindowService : Service() {
 
             // Setup progress bar (SeekBar is display-only, no seeking for external apps)
             setupProgressBar()
+
+            // Setup volume panel
+            setupVolumePanel()
 
             // Close button
             findViewById<ImageButton>(R.id.btnClose)?.setOnClickListener {
@@ -314,18 +334,132 @@ class FloatingWindowService : Service() {
         }
     }
 
+    // Double-tap detection state
+    private var lastTapIndex = -1
+    private var lastTapTime = 0L
+    private val doubleTapTimeout = 300L
+
     private fun setupQueueView() {
         floatingView?.apply {
             queueRecyclerView = findViewById<RecyclerView>(R.id.rvQueue)
             val recyclerView = queueRecyclerView ?: return@apply
             queueAdapter = QueueAdapter(
                 onItemClick = { index ->
-                    Log.d(TAG, "Queue item clicked: $index")
-                    // TODO: Could add tap-to-play functionality here
+                    val now = System.currentTimeMillis()
+                    if (index == lastTapIndex && now - lastTapTime < doubleTapTimeout) {
+                        // Double-tap detected - play this song
+                        Log.d(TAG, "Queue item double-tapped: $index")
+                        lastTapIndex = -1
+                        lastTapTime = 0L
+                        if (RemoteMode.isController()) {
+                            RemoteClient.playAtIndex(index)
+                        } else {
+                            PlaybackService.getInstance()?.playAtIndex(index)
+                        }
+                    } else {
+                        // First tap - show visual feedback
+                        lastTapIndex = index
+                        lastTapTime = now
+                        // Flash highlight on tapped item
+                        val vh = recyclerView.findViewHolderForAdapterPosition(
+                            queueAdapter?.getDisplayPosition(index) ?: return@QueueAdapter
+                        )
+                        vh?.itemView?.let { view ->
+                            val originalBg = view.background
+                            view.setBackgroundColor(getColor(R.color.primary) and 0x40FFFFFF)
+                            view.postDelayed({
+                                view.background = originalBg
+                            }, doubleTapTimeout)
+                        }
+                    }
                 }
             )
             recyclerView.layoutManager = LinearLayoutManager(this@FloatingWindowService)
             recyclerView.adapter = queueAdapter
+
+            // Attach drag-to-reorder
+            var dragStartIndex = -1  // Track original position when drag starts
+            val touchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+                ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.LEFT
+            ) {
+                override fun isLongPressDragEnabled(): Boolean = true
+
+                override fun onMove(
+                    recyclerView: RecyclerView,
+                    viewHolder: RecyclerView.ViewHolder,
+                    target: RecyclerView.ViewHolder
+                ): Boolean {
+                    val fromPos = viewHolder.bindingAdapterPosition
+                    val toPos = target.bindingAdapterPosition
+                    val adapter = queueAdapter ?: return false
+
+                    // Only update adapter visually during drag — defer queue update to clearView
+                    adapter.moveItem(fromPos, toPos)
+                    return true
+                }
+
+                override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
+                    val adapterPos = viewHolder.bindingAdapterPosition
+                    val adapter = queueAdapter ?: return
+                    val queueIndex = adapter.getQueueIndex(adapterPos)
+
+                    Log.d(TAG, "Swiped to remove queue item: adapterPos=$adapterPos, queueIndex=$queueIndex")
+
+                    // Visual feedback first
+                    adapter.removeItem(adapterPos)
+
+                    // Then update the actual queue
+                    if (RemoteMode.isController()) {
+                        RemoteClient.removeFromQueue(queueIndex)
+                    } else {
+                        PlaybackService.getInstance()?.removeFromQueue(queueIndex)
+                    }
+                }
+
+                override fun onSelectedChanged(viewHolder: RecyclerView.ViewHolder?, actionState: Int) {
+                    super.onSelectedChanged(viewHolder, actionState)
+                    if (actionState == ItemTouchHelper.ACTION_STATE_DRAG) {
+                        viewHolder?.itemView?.elevation = 8f
+                        val pos = viewHolder?.bindingAdapterPosition ?: -1
+                        val inShuffle = queueAdapter?.isShuffleMode() == true
+                        // In shuffle mode, record adapter position (= shuffle position)
+                        // In normal mode, record the actual queue index
+                        dragStartIndex = if (inShuffle) pos else (queueAdapter?.getQueueIndex(pos) ?: -1)
+                    }
+                }
+
+                override fun clearView(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder) {
+                    super.clearView(recyclerView, viewHolder)
+                    viewHolder.itemView.elevation = 0f
+
+                    val endPos = viewHolder.bindingAdapterPosition
+                    val inShuffle = queueAdapter?.isShuffleMode() == true
+                    if (inShuffle) {
+                        // Shuffle mode: reorder the shuffle order
+                        if (dragStartIndex >= 0 && endPos >= 0 && dragStartIndex != endPos) {
+                            Log.d(TAG, "Shuffle order drag: $dragStartIndex -> $endPos")
+                            if (RemoteMode.isController()) {
+                                RemoteClient.moveInShuffleOrder(dragStartIndex, endPos)
+                            } else {
+                                PlaybackService.getInstance()?.moveInShuffleOrder(dragStartIndex, endPos)
+                            }
+                        }
+                    } else {
+                        // Normal mode: reorder the actual queue
+                        val endIndex = queueAdapter?.getQueueIndex(endPos) ?: -1
+                        if (dragStartIndex >= 0 && endIndex >= 0 && dragStartIndex != endIndex) {
+                            Log.d(TAG, "Queue drag: $dragStartIndex -> $endIndex")
+                            if (RemoteMode.isController()) {
+                                RemoteClient.moveInQueue(dragStartIndex, endIndex)
+                            } else {
+                                PlaybackService.getInstance()?.moveInQueue(dragStartIndex, endIndex)
+                            }
+                        }
+                    }
+                    dragStartIndex = -1
+                }
+            })
+            touchHelper.attachToRecyclerView(recyclerView)
 
             // Initial update
             updateQueueData()
@@ -378,9 +512,133 @@ class FloatingWindowService : Service() {
         startProgressUpdates()
     }
 
+    private fun setupVolumePanel() {
+        floatingView?.apply {
+            val seekBarVolume = findViewById<SeekBar>(R.id.seekBarVolume) ?: return@apply
+
+            // Initialize max and current volume
+            if (RemoteMode.isController()) {
+                val state = RemoteClient.currentState
+                if (state != null && state.maxVolume > 0) {
+                    seekBarVolume.max = state.maxVolume
+                    seekBarVolume.progress = state.volume.coerceIn(0, state.maxVolume)
+                }
+            } else {
+                val am = audioManager ?: return@apply
+                seekBarVolume.max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                seekBarVolume.progress = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            }
+            updateVolumeButtonIcon()
+
+            seekBarVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    if (fromUser) {
+                        if (RemoteMode.isController()) {
+                            RemoteClient.setVolume(progress)
+                            volumeCooldownUntil = System.currentTimeMillis() + 2000
+                        } else {
+                            audioManager?.setStreamVolume(AudioManager.STREAM_MUSIC, progress, 0)
+                        }
+                        updateVolumeButtonIcon()
+                    }
+                }
+
+                override fun onStartTrackingTouch(seekBar: SeekBar?) {
+                    isUserAdjustingVolume = true
+                }
+
+                override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                    isUserAdjustingVolume = false
+                }
+            })
+
+            // Volume down/up buttons inside the panel
+            findViewById<ImageButton>(R.id.btnVolumeDown)?.setOnClickListener {
+                adjustVolume(-1)
+            }
+            findViewById<ImageButton>(R.id.btnVolumeUp)?.setOnClickListener {
+                adjustVolume(1)
+            }
+        }
+    }
+
+    private fun toggleVolumePanel() {
+        floatingView?.apply {
+            val volumeContainer = findViewById<LinearLayout>(R.id.volumeContainer) ?: return@apply
+            val volumeButton = findViewById<ImageButton>(R.id.btnVolume)
+
+            isVolumeVisible = !isVolumeVisible
+            Log.d(TAG, "Volume panel visibility toggled: $isVolumeVisible")
+            if (isVolumeVisible) {
+                // Sync slider before showing
+                updateVolumeSlider()
+                volumeContainer.visibility = View.VISIBLE
+                volumeButton?.alpha = 1.0f
+            } else {
+                volumeContainer.visibility = View.GONE
+                volumeButton?.alpha = 0.7f
+            }
+
+            // Update window layout
+            windowManager?.updateViewLayout(floatingView, floatingView?.layoutParams)
+        }
+    }
+
+    private fun adjustVolume(delta: Int) {
+        if (RemoteMode.isController()) {
+            val state = RemoteClient.currentState ?: return
+            val newLevel = (state.volume + delta).coerceIn(0, state.maxVolume)
+            RemoteClient.setVolume(newLevel)
+            volumeCooldownUntil = System.currentTimeMillis() + 2000
+            floatingView?.findViewById<SeekBar>(R.id.seekBarVolume)?.progress = newLevel
+        } else {
+            val am = audioManager ?: return
+            val maxVol = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val current = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            val newLevel = (current + delta).coerceIn(0, maxVol)
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, newLevel, 0)
+            floatingView?.findViewById<SeekBar>(R.id.seekBarVolume)?.progress = newLevel
+        }
+        updateVolumeButtonIcon()
+    }
+
+    private fun updateVolumeButtonIcon() {
+        floatingView?.apply {
+            val btn = findViewById<ImageButton>(R.id.btnVolume) ?: return@apply
+            val volume = findViewById<SeekBar>(R.id.seekBarVolume)?.progress ?: 0
+            when {
+                volume == 0 -> btn.setImageResource(R.drawable.ic_volume_off)
+                volume <= (findViewById<SeekBar>(R.id.seekBarVolume)?.max ?: 15) / 2 ->
+                    btn.setImageResource(R.drawable.ic_volume_down)
+                else -> btn.setImageResource(R.drawable.ic_volume_up)
+            }
+        }
+    }
+
+    private fun updateVolumeSlider() {
+        if (isUserAdjustingVolume) return
+        floatingView?.apply {
+            val seekBarVolume = findViewById<SeekBar>(R.id.seekBarVolume) ?: return@apply
+            if (RemoteMode.isController()) {
+                if (System.currentTimeMillis() < volumeCooldownUntil) return@apply
+                val state = RemoteClient.currentState ?: return@apply
+                if (state.maxVolume > 0) {
+                    seekBarVolume.max = state.maxVolume
+                    seekBarVolume.progress = state.volume.coerceIn(0, state.maxVolume)
+                }
+            } else {
+                val am = audioManager ?: return@apply
+                seekBarVolume.max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                seekBarVolume.progress = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            }
+            updateVolumeButtonIcon()
+        }
+    }
+
     private val progressUpdateRunnable = object : Runnable {
         override fun run() {
             updateProgress()
+            if (!isMiniMode && isVolumeVisible) updateVolumeSlider()
             if (isProgressUpdating) {
                 progressHandler.postDelayed(this, progressUpdateInterval)
             }
@@ -704,6 +962,7 @@ class FloatingWindowService : Service() {
             playbackService.setOnPlaybackModeChangeListener { repeatMode, shuffleEnabled ->
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     updateModeIcons(repeatMode, shuffleEnabled)
+                    updateQueueData()
                 }
             }
 

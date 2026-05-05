@@ -15,6 +15,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.musichub.MusicHubApplication
 import com.musichub.R
 import com.musichub.data.model.Song
 import com.musichub.platform.Platforms
@@ -55,6 +56,7 @@ class PlaybackService : Service() {
     private val PLAYBACK_TIMEOUT_COLD_MS = 25000L
     private var playbackTimeoutRunnable: Runnable? = null
     private var lastLaunchedSongId: Long = -1L
+    private var lastLaunchedPlatform: String? = null
     private var lastTimedOutSongTitle: String? = null
     private var playbackTimeoutRetried: Boolean = false
     private var desyncCheckRunnable: Runnable? = null
@@ -339,6 +341,99 @@ class PlaybackService : Service() {
         if (valid) launchCurrentSong()
     }
 
+    fun moveInQueue(from: Int, to: Int) {
+        synchronized(queueLock) {
+            if (from !in queue.indices || to !in queue.indices || from == to) return
+            val song = queue.removeAt(from)
+            queue.add(to, song)
+
+            // Adjust currentIndex to keep tracking the currently playing song
+            currentIndex = when {
+                currentIndex == from -> to
+                from < currentIndex && to >= currentIndex -> currentIndex - 1
+                from > currentIndex && to <= currentIndex -> currentIndex + 1
+                else -> currentIndex
+            }
+
+            Log.d(TAG, "Moved queue item from $from to $to, currentIndex=$currentIndex")
+        }
+        notifyQueueChangeListeners(queue.toList())
+    }
+
+    fun moveInShuffleOrder(from: Int, to: Int) {
+        if (!shuffleEnabled || shuffledIndices.isEmpty()) return
+        if (from !in shuffledIndices.indices || to !in shuffledIndices.indices || from == to) return
+
+        val idx = shuffledIndices.removeAt(from)
+        shuffledIndices.add(to, idx)
+
+        // Adjust shufflePosition to keep tracking the currently playing song
+        shufflePosition = when {
+            shufflePosition == from -> to
+            from < shufflePosition && to >= shufflePosition -> shufflePosition - 1
+            from > shufflePosition && to <= shufflePosition -> shufflePosition + 1
+            else -> shufflePosition
+        }
+
+        Log.d(TAG, "Moved shuffle order from $from to $to, shufflePosition=$shufflePosition")
+    }
+
+    /**
+     * Remove a song from the queue by its queue index.
+     * Returns true if the currently playing song was removed (caller should launch next).
+     */
+    fun removeFromQueue(queueIndex: Int): Boolean {
+        var removedCurrent = false
+        synchronized(queueLock) {
+            if (queueIndex !in queue.indices) return false
+            val removedSong = queue.removeAt(queueIndex)
+            Log.d(TAG, "Removed from queue at $queueIndex: ${removedSong.title}, queue size=${queue.size}")
+
+            if (queue.isEmpty()) {
+                currentIndex = -1
+                isPlaying = false
+                removedCurrent = true
+            } else if (queueIndex == currentIndex) {
+                // Removed the currently playing song — play the song now at this index
+                // (which is the next song), or wrap to last if we removed the tail
+                if (currentIndex >= queue.size) {
+                    currentIndex = queue.size - 1
+                }
+                removedCurrent = true
+            } else if (queueIndex < currentIndex) {
+                currentIndex--
+            }
+
+            // Update shuffle indices: remove the queue index and adjust remaining
+            if (shuffleEnabled && shuffledIndices.isNotEmpty()) {
+                val shufflePos = shuffledIndices.indexOf(queueIndex)
+                if (shufflePos >= 0) {
+                    shuffledIndices.removeAt(shufflePos)
+                    if (shufflePosition > shufflePos) shufflePosition--
+                    else if (shufflePosition == shufflePos && shufflePosition >= shuffledIndices.size) {
+                        shufflePosition = (shuffledIndices.size - 1).coerceAtLeast(0)
+                    }
+                }
+                // Adjust indices that were above the removed index
+                for (i in shuffledIndices.indices) {
+                    if (shuffledIndices[i] > queueIndex) {
+                        shuffledIndices[i] = shuffledIndices[i] - 1
+                    }
+                }
+            }
+        }
+        notifyQueueChangeListeners(queue.toList())
+
+        if (removedCurrent) {
+            if (queue.isEmpty()) {
+                showToast("队列已空")
+            } else {
+                launchCurrentSong()
+            }
+        }
+        return removedCurrent
+    }
+
     fun playNext(): Boolean {
         // Handle repeat one mode - just replay current song
         if (repeatMode == RepeatMode.ONE) {
@@ -447,6 +542,13 @@ class PlaybackService : Service() {
         val song = getCurrentSong() ?: return
         val handler = getHandlerForPlatform(song.platform)
 
+        // Arm manual control mode IMMEDIATELY to suppress any auto-advance detection
+        // that could fire during the async availability check below. Without this,
+        // a song-finished broadcast (e.g. from early end-detection or metadata change)
+        // could race with playPrevious() and call playNext(), undoing the index change
+        // and making the Previous button appear to just replay the current song.
+        MediaMonitorService.getInstance()?.armManualControl()
+
         // Pre-emptive pause: if the next song is on a different platform, pause the old
         // platform immediately BEFORE the availability check. This prevents the old app
         // from auto-advancing to its next song during the HTTP request delay.
@@ -480,6 +582,15 @@ class PlaybackService : Service() {
                 consecutiveSkips++
                 Log.w(TAG, "Song unavailable: ${song.title} (${song.platform}/${song.platformSongId}) - ${availability.reason} [skip $consecutiveSkips/$MAX_CONSECUTIVE_SKIPS]")
                 showToast("跳过: ${song.title} (${availability.reason})")
+                serviceScope.launch(Dispatchers.IO) {
+                    try {
+                        MusicHubApplication.getInstance().repository.logSkip(
+                            song.title, song.artist, song.platform, song.platformSongId, availability.reason
+                        )
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to log skip: ${e.message}")
+                    }
+                }
 
                 if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
                     Log.w(TAG, "Too many consecutive skips ($consecutiveSkips), stopping playback")
@@ -533,14 +644,9 @@ class PlaybackService : Service() {
         val fallbackUrl = handler?.generateFallbackUrl(song.platformSongId) ?: ""
 
         // Determine delay based on platform switching
-        // Longer delay when switching between different platforms to ensure pause takes effect
-        val previousSong = synchronized(queueLock) {
-            if (currentIndex > 0 && currentIndex - 1 < queue.size) {
-                queue.getOrNull(currentIndex - 1)
-            } else null
-        }
-
-        val isPlatformSwitch = previousSong != null && previousSong.platform != song.platform
+        // Use lastLaunchedPlatform (the actually played song) instead of queue position,
+        // because queue order may not match play order (e.g., shuffle, skips)
+        val isPlatformSwitch = lastLaunchedPlatform != null && lastLaunchedPlatform != song.platform
         val launchDelay = if (isPlatformSwitch) 300L else 100L  // Longer delay for platform switch
 
         Log.d(TAG, "Launching song: ${song.title} (platform=${song.platform}, isPlatformSwitch=$isPlatformSwitch, delay=${launchDelay}ms)")
@@ -556,7 +662,7 @@ class PlaybackService : Service() {
         val isLandscapeForDoubleSend = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE ||
             physicalLandscape || DeepLinkLauncher.landscapeWorkaroundActive
         val isSamePlatformNetEase = !isPlatformSwitch && song.platform == Platforms.NETEASE
-            && previousSong?.platform == Platforms.NETEASE
+            && lastLaunchedPlatform == Platforms.NETEASE
         val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
         // Check if this is a cold start (no active controller = app not running)
@@ -572,32 +678,35 @@ class PlaybackService : Service() {
             // This re-enables auto-advance detection after a delay
             MediaMonitorService.getInstance()?.onNewSongStarted()
 
-            // Re-send deep link after 2s for same-platform NetEase switches
-            // to override NetEase's internal auto-advance to its own next song.
-            // In landscape mode: do NOT re-send (breaks landscape PlayerActivity).
-            // Instead, pause the auto-advanced "third song" to silence it while
-            // the CLEAR_TASK deep link loads the correct song (~6s).
+            // Same-platform NetEase: pause the auto-advanced "third song" that
+            // NetEase plays ~1s after the deep link is sent. Send frequent pauses
+            // from 500ms-1500ms to catch the auto-advance as soon as it starts.
+            // The target song loaded via deep link takes 3-6s to start playback,
+            // so these pauses won't affect it. Applied in BOTH portrait and landscape.
+            if (isSamePlatformNetEase) {
+                val orientationLabel = if (isLandscapeForDoubleSend) "landscape" else "portrait"
+                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression ($orientationLabel mode)")
+                // Arm reactive pause in MediaMonitorService — instantly pauses any
+                // new playback (position ~0) from NetEase within a 2500ms window
+                MediaMonitorService.getInstance()?.armSamePlatformNetEasePause()
+                val pauseDelays = listOf(500L, 700L, 900L, 1100L, 1300L, 1500L)
+                pauseDelays.forEach { delay ->
+                    mainHandler.postDelayed({
+                        Log.d(TAG, "Pausing NetEase auto-advance at ${delay}ms ($orientationLabel)")
+                        MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
+                    }, delay)
+                }
+            }
+
+            // Portrait only: re-send deep link after 2s to override NetEase's
+            // internal auto-advance. In landscape mode, skip re-send to avoid
+            // breaking PlayerLandscapeActivity (CLEAR_TASK handles it instead).
             if (isSamePlatformNetEase && !isLandscapeForDoubleSend) {
-                Log.d(TAG, "Scheduling deep link re-send for same-platform NetEase switch")
+                Log.d(TAG, "Scheduling deep link re-send for same-platform NetEase switch (portrait)")
                 mainHandler.postDelayed({
                     Log.d(TAG, "Re-sending deep link to override NetEase auto-advance: ${song.title}")
                     DeepLinkLauncher.launch(this, song.deepLink, fallbackUrl, skipAutoRotate = true)
                 }, 2000L)
-            } else if (isSamePlatformNetEase && isLandscapeForDoubleSend) {
-                // Landscape mode: pause NetEase to silence the auto-advanced third song.
-                // NetEase auto-advances ~600ms after the old song is paused, so we send
-                // multiple pauses: at 500ms (catch it early) and 1200ms (catch late starts).
-                // In landscape mode the target song takes 5-7s (CLEAR_TASK restart),
-                // so there's no risk of pausing the target song.
-                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression (landscape mode)")
-                mainHandler.postDelayed({
-                    Log.d(TAG, "Pausing NetEase auto-advanced song (landscape, early)")
-                    MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
-                }, 500L)
-                mainHandler.postDelayed({
-                    Log.d(TAG, "Pausing NetEase auto-advanced song (landscape, late)")
-                    MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
-                }, 1200L)
             }
 
             // Cold start re-send: when QQ Music was not running, the splash screen may
@@ -767,6 +876,7 @@ class PlaybackService : Service() {
 
         cancelPlaybackTimeout()
         lastLaunchedSongId = song.id
+        lastLaunchedPlatform = song.platform
         playbackTimeoutRetried = false
 
         val runnable = Runnable {
@@ -840,6 +950,15 @@ class PlaybackService : Service() {
             }
 
             showToast("跳过: ${song.title} (播放超时)")
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    MusicHubApplication.getInstance().repository.logSkip(
+                        song.title, song.artist, song.platform, song.platformSongId, "播放超时"
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to log skip: ${e.message}")
+                }
+            }
 
             // Schedule desync recovery to catch the timed-out song if it starts playing late
             scheduleDesyncRecovery()
@@ -847,8 +966,9 @@ class PlaybackService : Service() {
             // For QQ Music, dismiss the error dialog before skipping to next song
             if (song.platform == Platforms.QQMUSIC) {
                 PlayerAccessibilityService.dismissQQMusicDialog()
-                // Delay to let dialog close animation complete before launching next song
-                timeoutHandler.postDelayed({ playNext() }, 500L)
+                // Delay to let dialog dismissal + verification complete before launching next song
+                // (dismissErrorDialog has a 300ms verification check, so wait 800ms total)
+                timeoutHandler.postDelayed({ playNext() }, 800L)
             } else {
                 playNext()
             }
@@ -859,8 +979,10 @@ class PlaybackService : Service() {
         // Determine timeout duration based on context:
         // 1. Landscape workaround + NetEase → cold (CLEAR_TASK restarts app)
         // 2. Cross-platform switch → cold (pause/stop + new deep link needs extra time)
-        // 3. Has active controller → warm
-        // 4. Otherwise → cold
+        // 3. Bilibili with an active controller → cold timeout (the app can keep
+        //    a MediaSession alive while video-page deep links still load slowly)
+        // 4. Has active controller → warm
+        // 5. Otherwise → cold
         val targetPackage = Platforms.PACKAGE_NAMES[song.platform]
         val hasController = targetPackage != null &&
             MediaMonitorService.getInstance()?.hasActiveController(targetPackage) == true
@@ -878,6 +1000,7 @@ class PlaybackService : Service() {
         val (timeoutMs, reason) = when {
             isLandscapeWorkaround -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (landscape workaround)"
             isPlatformSwitch -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (cross-platform)"
+            song.platform == Platforms.BILIBILI && hasController -> PLAYBACK_TIMEOUT_COLD_MS to "extended start (bilibili)"
             hasController -> PLAYBACK_TIMEOUT_WARM_MS to "warm start"
             else -> PLAYBACK_TIMEOUT_COLD_MS to "cold start"
         }

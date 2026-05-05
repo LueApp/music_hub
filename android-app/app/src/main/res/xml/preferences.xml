@@ -93,6 +93,12 @@
         app:iconSpaceReserved="false">
 
         <Preference
+            android:key="skip_log"
+            android:title="@string/skip_log_title"
+            android:summary="@string/skip_log_desc"
+            app:iconSpaceReserved="false" />
+
+        <Preference
             android:key="delete_all_songs"
             android:title="删除所有歌曲"
             android:summary="清空歌曲库（不影响播放列表）"

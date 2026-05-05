@@ -37,6 +37,10 @@ The system SHALL include `tv.danmaku.bili` in MediaMonitorService's `targetPacka
 - **WHEN** a Bilibili video finishes playing and the media session reports playback stopped near the end of the content
 - **THEN** the system SHALL send a song-finished broadcast to trigger auto-advance to the next song
 
+#### Scenario: Bilibili metadata changes before the real end
+- **WHEN** a Bilibili media session reports a metadata change before the previous content is within the final second or at least 99.5% played with no more than 3 seconds remaining
+- **THEN** MediaMonitorService SHALL NOT treat the metadata change as song finished
+
 ### Requirement: PlaybackService allows auto-advance for Bilibili content
 The system SHALL NOT skip auto-advance when the current song is from the Bilibili platform. The Bilibili exclusion in `songFinishedReceiver` SHALL be removed so that song-finished broadcasts trigger `playNext()` for Bilibili content.
 

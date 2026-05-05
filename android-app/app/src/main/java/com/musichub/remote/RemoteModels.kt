@@ -35,7 +35,9 @@ data class RemoteState(
     val currentSong: RemoteSong? = null,
     val currentIndex: Int = -1,
     val queueSize: Int = 0,
-    val shuffleOrder: List<Int>? = null  // Shuffle index order, null when not shuffling
+    val shuffleOrder: List<Int>? = null,  // Shuffle index order, null when not shuffling
+    val volume: Int = -1,                // STREAM_MUSIC volume, -1 = unknown
+    val maxVolume: Int = -1              // Max STREAM_MUSIC volume, -1 = unknown
 )
 
 // Extension functions for conversion

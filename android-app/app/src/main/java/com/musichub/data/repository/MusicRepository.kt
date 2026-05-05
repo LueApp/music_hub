@@ -3,6 +3,7 @@ package com.musichub.data.repository
 import com.musichub.data.local.MusicHubDatabase
 import com.musichub.data.model.Playlist
 import com.musichub.data.model.PlaylistItem
+import com.musichub.data.model.SkipLogEntry
 import com.musichub.data.model.Song
 import com.musichub.data.model.SyncSource
 import kotlinx.coroutines.flow.Flow
@@ -128,4 +129,20 @@ class MusicRepository(private val database: MusicHubDatabase) {
 
     suspend fun getSongsForPlaylistList(playlistId: Long): List<Song> =
         database.playlistItemDao().getSongsForPlaylistList(playlistId)
+
+    // Skip Log
+    fun getAllSkipLogs(): Flow<List<SkipLogEntry>> =
+        database.skipLogDao().getAll()
+
+    suspend fun logSkip(title: String, artist: String, platform: String, platformSongId: String, reason: String) =
+        database.skipLogDao().insert(SkipLogEntry(
+            songTitle = title,
+            songArtist = artist,
+            platform = platform,
+            platformSongId = platformSongId,
+            reason = reason
+        ))
+
+    suspend fun clearSkipLogs() =
+        database.skipLogDao().deleteAll()
 }

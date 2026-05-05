@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:minWidth="230dp"
     android:orientation="vertical"
     android:background="@drawable/bg_floating_window"
     android:padding="12dp"
@@ -169,6 +170,17 @@
             android:contentDescription="播放列表" />
 
         <ImageButton
+            android:id="@+id/btnVolume"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_volume_up"
+            android:background="@null"
+            android:alpha="0.7"
+            android:scaleType="centerInside"
+            android:layout_marginStart="12dp"
+            android:contentDescription="音量" />
+
+        <ImageButton
             android:id="@+id/btnMinimize"
             android:layout_width="32dp"
             android:layout_height="32dp"
@@ -187,6 +199,63 @@
             android:scaleType="centerInside"
             android:layout_marginStart="12dp"
             android:contentDescription="@string/close" />
+
+    </LinearLayout>
+
+    <!-- Volume panel (collapsible) -->
+    <LinearLayout
+        android:id="@+id/volumeContainer"
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"
+        android:background="@color/surface">
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/divider" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="10dp">
+
+            <ImageButton
+                android:id="@+id/btnVolumeDown"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_volume_down"
+                android:background="@null"
+                android:scaleType="centerInside"
+                android:contentDescription="音量减" />
+
+            <SeekBar
+                android:id="@+id/seekBarVolume"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:layout_marginHorizontal="4dp"
+                android:max="15"
+                android:progress="0"
+                android:thumbTint="@color/primary"
+                android:progressTint="@color/primary"
+                android:progressBackgroundTint="@color/divider" />
+
+            <ImageButton
+                android:id="@+id/btnVolumeUp"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_volume_up"
+                android:background="@null"
+                android:scaleType="centerInside"
+                android:contentDescription="音量加" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

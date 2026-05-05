@@ -100,7 +100,19 @@
     <fragment
         android:id="@+id/nav_settings"
         android:name="com.musichub.ui.fragment.SettingsFragment"
-        android:label="@string/nav_settings_cn" />
+        android:label="@string/nav_settings_cn">
+
+        <action
+            android:id="@+id/action_settings_to_skip_log"
+            app:destination="@id/nav_skip_log" />
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/nav_skip_log"
+        android:name="com.musichub.ui.fragment.SkipLogFragment"
+        android:label="@string/skip_log_title"
+        tools:layout="@layout/fragment_skip_log" />
 
     <fragment
         android:id="@+id/nav_playlist_detail"

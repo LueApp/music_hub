@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.preference.EditTextPreference
 import androidx.preference.ListPreference
 import androidx.preference.Preference
@@ -120,6 +121,14 @@ class SettingsFragment : PreferenceFragmentCompat() {
                     }
                 }
                 summary = if (ip.isNotEmpty()) "服务器地址: $ip" else "输入播放手机的IP地址"
+                true
+            }
+        }
+
+        // Skip log preference
+        findPreference<Preference>("skip_log")?.apply {
+            setOnPreferenceClickListener {
+                findNavController().navigate(R.id.action_settings_to_skip_log)
                 true
             }
         }

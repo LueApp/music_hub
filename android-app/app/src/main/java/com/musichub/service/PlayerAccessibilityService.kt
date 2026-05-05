@@ -419,6 +419,9 @@ class PlayerAccessibilityService : AccessibilityService() {
      * Tries to find and click the close button, falls back to GLOBAL_ACTION_BACK.
      */
     fun dismissErrorDialog() {
+        // Cancel any pending mini player click attempts — they'll just hit the dialog
+        cancelPendingClick()
+
         val rootNode = rootInActiveWindow
         if (rootNode == null) {
             Log.d(TAG, "dismissErrorDialog: rootInActiveWindow is null, sending BACK")
@@ -437,21 +440,51 @@ class PlayerAccessibilityService : AccessibilityService() {
                 val x = (rect.left + rect.right) / 2f
                 val y = (rect.top + rect.bottom) / 2f
                 Log.i(TAG, "Found close_btn at $rect, clicking at ($x, $y)")
-                if (!performGestureClick(x, y)) {
-                    // Gesture failed, try performAction as backup
-                    node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                }
+                performGestureClick(x, y)
+                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 closeNodes.forEach { it.recycle() }
             } else {
                 Log.d(TAG, "close_btn not found, sending BACK")
-                performGlobalAction(GLOBAL_ACTION_BACK)
             }
+            // Always send BACK as belt-and-suspenders — gesture clicks on the close_btn
+            // are unreliable and the dialog can persist across song transitions
+            performGlobalAction(GLOBAL_ACTION_BACK)
+            // Verify dismissal after a short delay; send another BACK if still present
+            handler.postDelayed({
+                val checkRoot = rootInActiveWindow ?: return@postDelayed
+                try {
+                    val stillPresent = checkRoot.findAccessibilityNodeInfosByViewId(
+                        "$QQMUSIC_PACKAGE:id/$ID_CLOSE_BTN"
+                    )
+                    if (stillPresent.isNotEmpty()) {
+                        Log.w(TAG, "Dialog still present after first BACK, sending another BACK")
+                        performGlobalAction(GLOBAL_ACTION_BACK)
+                        stillPresent.forEach { it.recycle() }
+                    } else {
+                        Log.d(TAG, "Dialog dismissed successfully")
+                    }
+                } finally {
+                    @Suppress("DEPRECATION")
+                    checkRoot.recycle()
+                }
+            }, 300L)
         } catch (e: Exception) {
             Log.e(TAG, "Error dismissing dialog: ${e.message}")
             performGlobalAction(GLOBAL_ACTION_BACK)
         } finally {
             @Suppress("DEPRECATION")
             rootNode.recycle()
+        }
+    }
+
+    /**
+     * Cancel any pending mini player click request.
+     */
+    private fun cancelPendingClick() {
+        if (pendingClick) {
+            pendingClick = false
+            handler.removeCallbacksAndMessages(null)
+            Log.d(TAG, "Cancelled pending mini player click")
         }
     }
 

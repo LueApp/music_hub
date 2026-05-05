@@ -29,6 +29,7 @@ class MediaMonitorService : NotificationListenerService() {
     // The RemoteServer broadcast loop reads these from Dispatchers.IO while the main thread mutates them.
     private val controllersLock = Any()
     private var lastPlaybackState: Int? = null
+    private var lastPlaybackStatePackage: String? = null  // Which package set lastPlaybackState
     private var lastPosition: Long = 0
     private var maxPositionReached: Long = 0  // Track highest position during song playback
     private var lastMetadataDuration: Long = 0
@@ -48,6 +49,12 @@ class MediaMonitorService : NotificationListenerService() {
     private var manualControlTimestamp: Long = 0
     private val MANUAL_CONTROL_TIMEOUT_MS = 5000L  // 5 second timeout for manual control mode
 
+    // Tracks same-platform NetEase switch for reactive auto-advance suppression.
+    // Set by PlaybackService when scheduling pauses, expires after a short window
+    // (auto-advance happens within ~2s, target song takes 3-8s).
+    private var samePlatformNetEasePauseUntil: Long = 0
+
+
     // One-shot callback for detecting when a platform starts playing.
     // Used by DeepLinkLauncher to restore auto-rotation after NetEase loads.
     private var pendingPlaybackCallback: (() -> Unit)? = null
@@ -64,8 +71,17 @@ class MediaMonitorService : NotificationListenerService() {
         }
     }
 
-    // Threshold to consider song as "near end" - 3 seconds before end
+    // Threshold to consider song as "near end" - 3 seconds before end.
+    // Bilibili gets tighter thresholds because its MediaSession can report
+    // noisy video metadata; switching early cuts visible content.
     private val SONG_END_THRESHOLD_MS = 3000L
+    private val BILIBILI_SONG_END_THRESHOLD_MS = 1000L
+    private val EARLY_SONG_END_THRESHOLD_MS = 2000L
+    private val BILIBILI_EARLY_SONG_END_THRESHOLD_MS = 500L
+    private val BILIBILI_METADATA_END_PERCENT = 99.5
+    private val BILIBILI_EARLY_END_PERCENT = 99.8
+    private val BILIBILI_PERCENT_END_MAX_REMAINING_MS = 3000L
+    private val BILIBILI_POSITION_OVERRUN_TOLERANCE_MS = 1000L
     // Minimum position to consider as a valid "song finished" (avoid false triggers at start)
     private val MIN_POSITION_FOR_END_MS = 30000L
 
@@ -111,17 +127,9 @@ class MediaMonitorService : NotificationListenerService() {
                         lastPosition = 0
                         songEndTriggered = false
                     } else {
-                        // Check if we were near the end of the previous song
-                        // Method 1: Absolute time remaining (45 seconds threshold)
                         val remainingTime = lastMetadataDuration - maxPositionReached
-                        val wasNearEndAbsolute = remainingTime <= 45000L
-
-                        // Method 2: Percentage-based (played more than 85% of the song)
-                        // This handles cases where position reporting lags behind actual playback
                         val percentPlayed = (maxPositionReached.toDouble() / lastMetadataDuration.toDouble()) * 100
-                        val wasNearEndPercent = percentPlayed >= 85.0
-
-                        val wasNearEnd = wasNearEndAbsolute || wasNearEndPercent
+                        val wasNearEnd = wasNearEndForMetadataChange(packageName, maxPositionReached, lastMetadataDuration)
 
                         Log.d(TAG, "Metadata change while playing: maxPos=$maxPositionReached, lastDuration=$lastMetadataDuration, remaining=$remainingTime, percentPlayed=${"%.1f".format(percentPlayed)}%, wasNearEnd=$wasNearEnd, alreadyTriggered=$songEndTriggered")
 
@@ -315,6 +323,31 @@ class MediaMonitorService : NotificationListenerService() {
             return
         }
 
+        // Reactive pause for same-platform NetEase: during the pause window
+        // (set by PlaybackService), if NetEase starts playing a new song (position near 0),
+        // this is NetEase's auto-advance to its own queue — pause it immediately.
+        // The scheduled pauses cover 500-1500ms, but NetEase may auto-advance later
+        // (~1900ms observed). This reactive catch handles any timing within the window.
+        // Uses a dedicated short window (2500ms) to avoid pausing the target song
+        // which loads after 3-8s.
+        // Uses pause()+stop() because NetEase fights back against pause() alone,
+        // resuming playback immediately and letting audio leak for hundreds of ms.
+        if (android.os.SystemClock.elapsedRealtime() < samePlatformNetEasePauseUntil &&
+            fromPackage == "com.netease.cloudmusic" &&
+            (currentState == PlaybackState.STATE_PLAYING || currentState == PlaybackState.STATE_BUFFERING) &&
+            position <= 100) {
+            Log.d(TAG, "Reactive pause: NetEase auto-advanced during pause window (position=$position), pausing+stopping")
+            activeControllers[fromPackage]?.let { controller ->
+                try {
+                    controller.transportControls.pause()
+                    controller.transportControls.stop()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in reactive same-platform pause: ${e.message}")
+                }
+            }
+            return
+        }
+
         // Only process song-end detection for the current platform
         if (fromPackage != null && currentPlatformPackage != null && fromPackage != currentPlatformPackage) {
             Log.d(TAG, "Ignoring state change from $fromPackage (current platform: $currentPlatformPackage)")
@@ -322,7 +355,12 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // Only detect song end when transitioning from PLAYING to PAUSED/STOPPED/NONE
+        // AND the transition is from the same package that set PLAYING — after a service
+        // restart, multiple packages fire initial state callbacks and a cross-package
+        // PLAYING(QQ)→PAUSED(NetEase) transition would falsely trigger song end.
+        val isSamePackageTransition = fromPackage == null || lastPlaybackStatePackage == null || fromPackage == lastPlaybackStatePackage
         if (lastPlaybackState == PlaybackState.STATE_PLAYING &&
+            isSamePackageTransition &&
             (currentState == PlaybackState.STATE_STOPPED ||
              currentState == PlaybackState.STATE_PAUSED ||
              currentState == PlaybackState.STATE_NONE)) {
@@ -332,7 +370,7 @@ class MediaMonitorService : NotificationListenerService() {
                 Log.d(TAG, "Song end already triggered via early detection, skipping state-based detection")
             } else {
                 // Determine if this is a song completion vs user pause
-                val isSongFinished = isSongFinished(position, lastMetadataDuration, currentState)
+                val isSongFinished = isSongFinished(position, lastMetadataDuration, currentState, fromPackage)
 
                 Log.d(TAG, "Playback stopped. Position: $position, Duration: $lastMetadataDuration, isSongFinished: $isSongFinished")
 
@@ -368,6 +406,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         lastPlaybackState = currentState
+        lastPlaybackStatePackage = fromPackage
         // Only update positions if not during manual control (song switching).
         // Stale state callbacks from the old song can re-set these after pauseAllMedia resets them,
         // causing false song-end detection when the old position exceeds the new song's duration.
@@ -387,7 +426,11 @@ class MediaMonitorService : NotificationListenerService() {
      * 2. Position reset to 0 and last position was near the end or past minimum play time
      * 3. State is STOPPED (not just PAUSED) with position reset
      */
-    private fun isSongFinished(position: Long, duration: Long, currentState: Int): Boolean {
+    private fun isSongFinished(position: Long, duration: Long, currentState: Int, packageName: String?): Boolean {
+        if (isBilibiliPackage(packageName)) {
+            return isBilibiliSongFinished(position, duration, currentState)
+        }
+
         // Case 1: Position is near the end of the song
         if (duration > 0 && position > 0) {
             val remainingTime = duration - position
@@ -419,6 +462,81 @@ class MediaMonitorService : NotificationListenerService() {
 
         Log.d(TAG, "Not a song end: position=$position, lastPosition=$lastPosition, duration=$duration, state=$currentState")
         return false
+    }
+
+    private fun isBilibiliSongFinished(position: Long, duration: Long, currentState: Int): Boolean {
+        if (duration <= 0) {
+            Log.d(TAG, "Bilibili not a song end: missing duration, position=$position, state=$currentState")
+            return false
+        }
+
+        val progressPosition = when {
+            position > 0 -> position
+            lastPosition > 0 -> lastPosition
+            else -> 0L
+        }
+        if (progressPosition <= MIN_POSITION_FOR_END_MS) {
+            Log.d(TAG, "Bilibili not a song end: insufficient progress position=$progressPosition, duration=$duration, state=$currentState")
+            return false
+        }
+
+        val remainingTime = duration - progressPosition
+        val percentPlayed = (progressPosition.toDouble() / duration.toDouble()) * 100
+        val isNearEnd = isBilibiliNearEnd(
+            progressPosition,
+            duration,
+            BILIBILI_SONG_END_THRESHOLD_MS,
+            BILIBILI_METADATA_END_PERCENT
+        )
+
+        if (isNearEnd) {
+            Log.d(TAG, "Bilibili song end: remaining=$remainingTime ms, percentPlayed=${"%.1f".format(percentPlayed)}%, state=$currentState")
+            return true
+        }
+
+        Log.d(TAG, "Bilibili not a song end: position=$position, lastPosition=$lastPosition, duration=$duration, remaining=$remainingTime, percentPlayed=${"%.1f".format(percentPlayed)}%, state=$currentState")
+        return false
+    }
+
+    private fun wasNearEndForMetadataChange(packageName: String?, position: Long, duration: Long): Boolean {
+        if (duration <= 0 || position <= 0) return false
+
+        val remainingTime = duration - position
+        val percentPlayed = (position.toDouble() / duration.toDouble()) * 100
+
+        if (isBilibiliPackage(packageName)) {
+            return isBilibiliNearEnd(
+                position,
+                duration,
+                BILIBILI_SONG_END_THRESHOLD_MS,
+                BILIBILI_METADATA_END_PERCENT
+            )
+        }
+
+        // The broader rule is intentionally kept for music apps. NetEase in
+        // particular can change metadata after internally advancing its queue,
+        // and Music Hub needs to catch that handoff.
+        return remainingTime <= 45000L || percentPlayed >= 85.0
+    }
+
+    private fun isBilibiliNearEnd(
+        position: Long,
+        duration: Long,
+        remainingThresholdMs: Long,
+        percentThreshold: Double
+    ): Boolean {
+        val remainingTime = duration - position
+        val percentPlayed = (position.toDouble() / duration.toDouble()) * 100
+        val withinDurationTolerance = position <= duration + BILIBILI_POSITION_OVERRUN_TOLERANCE_MS
+        val nearByTime = remainingTime <= remainingThresholdMs
+        val nearByPercent = percentPlayed >= percentThreshold &&
+            remainingTime <= BILIBILI_PERCENT_END_MAX_REMAINING_MS
+
+        return withinDurationTolerance && (nearByTime || nearByPercent)
+    }
+
+    private fun isBilibiliPackage(packageName: String?): Boolean {
+        return packageName == Platforms.PACKAGE_NAMES[Platforms.BILIBILI]
     }
 
     private fun startPositionPolling() {
@@ -478,15 +596,45 @@ class MediaMonitorService : NotificationListenerService() {
                             val percentPlayed = (estimatedPosition.toDouble() / lastMetadataDuration.toDouble()) * 100
                             val remainingTime = lastMetadataDuration - estimatedPosition
 
-                            // Trigger early if:
-                            // 1. We've played at least 99% of the song, OR
-                            // 2. Less than 2 seconds remaining
-                            // AND we've played enough to not be a false trigger (> 30 seconds)
-                            if (estimatedPosition > MIN_POSITION_FOR_END_MS &&
-                                (percentPlayed >= 99.0 || remainingTime <= 2000L)) {
-                                Log.d(TAG, "Early song end detected! percentPlayed=${String.format("%.1f", percentPlayed)}%, remaining=${remainingTime}ms")
-                                songEndTriggered = true
-                                sendSongFinishedBroadcast()
+                            // If position exceeds duration, the duration is likely stale/wrong
+                            // (e.g. after service restart, or NetEase reporting incorrect duration).
+                            // Don't treat this as song end — wait for metadata change detection instead.
+                            if (estimatedPosition > lastMetadataDuration) {
+                                Log.d(TAG, "Position ($estimatedPosition) exceeds duration ($lastMetadataDuration), stale duration — skipping early end detection")
+                            } else {
+                                val isBilibili = isBilibiliPackage(pkg)
+                                val isNearEnd = if (isBilibili) {
+                                    isBilibiliNearEnd(
+                                        estimatedPosition,
+                                        lastMetadataDuration,
+                                        BILIBILI_EARLY_SONG_END_THRESHOLD_MS,
+                                        BILIBILI_EARLY_END_PERCENT
+                                    )
+                                } else {
+                                    percentPlayed >= 99.0 || remainingTime <= EARLY_SONG_END_THRESHOLD_MS
+                                }
+
+                                if (estimatedPosition > MIN_POSITION_FOR_END_MS && isNearEnd) {
+                                    // Trigger early only after enough playback to avoid false positives.
+                                    // NetEase keeps the previous 99% / 2s behavior; Bilibili uses a
+                                    // stricter 99.8% / 0.5s window to avoid cutting off video endings.
+                                    Log.d(TAG, "Early song end detected! percentPlayed=${String.format("%.1f", percentPlayed)}%, remaining=${remainingTime}ms, package=$pkg")
+                                    // Pause NetEase immediately to prevent it from finishing the song
+                                    // and auto-advancing to its own next track. This must happen BEFORE
+                                    // the broadcast so there's no window for auto-advance.
+                                    if (currentPlatformPackage == "com.netease.cloudmusic") {
+                                        activeControllers["com.netease.cloudmusic"]?.let { controller ->
+                                            try {
+                                                controller.transportControls.pause()
+                                                Log.d(TAG, "Pre-emptive pause sent to NetEase on early song end")
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Error pre-emptively pausing NetEase: ${e.message}")
+                                            }
+                                        }
+                                    }
+                                    songEndTriggered = true
+                                    sendSongFinishedBroadcast()
+                                }
                             }
                         }
                     }
@@ -721,6 +869,20 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     /**
+     * Arm manual control mode immediately, without pausing anything.
+     * Called at the very start of a Music Hub-initiated song transition so that
+     * any auto-advance detection (early song-end, metadata change, etc.) that fires
+     * during the async availability check is suppressed. Without this, pressing
+     * Previous could race with a song-finished broadcast that immediately calls
+     * playNext() and undoes the index change.
+     */
+    fun armManualControl() {
+        Log.d(TAG, "armManualControl called - suppressing auto-advance detection during transition")
+        manualControlActive = true
+        manualControlTimestamp = System.currentTimeMillis()
+    }
+
+    /**
      * Called when a new song starts playing via Music Hub.
      * This disables manual control mode after a delay to re-enable auto-advance detection.
      */
@@ -747,6 +909,19 @@ class MediaMonitorService : NotificationListenerService() {
     )
 
     /**
+     * Arm reactive pause window for same-platform NetEase switches.
+     * During this window, any new playback (position ~0) from NetEase will be
+     * immediately paused as it's NetEase's auto-advance to its own queue.
+     * Also mutes the music stream as a guaranteed fallback since NetEase ignores
+     * pause+stop commands. Unmute happens when the target song's playback callback fires.
+     * Window is 2500ms — auto-advance happens within ~2s, target song takes 3-8s.
+     */
+    fun armSamePlatformNetEasePause() {
+        samePlatformNetEasePauseUntil = android.os.SystemClock.elapsedRealtime() + 2500L
+        Log.d(TAG, "Armed same-platform NetEase reactive pause window (2500ms)")
+    }
+
+    /**
      * Lightweight pause for a specific package. Does NOT reset tracking state
      * or set manualControlActive. Used to silence auto-advanced songs during
      * same-platform switches without interfering with pending deep links.
@@ -758,7 +933,8 @@ class MediaMonitorService : NotificationListenerService() {
         if (controller != null) {
             try {
                 controller.transportControls.pause()
-                Log.d(TAG, "Lightweight pause sent to $packageName")
+                controller.transportControls.stop()
+                Log.d(TAG, "Lightweight pause+stop sent to $packageName")
             } catch (e: Exception) {
                 Log.e(TAG, "Error pausing $packageName: ${e.message}")
             }

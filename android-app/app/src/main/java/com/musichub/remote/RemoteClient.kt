@@ -185,6 +185,10 @@ object RemoteClient {
     fun toggleRepeat() = postAsync("/api/repeat")
     fun seekTo(positionMs: Long) = postAsync("/api/seek/$positionMs")
     fun playAtIndex(index: Int) = postAsync("/api/play/index/$index")
+    fun setVolume(level: Int) = postAsync("/api/volume/$level")
+    fun moveInQueue(from: Int, to: Int) = postAsync("/api/queue/move/$from/$to")
+    fun removeFromQueue(index: Int) = postAsync("/api/queue/remove/$index")
+    fun moveInShuffleOrder(from: Int, to: Int) = postAsync("/api/shuffle/move/$from/$to")
     fun playSong(songId: Long) = postAsync("/api/play/song/$songId")
     fun playPlaylist(playlistId: Long, shuffle: Boolean = false) =
         postAsync("/api/play/playlist/$playlistId" + if (shuffle) "?shuffle=true" else "")
