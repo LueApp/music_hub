@@ -47,6 +47,14 @@ class MediaMonitorService : NotificationListenerService() {
     private var manualControlActive = false
     private var manualControlTimestamp: Long = 0
     private val MANUAL_CONTROL_TIMEOUT_MS = 5000L  // 5 second timeout for manual control mode
+
+    // One-shot callback for detecting when a platform starts playing.
+    // Used by DeepLinkLauncher to restore auto-rotation after NetEase loads.
+    private var pendingPlaybackCallback: (() -> Unit)? = null
+    private var pendingPlaybackPackage: String? = null
+    private var pendingPlaybackTimeoutRunnable: Runnable? = null
+    private var pendingPlaybackArmedTime: Long = 0  // SystemClock.elapsedRealtime when callback becomes armed
+    private val PLAYBACK_CALLBACK_MIN_DELAY_MS = 3000L  // Ignore STATE_PLAYING for 3s to skip stale events
     private val positionPollRunnable = object : Runnable {
         override fun run() {
             pollCurrentPosition()
@@ -315,6 +323,20 @@ class MediaMonitorService : NotificationListenerService() {
                 maxPositionReached = 0
                 lastPosition = 0
                 songEndTriggered = false
+            }
+        }
+
+        // Fire pending playback callback when the target platform starts playing.
+        // Ignore events before the armed time to skip stale STATE_PLAYING from the
+        // previous song's MediaSession (which may still be active after CLEAR_TASK).
+        if (currentState == PlaybackState.STATE_PLAYING &&
+            pendingPlaybackCallback != null &&
+            (fromPackage == null || fromPackage == pendingPlaybackPackage)) {
+            if (android.os.SystemClock.elapsedRealtime() >= pendingPlaybackArmedTime) {
+                Log.d(TAG, "Playback started for $fromPackage, firing pending callback")
+                firePendingPlaybackCallback()
+            } else {
+                Log.d(TAG, "Playback event for $fromPackage ignored (callback not yet armed)")
             }
         }
 
@@ -629,6 +651,45 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     fun getCurrentPlatformPackage(): String? = currentPlatformPackage
+
+    /**
+     * Register a one-shot callback that fires when the specified platform's
+     * MediaController transitions to STATE_PLAYING. If playback isn't detected
+     * within timeoutMs, the callback fires anyway as a safety fallback.
+     */
+    fun onNextPlaybackStart(packageName: String, timeoutMs: Long, callback: () -> Unit) {
+        // Cancel any previous pending callback
+        cancelPendingPlaybackCallback()
+
+        pendingPlaybackCallback = callback
+        pendingPlaybackPackage = packageName
+        pendingPlaybackArmedTime = android.os.SystemClock.elapsedRealtime() + PLAYBACK_CALLBACK_MIN_DELAY_MS
+        Log.d(TAG, "Registered playback start callback for $packageName (timeout=${timeoutMs}ms, armed after ${PLAYBACK_CALLBACK_MIN_DELAY_MS}ms)")
+
+        // Schedule timeout fallback
+        val timeoutRunnable = Runnable {
+            Log.d(TAG, "Playback start callback timed out for $packageName, firing anyway")
+            firePendingPlaybackCallback()
+        }
+        pendingPlaybackTimeoutRunnable = timeoutRunnable
+        handler.postDelayed(timeoutRunnable, timeoutMs)
+    }
+
+    private fun firePendingPlaybackCallback() {
+        val callback = pendingPlaybackCallback ?: return
+        pendingPlaybackCallback = null
+        pendingPlaybackPackage = null
+        pendingPlaybackTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        pendingPlaybackTimeoutRunnable = null
+        callback()
+    }
+
+    private fun cancelPendingPlaybackCallback() {
+        pendingPlaybackCallback = null
+        pendingPlaybackPackage = null
+        pendingPlaybackTimeoutRunnable?.let { handler.removeCallbacks(it) }
+        pendingPlaybackTimeoutRunnable = null
+    }
 
     /**
      * Called when a new song starts playing via Music Hub.
