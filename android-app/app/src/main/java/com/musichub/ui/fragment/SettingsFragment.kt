@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -17,6 +18,7 @@ import androidx.preference.PreferenceManager
 import androidx.preference.SwitchPreferenceCompat
 import com.musichub.MusicHubApplication
 import com.musichub.R
+import com.musichub.data.backup.BackupManager
 import com.musichub.remote.RemoteClient
 import com.musichub.remote.RemoteMode
 import com.musichub.remote.RemoteServerService
@@ -24,6 +26,9 @@ import com.musichub.service.FloatingWindowService
 import com.musichub.service.MediaMonitorService
 import com.musichub.service.PlayerAccessibilityService
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class SettingsFragment : PreferenceFragmentCompat() {
 
@@ -31,6 +36,61 @@ class SettingsFragment : PreferenceFragmentCompat() {
         if (isAdded && view != null) {
             updateRemoteStatus()
         }
+    }
+
+    private val exportLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        lifecycleScope.launch {
+            val backupManager = BackupManager(
+                (requireActivity().application as MusicHubApplication).database
+            )
+            try {
+                val result = backupManager.export(requireContext(), uri)
+                Toast.makeText(
+                    requireContext(),
+                    "已导出 ${result.songCount} 首歌曲, ${result.playlistCount} 个歌单",
+                    Toast.LENGTH_LONG
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "导出失败: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private val importLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@registerForActivityResult
+        AlertDialog.Builder(requireContext())
+            .setTitle("导入数据")
+            .setMessage("将向当前曲库追加歌曲并新建歌单（已存在的歌曲会被复用，不会重复添加）。是否继续？")
+            .setPositiveButton("导入") { _, _ ->
+                lifecycleScope.launch {
+                    val backupManager = BackupManager(
+                        (requireActivity().application as MusicHubApplication).database
+                    )
+                    try {
+                        val r = backupManager.import(requireContext(), uri)
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("导入完成")
+                            .setMessage(
+                                "新增歌曲: ${r.songsAdded}\n" +
+                                "已存在歌曲: ${r.songsExisting}\n" +
+                                "新建歌单: ${r.playlistsAdded}\n" +
+                                "歌单条目: ${r.itemsAdded}" +
+                                if (r.itemsSkipped > 0) "\n跳过条目: ${r.itemsSkipped}" else ""
+                            )
+                            .setPositiveButton("确定", null)
+                            .show()
+                    } catch (e: Exception) {
+                        Toast.makeText(requireContext(), "导入失败: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -150,6 +210,17 @@ class SettingsFragment : PreferenceFragmentCompat() {
                     .show()
                 true
             }
+        }
+
+        findPreference<Preference>("data_export")?.setOnPreferenceClickListener {
+            val timestamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+            exportLauncher.launch("musichub-backup-$timestamp.json")
+            true
+        }
+
+        findPreference<Preference>("data_import")?.setOnPreferenceClickListener {
+            importLauncher.launch(arrayOf("application/json", "*/*"))
+            true
         }
 
         // Add connection listener

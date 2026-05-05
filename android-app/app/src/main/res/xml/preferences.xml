@@ -104,6 +104,18 @@
             android:summary="清空歌曲库（不影响播放列表）"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="data_export"
+            android:title="导出数据"
+            android:summary="将曲库与歌单导出为 JSON 备份文件"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="data_import"
+            android:title="导入数据"
+            android:summary="从 JSON 备份文件恢复曲库与歌单"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

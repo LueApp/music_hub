@@ -23,6 +23,9 @@ interface PlaylistItemDao {
     @Query("SELECT * FROM playlist_items WHERE playlist_id = :playlistId ORDER BY position ASC")
     fun getItemsForPlaylist(playlistId: Long): Flow<List<PlaylistItem>>
 
+    @Query("SELECT * FROM playlist_items WHERE playlist_id = :playlistId ORDER BY position ASC")
+    suspend fun getItemsForPlaylistList(playlistId: Long): List<PlaylistItem>
+
     @Query("""
         SELECT songs.* FROM songs
         INNER JOIN playlist_items ON songs.id = playlist_items.song_id
