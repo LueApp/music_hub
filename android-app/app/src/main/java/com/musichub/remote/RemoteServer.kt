@@ -256,8 +256,18 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
         broadcastJob = broadcastScope.launch {
             while (isActive) {
                 try {
-                    val state = buildCurrentState()
-                    val json = gson.toJson(state)
+                    // Build state in its own try-catch so transient errors (e.g.
+                    // ConcurrentModificationException during song transitions) don't
+                    // kill the broadcast loop — we just skip this cycle.
+                    val json = try {
+                        val state = buildCurrentState()
+                        gson.toJson(state)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error building state for broadcast: ${e.message}")
+                        delay(500)
+                        continue
+                    }
+
                     synchronized(connectedClients) {
                         val iterator = connectedClients.iterator()
                         while (iterator.hasNext()) {
