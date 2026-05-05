@@ -1,7 +1,6 @@
-const APP_VERSION = typeof __APP_VERSION__ === 'undefined' ? '1.0.0' : __APP_VERSION__;
-const APK_FILENAME =
-  typeof __APK_FILENAME__ === 'undefined' ? `music-hub-${APP_VERSION}-debug.apk` : __APK_FILENAME__;
-const DOWNLOAD_URL = import.meta.env?.VITE_DOWNLOAD_URL || `./downloads/${APK_FILENAME}`;
+const FALLBACK_VERSION = 'preview';
+const FALLBACK_DOWNLOAD_URL = './downloads/music-hub.apk';
+const METADATA_URL = './downloads/metadata.json';
 
 const translations = {
   zh: {
@@ -80,10 +79,10 @@ const translations = {
     limitForeground: '切歌时目标音乐 App 会切到前台。',
     limitPlatform: '会员歌曲仍然需要你拥有对应平台会员。',
     limitSync: '歌单同步当前以网易云和 QQ 音乐为主，B 站内容仍可作为歌曲入库和播放。',
-    limitPreview: '当前下载为调试预览版，适合早期试用。',
+    limitPreview: '当前下载为预览版，适合早期试用。',
     downloadEyebrow: 'Android 下载',
     downloadTitle: '获取 Music Hub 预览版',
-    downloadCopy: '下载 debug APK 后在 Android 8.0 及以上设备安装。首次使用需要按提示授予悬浮窗、通知访问和无障碍相关权限。',
+    downloadCopy: '下载 APK 后在 Android 8.0 及以上设备安装。首次使用需要按提示授予悬浮窗、通知访问和无障碍相关权限。',
     downloadButton: '下载 APK',
     downloadNote: 'APK 会随 Cloudflare Pages 构建一起生成；也可用 VITE_DOWNLOAD_URL 指向外部下载地址。',
     footerText: '基于播放委托与媒体会话监听的跨平台音乐队列管理器。'
@@ -164,10 +163,10 @@ const translations = {
     limitForeground: 'Switching songs brings the target music app to the foreground.',
     limitPlatform: 'Membership-only songs still require the matching platform membership.',
     limitSync: 'Playlist sync currently focuses on NetEase and QQ Music; Bilibili content can still be imported and played as songs.',
-    limitPreview: 'The current download is a debug preview build for early testing.',
+    limitPreview: 'The current download is a preview build for early testing.',
     downloadEyebrow: 'Android Download',
     downloadTitle: 'Get the Music Hub preview',
-    downloadCopy: 'Download the debug APK and install it on Android 8.0 or later. First use requires overlay, notification access, and accessibility permissions.',
+    downloadCopy: 'Download the APK and install it on Android 8.0 or later. First use requires overlay, notification access, and accessibility permissions.',
     downloadButton: 'Download APK',
     downloadNote: 'The APK is generated during the Cloudflare Pages build; VITE_DOWNLOAD_URL can point to an external download instead.',
     footerText: 'Cross-platform music queue manager based on playback delegation and media-session monitoring.'
@@ -198,8 +197,22 @@ function applyLanguage(language) {
   localStorage.setItem('music-hub-language', language);
 }
 
-downloadLink?.setAttribute('href', DOWNLOAD_URL);
-versionLabel.textContent = `v${APP_VERSION} debug`;
+async function applyApkMetadata() {
+  let meta = null;
+  try {
+    const response = await fetch(METADATA_URL, { cache: 'no-cache' });
+    if (response.ok) meta = await response.json();
+  } catch {
+    // Falls through to placeholder values below.
+  }
+  const override = import.meta.env?.VITE_DOWNLOAD_URL;
+  const url = override
+    || (meta?.filename ? `./downloads/${meta.filename}` : FALLBACK_DOWNLOAD_URL);
+  downloadLink?.setAttribute('href', url);
+  if (versionLabel) versionLabel.textContent = meta?.version ?? FALLBACK_VERSION;
+}
+
+applyApkMetadata();
 
 const initialLanguage = localStorage.getItem('music-hub-language') === 'en' ? 'en' : 'zh';
 applyLanguage(initialLanguage);

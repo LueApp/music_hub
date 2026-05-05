@@ -5,27 +5,36 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const siteDir = resolve(scriptDir, '..');
 const repoRoot = resolve(siteDir, '..');
-const gradleFile = resolve(repoRoot, 'android-app/app/build.gradle.kts');
-const sourceApk = resolve(repoRoot, 'android-app/app/build/outputs/apk/debug/app-debug.apk');
+const apkDir = resolve(repoRoot, 'android-app/app/build/outputs/apk/release');
+const sourceApk = resolve(apkDir, 'app-release.apk');
+const outputMetadataPath = resolve(apkDir, 'output-metadata.json');
 const downloadsDirs = [
   resolve(siteDir, 'public/downloads'), // Vite copies this to dist/downloads.
   resolve(siteDir, 'downloads') // Fallback if Cloudflare publishes raw site/.
 ];
 
-const gradleContents = readFileSync(gradleFile, 'utf8');
-const versionName = gradleContents.match(/versionName\s*=\s*"([^"]+)"/)?.[1] ?? '1.0.0';
-const apkFilename = `music-hub-${versionName}-debug.apk`;
-
 if (!existsSync(sourceApk)) {
-  console.error(`Missing debug APK: ${sourceApk}`);
-  console.error('Run `pixi run build` from the repository root first.');
+  console.error(`Missing release APK: ${sourceApk}`);
+  console.error('Run `pixi run build-release` from the repository root first.');
   process.exit(1);
 }
+
+const outputMetadata = JSON.parse(readFileSync(outputMetadataPath, 'utf8'));
+const element = outputMetadata.elements?.[0];
+if (!element?.versionName) {
+  console.error(`Could not read versionName from ${outputMetadataPath}`);
+  process.exit(1);
+}
+
+const versionName = element.versionName;
+const versionCode = element.versionCode;
+const apkFilename = `music-hub-${versionName}.apk`;
 
 const bytes = statSync(sourceApk).size;
 const metadata = {
   version: versionName,
-  variant: 'debug',
+  versionCode,
+  variant: 'release',
   filename: apkFilename,
   bytes,
   updatedAt: new Date().toISOString()

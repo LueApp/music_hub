@@ -21,6 +21,7 @@ import com.musichub.platform.LinkParser
 import com.musichub.remote.RemoteClient
 import com.musichub.remote.RemoteMode
 import com.musichub.remote.RemoteState
+import com.musichub.remote.toSong
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.PlaybackService
 import com.musichub.service.ShareReceiver
@@ -48,24 +49,7 @@ class MainActivity : AppCompatActivity() {
     // Remote state listener for controller mode
     private val remoteStateListener: (RemoteState) -> Unit = { state ->
         runOnUiThread {
-            val song = state.currentSong
-            if (song != null) {
-                binding.nowPlayingBar.visibility = View.VISIBLE
-                binding.tvNowPlayingTitle.text = song.title
-                binding.tvNowPlayingArtist.text = song.artist
-
-                val coverUrl = (song.coverUrl as String?) ?: ""
-                if (coverUrl.isNotEmpty()) {
-                    binding.ivNowPlayingCover.load(coverUrl) {
-                        placeholder(R.drawable.ic_album)
-                        error(R.drawable.ic_album)
-                    }
-                } else {
-                    binding.ivNowPlayingCover.setImageResource(R.drawable.ic_album)
-                }
-            } else {
-                binding.nowPlayingBar.visibility = View.GONE
-            }
+            updateNowPlayingBar(state.currentSong?.toSong())
         }
     }
 
@@ -74,6 +58,9 @@ class MainActivity : AppCompatActivity() {
             val binder = service as PlaybackService.LocalBinder
             playbackService = binder.getService()
             serviceBound = true
+
+            // Reflect any song already playing
+            updateNowPlayingBar(playbackService?.getCurrentSong())
 
             // Set up song change listener
             playbackService?.setOnSongChangeListener { song ->
@@ -101,6 +88,8 @@ class MainActivity : AppCompatActivity() {
             // In controller mode, listen to remote state updates instead of binding local service
             RemoteClient.addStateListener(remoteStateListener)
             RemoteClient.addConnectionListener(remoteConnectionListener)
+            // Reflect any state already cached
+            updateNowPlayingBar(RemoteClient.currentState?.currentSong?.toSong())
             // Show initial connection status
             if (!RemoteClient.isConnected) {
                 binding.tvConnectionStatus.text = getString(R.string.remote_disconnected_reconnecting)
@@ -151,13 +140,19 @@ class MainActivity : AppCompatActivity() {
         binding.nowPlayingBar.setOnClickListener {
             // TODO: Open full now playing screen or queue
         }
+
+        // Initialize with idle state until a song is playing
+        updateNowPlayingBar(null)
     }
 
     private fun updateNowPlayingBar(song: Song?) {
         if (song != null) {
-            binding.nowPlayingBar.visibility = View.VISIBLE
             binding.tvNowPlayingTitle.text = song.title
             binding.tvNowPlayingArtist.text = song.artist
+            binding.btnNowPlayingPrev.isEnabled = true
+            binding.btnNowPlayingNext.isEnabled = true
+            binding.btnNowPlayingPrev.alpha = 1.0f
+            binding.btnNowPlayingNext.alpha = 1.0f
 
             if (song.coverUrl.isNotEmpty()) {
                 binding.ivNowPlayingCover.load(song.coverUrl) {
@@ -168,7 +163,13 @@ class MainActivity : AppCompatActivity() {
                 binding.ivNowPlayingCover.setImageResource(R.drawable.ic_album)
             }
         } else {
-            binding.nowPlayingBar.visibility = View.GONE
+            binding.tvNowPlayingTitle.text = getString(R.string.app_name)
+            binding.tvNowPlayingArtist.text = getString(R.string.nothing_playing_cn)
+            binding.ivNowPlayingCover.setImageResource(R.drawable.ic_album)
+            binding.btnNowPlayingPrev.isEnabled = false
+            binding.btnNowPlayingNext.isEnabled = false
+            binding.btnNowPlayingPrev.alpha = 0.4f
+            binding.btnNowPlayingNext.alpha = 0.4f
         }
     }
 

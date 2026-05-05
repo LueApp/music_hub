@@ -25,6 +25,9 @@ install = { cmd = "cd android-app && ./gradlew installDebug", description = "Ins
 # Build and install
 deploy = { cmd = "cd android-app && ./gradlew installDebug", description = "Build and install debug APK" }
 
+# Build and install signed release APK (requires keystore env vars or .release-env file)
+deploy-release = { cmd = "bash scripts/deploy-release.sh", description = "Build and install signed release APK to device" }
+
 # Run tests
 test = { cmd = "cd android-app && ./gradlew test", description = "Run unit tests" }
 

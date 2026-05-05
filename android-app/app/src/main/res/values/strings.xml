@@ -76,6 +76,8 @@
     <!-- Playback -->
     <string name="now_playing">Now Playing</string>
     <string name="now_playing_cn">正在播放</string>
+    <string name="nothing_playing">Nothing playing</string>
+    <string name="nothing_playing_cn">暂无播放</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="next">Next</string>

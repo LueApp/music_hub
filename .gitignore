@@ -70,9 +70,11 @@ Thumbs.db
 # Secrets
 *.keystore
 *.jks
+*.jks.b64
 credentials.json
 .env
 .env.local
+.release-env
 
 .venv
 docs

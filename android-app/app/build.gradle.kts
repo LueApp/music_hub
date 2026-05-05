@@ -5,16 +5,45 @@ plugins {
     id("androidx.navigation.safeargs.kotlin")
 }
 
+fun runGit(vararg args: String): String? = try {
+    val proc = ProcessBuilder("git", *args)
+        .directory(rootProject.rootDir)
+        .redirectErrorStream(true)
+        .start()
+    val out = proc.inputStream.bufferedReader().readText().trim()
+    if (proc.waitFor() == 0 && out.isNotEmpty()) out else null
+} catch (_: Exception) {
+    null
+}
+
+val gitVersionName: String = runGit("describe", "--tags", "--always", "--dirty") ?: "0.0.0"
+val gitVersionCode: Int = runGit("rev-list", "--count", "HEAD")?.toIntOrNull() ?: 1
+
+val releaseKeystore = System.getenv("ANDROID_KEYSTORE_PATH")
+    ?.let { file(it) }
+    ?.takeIf { it.exists() }
+
 android {
     namespace = "com.musichub"
     compileSdk = 35
+
+    if (releaseKeystore != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.musichub"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = gitVersionCode
+        versionName = gitVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -26,6 +55,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (releaseKeystore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
