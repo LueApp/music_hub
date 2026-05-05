@@ -32,6 +32,12 @@ class PlaylistsFragment : Fragment() {
     private val viewModel: PlaylistsViewModel by viewModels { PlaylistsViewModel.Factory }
     private lateinit var playlistAdapter: PlaylistAdapter
 
+    private val remoteResyncListener: () -> Unit = {
+        if (_binding != null && RemoteMode.isController()) {
+            fetchRemotePlaylists(showLoading = false)
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -111,37 +117,8 @@ class PlaylistsFragment : Fragment() {
 
     private fun observeData() {
         if (RemoteMode.isController()) {
-            // In controller mode, fetch playlists from remote server
-            binding.progressLoading.visibility = View.VISIBLE
-            binding.rvPlaylists.visibility = View.GONE
-            binding.emptyState.visibility = View.GONE
-            viewLifecycleOwner.lifecycleScope.launch {
-                try {
-                    val remotePlaylists = withContext(Dispatchers.IO) {
-                        RemoteClient.fetchPlaylists()
-                    }
-                    if (_binding == null) return@launch
-                    binding.progressLoading.visibility = View.GONE
-                    val playlists = remotePlaylists.map { remote ->
-                        Playlist(
-                            id = remote.id,
-                            name = (remote.name as String?) ?: "",
-                            description = (remote.description as String?) ?: ""
-                        )
-                    }
-                    playlistAdapter.submitList(playlists)
-
-                    val isEmpty = playlists.isEmpty()
-                    binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                    binding.rvPlaylists.visibility = if (isEmpty) View.GONE else View.VISIBLE
-                } catch (e: Exception) {
-                    android.util.Log.e("PlaylistsFragment", "Failed to fetch remote playlists: ${e.message}", e)
-                    if (_binding == null) return@launch
-                    binding.progressLoading.visibility = View.GONE
-                    binding.emptyState.visibility = View.VISIBLE
-                    Toast.makeText(context, R.string.remote_load_playlists_failed, Toast.LENGTH_SHORT).show()
-                }
-            }
+            fetchRemotePlaylists(showLoading = true)
+            RemoteClient.addResyncListener(remoteResyncListener)
             return
         }
 
@@ -156,8 +133,47 @@ class PlaylistsFragment : Fragment() {
         }
     }
 
+    private fun fetchRemotePlaylists(showLoading: Boolean) {
+        if (_binding == null) return
+        if (showLoading) {
+            binding.progressLoading.visibility = View.VISIBLE
+            binding.rvPlaylists.visibility = View.GONE
+            binding.emptyState.visibility = View.GONE
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val remotePlaylists = withContext(Dispatchers.IO) {
+                    RemoteClient.fetchPlaylists()
+                }
+                if (_binding == null) return@launch
+                binding.progressLoading.visibility = View.GONE
+                val playlists = remotePlaylists.map { remote ->
+                    Playlist(
+                        id = remote.id,
+                        name = (remote.name as String?) ?: "",
+                        description = (remote.description as String?) ?: ""
+                    )
+                }
+                playlistAdapter.submitList(playlists)
+
+                val isEmpty = playlists.isEmpty()
+                binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                binding.rvPlaylists.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            } catch (e: Exception) {
+                android.util.Log.e("PlaylistsFragment", "Failed to fetch remote playlists: ${e.message}", e)
+                if (_binding == null) return@launch
+                if (showLoading) {
+                    binding.progressLoading.visibility = View.GONE
+                    binding.emptyState.visibility = View.VISIBLE
+                }
+                Toast.makeText(context, R.string.remote_load_playlists_failed, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
+        RemoteClient.removeResyncListener(remoteResyncListener)
         _binding = null
     }
 }

@@ -86,6 +86,12 @@
             android:selectable="false"
             app:iconSpaceReserved="false" />
 
+        <Preference
+            android:key="remote_reconnect_now"
+            android:title="@string/remote_reconnect_now_cn"
+            android:summary="@string/remote_reconnect_now_desc_cn"
+            app:iconSpaceReserved="false" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

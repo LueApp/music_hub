@@ -185,6 +185,24 @@ class SettingsFragment : PreferenceFragmentCompat() {
             }
         }
 
+        // Manual reconnect (visible only in controller mode)
+        findPreference<Preference>("remote_reconnect_now")?.apply {
+            isVisible = RemoteMode.isController()
+            setOnPreferenceClickListener {
+                if (RemoteMode.serverHost.isBlank()) {
+                    Toast.makeText(requireContext(), "请先设置服务器地址", Toast.LENGTH_SHORT).show()
+                } else {
+                    RemoteClient.forceReconnect()
+                    Toast.makeText(
+                        requireContext(),
+                        R.string.remote_reconnecting_toast_cn,
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                true
+            }
+        }
+
         // Skip log preference
         findPreference<Preference>("skip_log")?.apply {
             setOnPreferenceClickListener {
@@ -288,6 +306,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
         // Show/hide IP input based on mode
         findPreference<EditTextPreference>("remote_server_ip")?.isVisible = RemoteMode.isController()
+        findPreference<Preference>("remote_reconnect_now")?.isVisible = RemoteMode.isController()
     }
 
     override fun onResume() {

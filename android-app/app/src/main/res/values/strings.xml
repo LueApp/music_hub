@@ -148,6 +148,9 @@
     <string name="remote_load_songs_failed">加载歌曲失败</string>
     <string name="remote_load_playlists_failed">加载歌单失败</string>
     <string name="remote_disconnected_reconnecting">已断开 - 重连中...</string>
+    <string name="remote_reconnect_now_cn">立即重连</string>
+    <string name="remote_reconnect_now_desc_cn">重新连接并同步播放状态与歌单</string>
+    <string name="remote_reconnecting_toast_cn">正在重连…</string>
 
     <!-- Errors -->
     <string name="error_network">Network error</string>

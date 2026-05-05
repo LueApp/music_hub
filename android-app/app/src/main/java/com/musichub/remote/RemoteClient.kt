@@ -32,6 +32,11 @@ object RemoteClient {
     private var reconnectDelay = INITIAL_RECONNECT_DELAY
     private var reconnectRunnable: Runnable? = null
 
+    // Bumped on every connect() so callbacks from a replaced socket can detect they
+    // are stale and bail out instead of clobbering the new connection's state.
+    @Volatile
+    private var connectionGeneration = 0
+
     private const val INITIAL_RECONNECT_DELAY = 1000L  // 1 second
     private const val MAX_RECONNECT_DELAY = 30000L     // 30 seconds
 
@@ -43,6 +48,7 @@ object RemoteClient {
     // Listeners
     private val stateListeners = mutableListOf<(RemoteState) -> Unit>()
     private val connectionListeners = mutableListOf<(Boolean) -> Unit>()
+    private val resyncListeners = mutableListOf<() -> Unit>()
 
     @Volatile
     var isConnected: Boolean = false
@@ -61,20 +67,31 @@ object RemoteClient {
         intentionalDisconnect = false
         cancelReconnect()
 
+        val gen = ++connectionGeneration
+
+        // Close any existing socket so it doesn't linger; its callbacks will see
+        // a stale generation and bail out.
+        webSocket?.close(1000, "Reconnecting")
+        webSocket = null
+
         val wsUrl = baseUrl().replace("http://", "ws://") + "/ws"
-        Log.d(TAG, "Connecting WebSocket to $wsUrl")
+        Log.d(TAG, "Connecting WebSocket to $wsUrl (gen=$gen)")
 
         try {
             val request = Request.Builder().url(wsUrl).build()
             webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
+                    if (gen != connectionGeneration) return
                     Log.i(TAG, "WebSocket connected")
                     isConnected = true
                     reconnectDelay = INITIAL_RECONNECT_DELAY
                     notifyConnectionListeners(true)
+                    fetchStateAndPublish()
+                    notifyResyncListeners()
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
+                    if (gen != connectionGeneration) return
                     try {
                         val state = gson.fromJson(text, RemoteState::class.java)
                         currentState = state
@@ -87,14 +104,17 @@ object RemoteClient {
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                    if (gen != connectionGeneration) return
                     Log.i(TAG, "WebSocket closed: $reason")
                     isConnected = false
-                    currentState = null
+                    // Keep currentState so the UI can show stale-but-readable info
+                    // alongside the "reconnecting" banner instead of going blank.
                     notifyConnectionListeners(false)
                     scheduleReconnect()
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                    if (gen != connectionGeneration) return
                     Log.e(TAG, "WebSocket failure: ${t.message}")
                     isConnected = false
                     notifyConnectionListeners(false)
@@ -105,6 +125,56 @@ object RemoteClient {
             Log.e(TAG, "Failed to create WebSocket connection: ${e.message}")
             scheduleReconnect()
         }
+    }
+
+    /**
+     * Tear down any pending reconnect, reset the backoff, and reconnect immediately.
+     * Use when the user explicitly asks for a reconnect (e.g. "Reconnect now" button)
+     * or when caller knows the existing connection is stuck.
+     */
+    fun forceReconnect() {
+        if (!RemoteMode.isController()) {
+            Log.w(TAG, "forceReconnect: not in controller mode")
+            return
+        }
+        if (RemoteMode.serverHost.isBlank()) {
+            Log.w(TAG, "forceReconnect: no server host")
+            return
+        }
+        Log.i(TAG, "Force reconnect requested")
+        cancelReconnect()
+        reconnectDelay = INITIAL_RECONNECT_DELAY
+        connect()
+    }
+
+    /**
+     * Fetch /api/state once and publish it to state listeners. Called right after
+     * the WebSocket opens so controllers see the current song/playback info without
+     * waiting up to 500 ms for the next broadcast tick.
+     */
+    private fun fetchStateAndPublish() {
+        val url = baseUrl() + "/api/state"
+        val request = Request.Builder().url(url).get().build()
+        httpClient.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.w(TAG, "Initial state fetch failed: ${e.message}")
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val body = response.body?.string()
+                    if (body != null) {
+                        val state = gson.fromJson(body, RemoteState::class.java)
+                        currentState = state
+                        mainHandler.post { notifyStateListeners(state) }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Initial state fetch parse error: ${e.message}")
+                } finally {
+                    response.close()
+                }
+            }
+        })
     }
 
     private fun scheduleReconnect() {
@@ -149,6 +219,18 @@ object RemoteClient {
         }
     }
 
+    private fun notifyResyncListeners() {
+        mainHandler.post {
+            for (listener in resyncListeners.toList()) {
+                try {
+                    listener()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in resync listener: ${e.message}", e)
+                }
+            }
+        }
+    }
+
     fun disconnect() {
         intentionalDisconnect = true
         cancelReconnect()
@@ -174,6 +256,19 @@ object RemoteClient {
 
     fun removeConnectionListener(listener: (Boolean) -> Unit) {
         connectionListeners.remove(listener)
+    }
+
+    /**
+     * Resync listeners fire on the main thread after a (re)connection's WebSocket
+     * opens. Subscribers should re-fetch any data they hold that isn't already
+     * pushed by the broadcast loop (playlists, full song library, etc.).
+     */
+    fun addResyncListener(listener: () -> Unit) {
+        resyncListeners.add(listener)
+    }
+
+    fun removeResyncListener(listener: () -> Unit) {
+        resyncListeners.remove(listener)
     }
 
     // --- Playback Controls (fire-and-forget POST requests) ---
