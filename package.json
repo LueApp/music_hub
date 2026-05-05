@@ -1,0 +1,14 @@
+{
+  "name": "music-hub",
+  "private": true,
+  "scripts": {
+    "build": "bash scripts/build-cloudflare-pages.sh",
+    "build:site": "npm --prefix site ci && npm --prefix site run build",
+    "dev": "npm --prefix site run dev",
+    "preview": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.87.0"
+  }
+}

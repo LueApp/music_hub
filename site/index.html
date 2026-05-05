@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Music Hub is a cross-platform music queue manager that delegates playback to official NetEase Cloud Music, QQ Music, and Bilibili apps."
+    />
+    <title>Music Hub | 音乐中心</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Music Hub">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img">
+            <rect width="64" height="64" rx="14" fill="#6200ee" />
+            <path
+              fill="#fff"
+              d="M35 13v28.1A9 9 0 1 1 27 32.2V21h16v-8h-8Zm-8 36a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+            />
+          </svg>
+        </span>
+        <span>Music Hub</span>
+      </a>
+      <nav class="header-actions" aria-label="Primary">
+        <a href="#features" data-i18n="navFeatures">功能</a>
+        <a href="#workflow" data-i18n="navWorkflow">工作方式</a>
+        <a href="#download" data-i18n="navDownload">下载</a>
+        <button class="language-toggle" type="button" data-language-toggle>
+          <span aria-hidden="true">EN</span>
+          <span class="sr-only" data-i18n="languageButtonSr">切换到英文</span>
+        </button>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero-section" aria-labelledby="hero-title">
+        <div class="hero-backdrop" aria-hidden="true">
+          <div class="signal signal-red"></div>
+          <div class="signal signal-green"></div>
+          <div class="signal signal-blue"></div>
+        </div>
+
+        <div class="hero-content">
+          <p class="eyebrow" data-i18n="eyebrow">跨平台音乐遥控器</p>
+          <h1 id="hero-title" data-i18n="heroTitle">音乐中心</h1>
+          <p class="hero-copy" data-i18n="heroCopy">
+            把网易云音乐、QQ音乐和哔哩哔哩的歌曲放进同一个曲库，用官方 App 播放，用本应用管理队列和切歌。
+          </p>
+          <div class="hero-actions">
+            <a class="primary-button" href="#download">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 21h14" />
+              </svg>
+              <span data-i18n="downloadCta">下载 Android 预览版</span>
+            </a>
+            <a class="secondary-button" href="#workflow" data-i18n="learnCta">查看工作方式</a>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-label="Music Hub app preview">
+          <div class="phone-shell">
+            <div class="phone-status"></div>
+            <div class="app-topbar">
+              <span data-i18n="mockTitle">播放队列</span>
+              <span class="pill">Live</span>
+            </div>
+            <div class="now-playing">
+              <span class="album-art">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v10.5A4 4 0 1 1 10 10V7h8V3h-6Z" />
+                </svg>
+              </span>
+              <div>
+                <strong data-i18n="mockSong">跨平台歌单</strong>
+                <span data-i18n="mockMeta">官方 App 播放</span>
+              </div>
+            </div>
+            <div class="queue-list">
+              <div class="queue-row netease">
+                <span class="platform-dot"></span>
+                <span data-i18n="platformNetease">网易云音乐</span>
+                <strong>03:42</strong>
+              </div>
+              <div class="queue-row qqmusic">
+                <span class="platform-dot"></span>
+                <span data-i18n="platformQq">QQ音乐</span>
+                <strong>04:08</strong>
+              </div>
+              <div class="queue-row bilibili">
+                <span class="platform-dot"></span>
+                <span data-i18n="platformBili">哔哩哔哩</span>
+                <strong>05:16</strong>
+              </div>
+            </div>
+            <div class="control-strip">
+              <span></span>
+              <button type="button" aria-label="Previous">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m17 18-6-6 6-6v12ZM7 6v12" /></svg>
+              </button>
+              <button class="play-button" type="button" aria-label="Play">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7V5Z" /></svg>
+              </button>
+              <button type="button" aria-label="Next">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 18 6-6-6-6v12Zm10 0V6" /></svg>
+              </button>
+              <span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section positioning-section" id="positioning" aria-labelledby="positioning-title">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="positionEyebrow">核心定位</p>
+          <h2 id="positioning-title" data-i18n="positionTitle">它不是播放器，而是跨平台遥控器。</h2>
+          <p data-i18n="positionCopy">
+            Music Hub 不播放、不下载、不缓存任何音乐。它通过深度链接打开官方 App，让你继续使用原平台会员和曲库。
+          </p>
+        </div>
+        <div class="comparison-grid">
+          <article>
+            <span class="comparison-icon muted">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10H7zM4 4h16v16H4z" /></svg>
+            </span>
+            <h3 data-i18n="cardPlatformTitle">平台 App</h3>
+            <p data-i18n="cardPlatformCopy">只管理自己的歌单和曲库，很难把多平台歌曲放进同一个播放队列。</p>
+          </article>
+          <article>
+            <span class="comparison-icon warning">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 18H2L12 3Zm0 6v5m0 4h.01" /></svg>
+            </span>
+            <h3 data-i18n="cardAggregatorTitle">聚合播放器</h3>
+            <p data-i18n="cardAggregatorCopy">通常依赖逆向接口或抓取音频数据，维护成本高，也容易触碰平台限制。</p>
+          </article>
+          <article>
+            <span class="comparison-icon primary">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.5A4 4 0 1 1 10 10V7h8V3h-6Z" /></svg>
+            </span>
+            <h3 data-i18n="cardHubTitle">Music Hub</h3>
+            <p data-i18n="cardHubCopy">统一管理跨平台歌单，播放时调起官方 App，自动衔接下一首。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section workflow-section" id="workflow" aria-labelledby="workflow-title">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="workflowEyebrow">工作方式</p>
+          <h2 id="workflow-title" data-i18n="workflowTitle">从分享链接到跨平台连续播放。</h2>
+          <p data-i18n="workflowCopy">
+            系统把复杂流程拆成四件事：识别歌曲、保存队列、委托播放、监听状态。用户看到的是一个统一歌单，底层仍然尊重各平台的播放边界。
+          </p>
+        </div>
+        <div class="workflow-grid">
+          <article>
+            <span class="step-index">01</span>
+            <h3 data-i18n="workflowAddTitle">1. 歌曲入库</h3>
+            <p data-i18n="workflowAddCopy">
+              从音乐 App 分享或粘贴链接后，LinkParser 解析短链接、平台 ID、标题和艺术家，并按平台处理器补齐元数据。
+            </p>
+          </article>
+          <article>
+            <span class="step-index">02</span>
+            <h3 data-i18n="workflowQueueTitle">2. 统一队列</h3>
+            <p data-i18n="workflowQueueCopy">
+              歌曲以“平台 + 平台歌曲 ID”去重写入本地 Room 数据库，可混合编入同一个播放列表。
+            </p>
+          </article>
+          <article>
+            <span class="step-index">03</span>
+            <h3 data-i18n="workflowDelegateTitle">3. 播放委托</h3>
+            <p data-i18n="workflowDelegateCopy">
+              播放时生成网易云、QQ 音乐或 B 站的目标链接，启动官方 App 执行真实播放，保留会员权益。
+            </p>
+          </article>
+          <article>
+            <span class="step-index">04</span>
+            <h3 data-i18n="workflowMonitorTitle">4. 状态监听</h3>
+            <p data-i18n="workflowMonitorCopy">
+              通过 Android MediaSession/通知访问读取播放状态和进度，在接近结尾时自动切到队列里的下一首。
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section architecture-section" aria-labelledby="architecture-title">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="architectureEyebrow">技术结构</p>
+          <h2 id="architecture-title" data-i18n="architectureTitle">关键模块各司其职。</h2>
+          <p data-i18n="architectureCopy">
+            系统架构可以概括为五个内部层次和一个外部播放层：界面负责组织，悬浮窗负责控制，服务层负责调度，平台层负责解析和启动，数据层负责持久化。
+          </p>
+        </div>
+        <div class="architecture-layout">
+          <div class="module-stack" aria-label="Music Hub module stack">
+            <article class="module-card module-ui">
+              <span>UI</span>
+              <div>
+                <h3 data-i18n="layerUiTitle">表现层</h3>
+                <p data-i18n="layerUiCopy">首页、曲库、歌单、发现、添加歌曲、同步源和设置页面统一承载日常操作。</p>
+              </div>
+            </article>
+            <article class="module-card module-overlay">
+              <span>Overlay</span>
+              <div>
+                <h3 data-i18n="layerOverlayTitle">悬浮控制层</h3>
+                <p data-i18n="layerOverlayCopy">完整控制窗和迷你浮球覆盖在其他 App 上方，提供播放、进度和队列入口。</p>
+              </div>
+            </article>
+            <article class="module-card module-service">
+              <span>Service</span>
+              <div>
+                <h3 data-i18n="layerServiceTitle">服务层</h3>
+                <p data-i18n="layerServiceCopy">播放服务、媒体监控、深度链接启动器、无障碍辅助和远程控制服务协同完成切歌。</p>
+              </div>
+            </article>
+            <article class="module-card module-platform">
+              <span>Platform</span>
+              <div>
+                <h3 data-i18n="layerPlatformTitle">平台处理层</h3>
+                <p data-i18n="layerPlatformCopy">NetEase、QQ Music、Bilibili 处理器负责链接识别、元数据获取、可用性检测和播放入口生成。</p>
+              </div>
+            </article>
+            <article class="module-card module-data">
+              <span>Data</span>
+              <div>
+                <h3 data-i18n="layerDataTitle">数据层</h3>
+                <p data-i18n="layerDataCopy">Room + SQLite 保存歌曲、歌单、队列顺序和同步源，使用 Kotlin Flow 更新界面。</p>
+              </div>
+            </article>
+          </div>
+          <aside class="official-app-panel">
+            <h3 data-i18n="layerOfficialTitle">官方 App</h3>
+            <p data-i18n="layerOfficialCopy">音频解码、流媒体传输和 DRM 验证仍由各平台官方客户端完成。</p>
+            <div class="official-app-list">
+              <span data-i18n="platformNetease">网易云音乐</span>
+              <span data-i18n="platformQq">QQ音乐</span>
+              <span data-i18n="platformBili">哔哩哔哩</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section feature-section" id="features" aria-labelledby="features-title">
+        <div class="section-heading compact">
+          <p class="eyebrow" data-i18n="featuresEyebrow">功能特点</p>
+          <h2 id="features-title" data-i18n="featuresTitle">面向真实播放习惯的歌单管理。</h2>
+        </div>
+        <div class="feature-grid">
+          <article>
+            <h3 data-i18n="featureLibraryTitle">统一音乐库</h3>
+            <p data-i18n="featureLibraryCopy">把不同平台的歌曲集中到一个本地曲库中管理。</p>
+          </article>
+          <article>
+            <h3 data-i18n="featurePlaylistTitle">跨平台播放列表</h3>
+            <p data-i18n="featurePlaylistCopy">创建包含网易云、QQ音乐和 B 站歌曲的混合歌单。</p>
+          </article>
+          <article>
+            <h3 data-i18n="featureAdvanceTitle">自动切歌</h3>
+            <p data-i18n="featureAdvanceCopy">监听官方 App 播放状态，当前歌曲结束后打开下一首。</p>
+          </article>
+          <article>
+            <h3 data-i18n="featureFloatingTitle">悬浮窗控制</h3>
+            <p data-i18n="featureFloatingCopy">在其他 App 上方保留播放控制，减少来回切换。</p>
+          </article>
+          <article>
+            <h3 data-i18n="featureShareTitle">分享接收</h3>
+            <p data-i18n="featureShareCopy">从音乐 App 分享链接到 Music Hub，快速添加歌曲。</p>
+          </article>
+          <article>
+            <h3 data-i18n="featureLocalTitle">本地存储</h3>
+            <p data-i18n="featureLocalCopy">歌单数据保存在设备本地，不需要账号服务器。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="platform-band" aria-label="Supported platforms">
+        <div class="platform-item">
+          <span class="platform-logo netease-logo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm0 14.5A4.5 4.5 0 1 1 12 7.5a4.5 4.5 0 0 1 0 9Zm0-7A2.5 2.5 0 1 0 12 14.5 2.5 2.5 0 0 0 12 9.5Z" />
+            </svg>
+          </span>
+          <span data-i18n="platformNetease">网易云音乐</span>
+        </div>
+        <div class="platform-item">
+          <span class="platform-logo qq-logo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6Z" />
+            </svg>
+          </span>
+          <span data-i18n="platformQq">QQ音乐</span>
+        </div>
+        <div class="platform-item">
+          <span class="platform-logo bili-logo">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M17.62 2.56c-.69-.69-1.99.09-1.99.09L12 5.6 8.37 2.65s-1.3-.78-1.99-.09c-.69.69-.28 1.66-.28 1.66L7.5 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3.5l1.4-1.78s.41-.97-.28-1.66ZM9 15a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" />
+            </svg>
+          </span>
+          <span data-i18n="platformBili">哔哩哔哩</span>
+        </div>
+      </section>
+
+      <section class="section details-section" aria-labelledby="details-title">
+        <div class="section-heading compact">
+          <p class="eyebrow" data-i18n="detailsEyebrow">安装前说明</p>
+          <h2 id="details-title" data-i18n="detailsTitle">透明说明权限和限制。</h2>
+        </div>
+        <div class="details-grid">
+          <article>
+            <h3 data-i18n="permissionsTitle">需要的权限</h3>
+            <ul>
+              <li data-i18n="permissionOverlay">悬浮窗权限：在其他 App 上方显示播放控制。</li>
+              <li data-i18n="permissionNotification">通知使用权：检测歌曲播放结束。</li>
+              <li data-i18n="permissionAccessibility">无障碍服务：帮助 QQ 音乐进入播放器页面。</li>
+              <li data-i18n="permissionPost">通知权限：显示前台服务状态。</li>
+            </ul>
+          </article>
+          <article>
+            <h3 data-i18n="limitsTitle">已知限制</h3>
+            <ul>
+              <li data-i18n="limitForeground">切歌时目标音乐 App 会切到前台。</li>
+              <li data-i18n="limitPlatform">会员歌曲仍然需要你拥有对应平台会员。</li>
+              <li data-i18n="limitSync">歌单同步当前以网易云和 QQ 音乐为主，B 站内容仍可作为歌曲入库和播放。</li>
+              <li data-i18n="limitPreview">当前下载为调试预览版，适合早期试用。</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="download-section" id="download" aria-labelledby="download-title">
+        <div>
+          <p class="eyebrow" data-i18n="downloadEyebrow">Android 下载</p>
+          <h2 id="download-title" data-i18n="downloadTitle">获取 Music Hub 预览版</h2>
+          <p data-i18n="downloadCopy">
+            下载 debug APK 后在 Android 8.0 及以上设备安装。首次使用需要按提示授予悬浮窗、通知和无障碍相关权限。
+          </p>
+        </div>
+        <div class="download-panel">
+          <span class="version-badge" data-version-label>v1.0.0 debug</span>
+          <a class="primary-button" data-download-link href="./downloads/music-hub-1.0.0-debug.apk" download>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v11m0 0 4-4m-4 4-4-4M5 21h14" />
+            </svg>
+            <span data-i18n="downloadButton">下载 APK</span>
+          </a>
+          <p data-i18n="downloadNote">APK 会随 Cloudflare Pages 构建一起生成；也可用 VITE_DOWNLOAD_URL 指向外部下载地址。</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>Music Hub</span>
+      <span data-i18n="footerText">跨平台音乐播放列表管理器和启动器。</span>
+    </footer>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

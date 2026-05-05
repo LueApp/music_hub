@@ -86,6 +86,33 @@ pixi run deploy
 pixi run logcat-app
 ```
 
+### 网站部署 Website Deployment
+
+项目主页位于 `site/`，推荐在 Cloudflare Pages 网站中连接 GitHub 仓库并配置构建，不需要在仓库中保存 Cloudflare 部署 Token。
+
+当前 Pages 构建会自动安装 Android SDK、构建 debug APK，并把 APK 放入网页产物的 `downloads/` 目录，供下载按钮使用。构建脚本同时写入 `site/public/downloads/` 和 `site/downloads/`，所以 Cloudflare 发布 `site/dist` 或误发布原始 `site/` 时下载链接都可用。
+
+Cloudflare Pages 构建设置：
+
+| 设置 | 值 |
+|---|---|
+| Framework preset | Vite |
+| Root directory | 留空，使用仓库根目录 |
+| Build command | `npm ci && npm run build` |
+| Build output directory | `site/dist` |
+| Node.js version | `24` |
+
+如果不想在 Pages 中构建 APK，也可以把 Build command 改为 `npm ci && npm run build:site`，并在 Cloudflare Pages 环境变量中配置 `VITE_DOWNLOAD_URL` 为外部 APK 下载地址。
+
+本地预览：
+
+```bash
+cd site
+npm ci
+npm run build
+npm run preview
+```
+
 ---
 
 ## 开发命令 Development Commands
