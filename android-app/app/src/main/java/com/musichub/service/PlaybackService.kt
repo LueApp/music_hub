@@ -22,6 +22,7 @@ import com.musichub.platform.PlatformHandler
 import com.musichub.platform.NetEasePlatform
 import com.musichub.platform.QQMusicPlatform
 import com.musichub.platform.BilibiliPlatform
+import com.musichub.remote.RemoteMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,8 +36,9 @@ class PlaybackService : Service() {
 
     private val binder = LocalBinder()
     private var queue: MutableList<Song> = mutableListOf()
-    private var currentIndex: Int = -1
+    @Volatile private var currentIndex: Int = -1
     private var isPlaying: Boolean = false
+    private val queueLock = Any()
 
     // Coroutine scope for async operations (availability checks)
     private val serviceJob = SupervisorJob()
@@ -45,6 +47,12 @@ class PlaybackService : Service() {
     // Track skipped songs to prevent infinite loops when all songs are unavailable
     private var consecutiveSkips: Int = 0
     private val MAX_CONSECUTIVE_SKIPS = 10
+
+    // Post-launch playback timeout: detect songs that fail to play at runtime
+    private val PLAYBACK_TIMEOUT_MS = 15000L
+    private var playbackTimeoutRunnable: Runnable? = null
+    private var lastLaunchedSongId: Long = -1L
+    private val timeoutHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     // Wake lock to keep CPU running while playing
     private var wakeLock: PowerManager.WakeLock? = null
@@ -74,15 +82,6 @@ class PlaybackService : Service() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == MediaMonitorService.ACTION_SONG_FINISHED) {
                 Log.d(TAG, "Received song finished broadcast")
-
-                // Don't auto-advance if current song is from Bilibili
-                // Bilibili is for video content, not sequential audio playback
-                val currentSong = getCurrentSong()
-                if (currentSong?.platform == Platforms.BILIBILI) {
-                    Log.d(TAG, "Current song is Bilibili content, skipping auto-advance")
-                    return
-                }
-
                 playNext()
             }
         }
@@ -256,9 +255,11 @@ class PlaybackService : Service() {
     // Queue management
 
     fun setQueue(songs: List<Song>, startIndex: Int = 0) {
-        queue.clear()
-        queue.addAll(songs)
-        currentIndex = startIndex
+        synchronized(queueLock) {
+            queue.clear()
+            queue.addAll(songs)
+            currentIndex = startIndex
+        }
         Log.i(TAG, "Queue set with ${songs.size} songs, starting at index $startIndex")
         notifyQueueChangeListeners(queue.toList())
 
@@ -273,51 +274,59 @@ class PlaybackService : Service() {
     }
 
     fun addToQueue(song: Song) {
-        queue.add(song)
+        synchronized(queueLock) { queue.add(song) }
         Log.i(TAG, "Added to queue: ${song.title}")
         notifyQueueChangeListeners(queue.toList())
     }
 
     fun clearQueue() {
-        queue.clear()
-        currentIndex = -1
+        cancelPlaybackTimeout()
+        synchronized(queueLock) {
+            queue.clear()
+            currentIndex = -1
+        }
         isPlaying = false
         notifyQueueChangeListeners(emptyList())
         notifySongChangeListeners(null)
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
-    fun getQueue(): List<Song> = queue.toList()
+    fun getQueue(): List<Song> = synchronized(queueLock) { queue.toList() }
 
-    fun getCurrentSong(): Song? {
-        return if (currentIndex in queue.indices) queue[currentIndex] else null
+    fun getCurrentSong(): Song? = synchronized(queueLock) {
+        if (currentIndex in queue.indices) queue[currentIndex] else null
     }
 
     fun getCurrentIndex(): Int = currentIndex
 
-    fun getRemainingCount(): Int {
-        return if (currentIndex < 0) queue.size else queue.size - currentIndex - 1
+    fun getRemainingCount(): Int = synchronized(queueLock) {
+        if (currentIndex < 0) queue.size else queue.size - currentIndex - 1
     }
 
     // Playback control
 
     fun playSong(song: Song) {
-        // Check if song is already in queue
-        val existingIndex = queue.indexOfFirst { it.id == song.id }
-        if (existingIndex >= 0) {
-            currentIndex = existingIndex
-        } else {
-            queue.add(song)
-            currentIndex = queue.size - 1
+        synchronized(queueLock) {
+            // Check if song is already in queue
+            val existingIndex = queue.indexOfFirst { it.id == song.id }
+            if (existingIndex >= 0) {
+                currentIndex = existingIndex
+            } else {
+                queue.add(song)
+                currentIndex = queue.size - 1
+            }
         }
         launchCurrentSong()
     }
 
     fun playAtIndex(index: Int) {
-        if (index in queue.indices) {
-            currentIndex = index
-            launchCurrentSong()
+        val valid = synchronized(queueLock) {
+            if (index in queue.indices) {
+                currentIndex = index
+                true
+            } else false
         }
+        if (valid) launchCurrentSong()
     }
 
     fun playNext(): Boolean {
@@ -336,7 +345,7 @@ class PlaybackService : Service() {
                     // Reshuffle and start over
                     generateShuffleOrder(-1)
                     shufflePosition = 0
-                    currentIndex = shuffledIndices[shufflePosition]
+                    synchronized(queueLock) { currentIndex = shuffledIndices[shufflePosition] }
                     launchCurrentSong()
                     return true
                 } else {
@@ -346,28 +355,32 @@ class PlaybackService : Service() {
                     return false
                 }
             }
-            currentIndex = shuffledIndices[shufflePosition]
+            synchronized(queueLock) { currentIndex = shuffledIndices[shufflePosition] }
             launchCurrentSong()
             return true
         }
 
         // Normal sequential playback
-        return if (currentIndex < queue.size - 1) {
-            currentIndex++
+        val hasNext = synchronized(queueLock) {
+            if (currentIndex < queue.size - 1) {
+                currentIndex++
+                true
+            } else if (repeatMode == RepeatMode.ALL) {
+                currentIndex = 0
+                true
+            } else {
+                false
+            }
+        }
+
+        return if (hasNext) {
             launchCurrentSong()
             true
         } else {
-            // End of queue
-            if (repeatMode == RepeatMode.ALL) {
-                currentIndex = 0
-                launchCurrentSong()
-                true
-            } else {
-                Log.i(TAG, "End of queue reached")
-                isPlaying = false
-                showToast("播放完毕")
-                false
-            }
+            Log.i(TAG, "End of queue reached")
+            isPlaying = false
+            showToast("播放完毕")
+            false
         }
     }
 
@@ -376,13 +389,13 @@ class PlaybackService : Service() {
         if (shuffleEnabled && shuffledIndices.isNotEmpty()) {
             if (shufflePosition > 0) {
                 shufflePosition--
-                currentIndex = shuffledIndices[shufflePosition]
+                synchronized(queueLock) { currentIndex = shuffledIndices[shufflePosition] }
                 launchCurrentSong()
                 return true
             } else if (repeatMode == RepeatMode.ALL) {
                 // Go to end of shuffled list
                 shufflePosition = shuffledIndices.size - 1
-                currentIndex = shuffledIndices[shufflePosition]
+                synchronized(queueLock) { currentIndex = shuffledIndices[shufflePosition] }
                 launchCurrentSong()
                 return true
             }
@@ -390,13 +403,19 @@ class PlaybackService : Service() {
         }
 
         // Normal sequential playback
-        return if (currentIndex > 0) {
-            currentIndex--
-            launchCurrentSong()
-            true
-        } else if (repeatMode == RepeatMode.ALL) {
-            // Go to end of queue
-            currentIndex = queue.size - 1
+        val hasPrev = synchronized(queueLock) {
+            if (currentIndex > 0) {
+                currentIndex--
+                true
+            } else if (repeatMode == RepeatMode.ALL) {
+                currentIndex = queue.size - 1
+                true
+            } else {
+                false
+            }
+        }
+
+        return if (hasPrev) {
             launchCurrentSong()
             true
         } else {
@@ -405,6 +424,7 @@ class PlaybackService : Service() {
     }
 
     fun stop() {
+        cancelPlaybackTimeout()
         isPlaying = false
         releaseWakeLock()
         releaseScreenWakeLock()
@@ -413,6 +433,7 @@ class PlaybackService : Service() {
     }
 
     private fun launchCurrentSong() {
+        cancelPlaybackTimeout()
         val song = getCurrentSong() ?: return
         val handler = getHandlerForPlatform(song.platform)
 
@@ -471,6 +492,10 @@ class PlaybackService : Service() {
         // Determine the target platform's package name
         val targetPackage = Platforms.PACKAGE_NAMES[song.platform]
 
+        // Tell MediaMonitorService which platform is now active so it only
+        // triggers song-end detection from the correct controller
+        MediaMonitorService.getInstance()?.setCurrentPlatform(targetPackage)
+
         // Pause all currently playing media before launching the new song
         // Pass the target package so we know if this is a same-platform or cross-platform switch
         // For same-platform switches, we skip repeated pause attempts to avoid pausing the new song
@@ -480,9 +505,11 @@ class PlaybackService : Service() {
 
         // Determine delay based on platform switching
         // Longer delay when switching between different platforms to ensure pause takes effect
-        val previousSong = if (currentIndex > 0 && currentIndex - 1 < queue.size) {
-            queue.getOrNull(currentIndex - 1)
-        } else null
+        val previousSong = synchronized(queueLock) {
+            if (currentIndex > 0 && currentIndex - 1 < queue.size) {
+                queue.getOrNull(currentIndex - 1)
+            } else null
+        }
 
         val isPlatformSwitch = previousSong != null && previousSong.platform != song.platform
         val launchDelay = if (isPlatformSwitch) 300L else 100L  // Longer delay for platform switch
@@ -514,6 +541,9 @@ class PlaybackService : Service() {
 
         // Update floating window if active
         FloatingWindowService.updateCurrentSong(this, song)
+
+        // Schedule playback timeout to detect runtime failures
+        schedulePlaybackTimeout(song)
 
         Log.i(TAG, "Now playing: ${song.title} by ${song.artist} (${song.platform})")
     }
@@ -625,6 +655,66 @@ class PlaybackService : Service() {
         shuffledIndices.addAll(indices)
 
         Log.d(TAG, "Generated shuffle order: $shuffledIndices")
+    }
+
+    // --- Playback timeout detection ---
+
+    private fun cancelPlaybackTimeout() {
+        playbackTimeoutRunnable?.let {
+            timeoutHandler.removeCallbacks(it)
+            playbackTimeoutRunnable = null
+        }
+    }
+
+    private fun schedulePlaybackTimeout(song: Song) {
+        // Don't schedule for controller mode (MediaMonitorService runs on player phone)
+        if (RemoteMode.isController()) {
+            return
+        }
+
+        cancelPlaybackTimeout()
+        lastLaunchedSongId = song.id
+
+        val runnable = Runnable {
+            // Verify this timeout is still for the current song
+            if (song.id != lastLaunchedSongId) {
+                Log.d(TAG, "Playback timeout fired for stale song ${song.title}, ignoring")
+                return@Runnable
+            }
+
+            val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
+            if (playbackInfo?.isPlaying == true) {
+                // Song is playing fine — reset consecutive skips
+                Log.d(TAG, "Playback timeout check: ${song.title} is playing, all good")
+                consecutiveSkips = 0
+                return@Runnable
+            }
+
+            // Song failed to start playing
+            Log.w(TAG, "Playback timeout: ${song.title} by ${song.artist} (${song.platform}/${song.platformSongId}) - skipping [skip ${consecutiveSkips + 1}/$MAX_CONSECUTIVE_SKIPS]")
+            consecutiveSkips++
+
+            if (consecutiveSkips >= MAX_CONSECUTIVE_SKIPS) {
+                showToast("连续多首歌曲不可用，已停止播放")
+                stop()
+                return@Runnable
+            }
+
+            showToast("跳过: ${song.title} (播放超时)")
+
+            // For QQ Music, dismiss the error dialog before skipping to next song
+            if (song.platform == Platforms.QQMUSIC) {
+                PlayerAccessibilityService.dismissQQMusicDialog()
+                // Delay to let dialog close animation complete before launching next song
+                timeoutHandler.postDelayed({ playNext() }, 500L)
+            } else {
+                playNext()
+            }
+        }
+
+        playbackTimeoutRunnable = runnable
+        timeoutHandler.postDelayed(runnable, PLAYBACK_TIMEOUT_MS)
+        Log.d(TAG, "Scheduled playback timeout for ${song.title} (${PLAYBACK_TIMEOUT_MS}ms)")
     }
 
     companion object {
