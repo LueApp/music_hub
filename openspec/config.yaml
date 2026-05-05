@@ -1,0 +1,95 @@
+schema: spec-driven
+
+context: |
+  ## Project: Music Hub (音乐枢纽)
+  Cross-platform music playlist manager and launcher for Chinese music platforms.
+  Does NOT stream or download music — organizes songs into unified playlists and
+  deep-links into the correct app (NetEase Cloud Music, QQ Music, Bilibili) for playback.
+
+  ## Tech Stack
+  - Language: Kotlin 1.9+
+  - Min SDK: Android 8.0 (API 26), Target SDK: Android 14 (API 34)
+  - UI: Material 3 + ViewBinding
+  - Navigation: Jetpack Navigation Component
+  - Database: Room (SQLite) — entities: Song, Playlist, PlaylistItem
+  - Networking: OkHttp
+  - Image Loading: Coil
+  - Async: Kotlin Coroutines + Flow
+  - Architecture: MVVM (ViewModel + Repository)
+  - Build: Gradle 8.5 + Kotlin DSL, managed via Pixi (JDK 17 + Gradle)
+
+  ## Key Architecture
+  - Platform Handler pattern: PlatformHandler interface with NetEasePlatform, QQMusicPlatform, BilibiliPlatform
+  - Services: PlaybackService (queue + deep link launching), FloatingWindowService (SYSTEM_ALERT_WINDOW overlay),
+    MediaMonitorService (NotificationListenerService for playback state detection), ShareReceiver (share intent),
+    RemoteServerService (foreground service wrapping NanoHTTPD server for LAN remote control)
+  - Deep links: orpheus:// (NetEase), qqmusic:// (QQ Music), HTTPS fallback (Bilibili)
+  - Database: Room with Flow-based reactive queries, unique constraint on (platform, platform_song_id)
+  - Remote Control: LAN-based remote control via NanoHTTPD (HTTP REST + WebSocket on port 8765)
+    - Three app modes: STANDALONE / PLAYER / CONTROLLER (managed by RemoteMode singleton)
+    - Player phone runs embedded HTTP server (RemoteServer) exposing playback control, queue, library APIs
+    - Controller phone connects via OkHttp (RemoteClient) — sends HTTP commands, receives WebSocket state updates
+    - Remote modules: remote/RemoteMode.kt, RemoteModels.kt, RemoteServer.kt, RemoteServerService.kt, RemoteClient.kt
+    - UI components (FloatingWindowService, MainActivity, fragments) branch on RemoteMode.isController() for remote vs local behavior
+    - Cooldown pattern used to prevent UI snap-back from stale WebSocket state updates after user actions
+
+  ## Project Structure
+  - Primary implementation: android-app/ (Native Kotlin Android)
+  - Legacy prototype: src/ + main.py (Python/Kivy — not actively maintained)
+  - Remote control modules: android-app/app/src/main/java/com/musichub/remote/
+  - Build/deploy: pixi run build, pixi run deploy, pixi run test
+
+  ## Developer Context
+  - Developer is experienced in C++/Python3, NOT familiar with Android development
+  - No Android Studio — command-line only (pixi, gradle, adb)
+  - Prefers practical, working code over over-engineered abstractions
+  - Git workflow: commit after every fix or feature
+
+  ## Coding Conventions
+  - Kotlin idioms (data classes, sealed classes, extension functions)
+  - All user-facing strings in strings.xml (Chinese locale)
+  - ViewBinding for all layouts (no findViewById)
+  - Coroutines for async, Flow for reactive data
+  - MVVM: Fragment -> ViewModel -> Repository -> DAO
+  - Logging: Log.d(TAG, ...) with consistent TAG per class
+
+  ## Known Limitations
+  - No background song switching: startActivity() always foregrounds the target app
+  - NetEase landscape orientation detection bug (known, documented)
+  - Special permissions required: SYSTEM_ALERT_WINDOW, BIND_NOTIFICATION_LISTENER_SERVICE, POST_NOTIFICATIONS
+  - Remote control: RemoteMode is in-memory only (not persisted across app restarts, relies on SharedPreferences re-init in SettingsFragment)
+  - Remote control: WebSocket state updates every 500ms can cause UI snap-back; mitigated with cooldown timers
+
+  ## Dependencies
+  - NanoHTTPD: nanohttpd:2.3.1 + nanohttpd-websocket:2.3.1 (embedded HTTP/WebSocket server for remote control)
+  - OkHttp: HTTP client (used for remote control client + platform metadata fetching)
+  - Coil: Image loading
+  - Room: SQLite database with Flow-based reactive queries
+  - Gson: JSON serialization for remote control API (note: bypasses Kotlin null safety — use defensive casts)
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section to clarify scope boundaries
+    - Reference which platform apps (NetEase/QQ Music/Bilibili) are affected
+    - Note any Android permission implications if the change involves new system features
+    - Keep proposals concise and focused on the "what" and "why"
+  design:
+    - Reference existing architecture patterns (PlatformHandler, MVVM, Room entities)
+    - Specify which existing services/components are affected
+    - Use Kotlin code examples for interface changes or new patterns
+    - Note any Android API level compatibility concerns (min API 26)
+    - Consider impact on the floating window overlay and media monitoring services
+    - For features touching playback or UI, specify behavior in all three modes (standalone, player, controller)
+    - Note Gson null-safety concerns when adding new remote API data classes
+  specs:
+    - Define behavior for all three supported platforms where applicable (NetEase, QQ Music, Bilibili)
+    - Include deep link format changes if applicable
+    - Specify Room entity/DAO changes with migration strategy
+    - Cover edge cases for share intent handling if relevant
+  tasks:
+    - Each task should be independently testable via `pixi run build` and `pixi run test`
+    - Order tasks so database/model changes come first, then service layer, then UI
+    - Include a final task for build verification and manual testing on device
+    - Reference specific file paths in android-app/app/src/main/java/com/musichub/
+    - Keep tasks small and focused — one logical change per task
+    - For remote-related changes, include testing steps for both player and controller modes

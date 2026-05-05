@@ -77,6 +77,10 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
 
+    // Embedded HTTP server for remote control
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
+    implementation("org.nanohttpd:nanohttpd-websocket:2.3.1")
+
     // Image Loading
     implementation("io.coil-kt:coil:2.5.0")
 

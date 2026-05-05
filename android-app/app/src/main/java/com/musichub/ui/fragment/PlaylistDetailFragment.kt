@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -14,14 +15,20 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
+import com.musichub.R
 import com.musichub.databinding.FragmentPlaylistDetailBinding
+import com.musichub.remote.RemoteClient
+import com.musichub.remote.RemoteMode
+import com.musichub.remote.toSong
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.PlaybackService
 import com.musichub.ui.MainActivity
 import com.musichub.ui.adapter.SongAdapter
 import com.musichub.ui.viewmodel.PlaylistDetailViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlaylistDetailFragment : Fragment() {
 
@@ -55,18 +62,27 @@ class PlaylistDetailFragment : Fragment() {
     private fun setupRecyclerView() {
         songAdapter = SongAdapter(
             onSongClick = { song ->
-                val playbackService = (activity as? MainActivity)?.getPlaybackService()
-                val allSongs = songAdapter.currentList
-                val index = allSongs.indexOfFirst { it.id == song.id }
-                if (index >= 0) {
-                    playbackService?.setQueue(allSongs, index)
-                    playbackService?.playAtIndex(index)
-                    FloatingWindowService.start(requireContext())
+                if (RemoteMode.isController()) {
+                    // In controller mode, play the entire playlist remotely starting at this song
+                    RemoteClient.playPlaylist(args.playlistId)
+                } else {
+                    val playbackService = (activity as? MainActivity)?.getPlaybackService()
+                    val allSongs = songAdapter.currentList
+                    val index = allSongs.indexOfFirst { it.id == song.id }
+                    if (index >= 0) {
+                        playbackService?.setQueue(allSongs, index)
+                        playbackService?.playAtIndex(index)
+                        FloatingWindowService.start(requireContext())
+                    }
                 }
             },
             onPlayClick = { song ->
-                (activity as? MainActivity)?.getPlaybackService()?.playSong(song)
-                FloatingWindowService.start(requireContext())
+                if (RemoteMode.isController()) {
+                    RemoteClient.playSong(song.id)
+                } else {
+                    (activity as? MainActivity)?.getPlaybackService()?.playSong(song)
+                    FloatingWindowService.start(requireContext())
+                }
             },
             onDeleteClick = { song ->
                 viewModel.removeSongFromPlaylist(song.id)
@@ -98,24 +114,34 @@ class PlaylistDetailFragment : Fragment() {
 
     private fun setupClickListeners() {
         binding.btnPlayAll.setOnClickListener {
-            val songs = songAdapter.currentList
-            if (songs.isNotEmpty()) {
-                val playbackService = (activity as? MainActivity)?.getPlaybackService()
-                playbackService?.setQueue(songs, 0)
-                playbackService?.playAtIndex(0)
-                // Start floating window for playback control
+            if (RemoteMode.isController()) {
+                RemoteClient.playPlaylist(args.playlistId)
                 FloatingWindowService.start(requireContext())
+            } else {
+                val songs = songAdapter.currentList
+                if (songs.isNotEmpty()) {
+                    val playbackService = (activity as? MainActivity)?.getPlaybackService()
+                    playbackService?.setQueue(songs, 0)
+                    playbackService?.playAtIndex(0)
+                    FloatingWindowService.start(requireContext())
+                }
             }
         }
 
         binding.btnShuffle.setOnClickListener {
-            val songs = songAdapter.currentList.shuffled()
-            if (songs.isNotEmpty()) {
-                val playbackService = (activity as? MainActivity)?.getPlaybackService()
-                playbackService?.setQueue(songs, 0)
-                playbackService?.playAtIndex(0)
-                // Start floating window for playback control
+            if (RemoteMode.isController()) {
+                // Play playlist remotely, then toggle shuffle
+                RemoteClient.playPlaylist(args.playlistId)
+                RemoteClient.toggleShuffle()
                 FloatingWindowService.start(requireContext())
+            } else {
+                val songs = songAdapter.currentList.shuffled()
+                if (songs.isNotEmpty()) {
+                    val playbackService = (activity as? MainActivity)?.getPlaybackService()
+                    playbackService?.setQueue(songs, 0)
+                    playbackService?.playAtIndex(0)
+                    FloatingWindowService.start(requireContext())
+                }
             }
         }
 
@@ -134,16 +160,27 @@ class PlaylistDetailFragment : Fragment() {
      * Scroll to the currently playing song in the list.
      */
     private fun locateCurrentSong() {
-        val playbackService = PlaybackService.getInstance()
-        val currentSong = playbackService?.getCurrentSong()
+        val currentSongTitle: String?
+        val currentSongId: Long?
 
-        if (currentSong == null) {
+        if (RemoteMode.isController()) {
+            val remoteSong = RemoteClient.currentState?.currentSong
+            currentSongTitle = remoteSong?.title
+            currentSongId = remoteSong?.id
+        } else {
+            val playbackService = PlaybackService.getInstance()
+            val currentSong = playbackService?.getCurrentSong()
+            currentSongTitle = currentSong?.title
+            currentSongId = currentSong?.id
+        }
+
+        if (currentSongId == null) {
             Snackbar.make(binding.root, "当前没有正在播放的歌曲", Snackbar.LENGTH_SHORT).show()
             return
         }
 
         val songs = songAdapter.currentList
-        val index = songs.indexOfFirst { it.id == currentSong.id }
+        val index = songs.indexOfFirst { it.id == currentSongId }
 
         if (index >= 0) {
             // Scroll to the position with some offset to center it
@@ -151,13 +188,43 @@ class PlaylistDetailFragment : Fragment() {
                 index,
                 binding.rvSongs.height / 3
             )
-            Snackbar.make(binding.root, "已定位到: ${currentSong.title}", Snackbar.LENGTH_SHORT).show()
+            Snackbar.make(binding.root, "已定位到: ${currentSongTitle ?: ""}", Snackbar.LENGTH_SHORT).show()
         } else {
             Snackbar.make(binding.root, "当前歌曲不在此歌单中", Snackbar.LENGTH_SHORT).show()
         }
     }
 
     private fun observeData() {
+        if (RemoteMode.isController()) {
+            // In controller mode, fetch playlist songs from remote
+            binding.progressLoading?.visibility = View.VISIBLE
+            binding.rvSongs.visibility = View.GONE
+            binding.emptyState.visibility = View.GONE
+            binding.tvPlaylistName.text = args.playlistName
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val songs = withContext(Dispatchers.IO) {
+                        RemoteClient.fetchPlaylistSongs(args.playlistId).map { it.toSong() }
+                    }
+                    if (_binding == null) return@launch
+                    binding.progressLoading?.visibility = View.GONE
+                    songAdapter.submitList(songs)
+                    binding.tvSongCount.text = "${songs.size} 首歌曲"
+
+                    val isEmpty = songs.isEmpty()
+                    binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                    binding.rvSongs.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                } catch (e: Exception) {
+                    android.util.Log.e("PlaylistDetailFragment", "Failed to fetch remote playlist songs: ${e.message}", e)
+                    if (_binding == null) return@launch
+                    binding.progressLoading?.visibility = View.GONE
+                    binding.emptyState.visibility = View.VISIBLE
+                    Toast.makeText(context, R.string.remote_load_songs_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+            return
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.playlist.collectLatest { playlist ->
                 if (playlist != null) {

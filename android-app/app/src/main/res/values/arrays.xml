@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="remote_mode_entries">
+        <item>独立运行</item>
+        <item>播放端（服务器）</item>
+        <item>控制端（遥控器）</item>
+    </string-array>
+    <string-array name="remote_mode_values">
+        <item>standalone</item>
+        <item>player</item>
+        <item>controller</item>
+    </string-array>
+</resources>

@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -12,11 +13,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.musichub.R
+import com.musichub.data.model.Playlist
 import com.musichub.databinding.FragmentPlaylistsBinding
+import com.musichub.remote.RemoteClient
+import com.musichub.remote.RemoteMode
 import com.musichub.ui.adapter.PlaylistAdapter
 import com.musichub.ui.viewmodel.PlaylistsViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PlaylistsFragment : Fragment() {
 
@@ -104,6 +110,41 @@ class PlaylistsFragment : Fragment() {
     }
 
     private fun observeData() {
+        if (RemoteMode.isController()) {
+            // In controller mode, fetch playlists from remote server
+            binding.progressLoading.visibility = View.VISIBLE
+            binding.rvPlaylists.visibility = View.GONE
+            binding.emptyState.visibility = View.GONE
+            viewLifecycleOwner.lifecycleScope.launch {
+                try {
+                    val remotePlaylists = withContext(Dispatchers.IO) {
+                        RemoteClient.fetchPlaylists()
+                    }
+                    if (_binding == null) return@launch
+                    binding.progressLoading.visibility = View.GONE
+                    val playlists = remotePlaylists.map { remote ->
+                        Playlist(
+                            id = remote.id,
+                            name = (remote.name as String?) ?: "",
+                            description = (remote.description as String?) ?: ""
+                        )
+                    }
+                    playlistAdapter.submitList(playlists)
+
+                    val isEmpty = playlists.isEmpty()
+                    binding.emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                    binding.rvPlaylists.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                } catch (e: Exception) {
+                    android.util.Log.e("PlaylistsFragment", "Failed to fetch remote playlists: ${e.message}", e)
+                    if (_binding == null) return@launch
+                    binding.progressLoading.visibility = View.GONE
+                    binding.emptyState.visibility = View.VISIBLE
+                    Toast.makeText(context, R.string.remote_load_playlists_failed, Toast.LENGTH_SHORT).show()
+                }
+            }
+            return
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.playlists.collectLatest { playlists ->
                 playlistAdapter.submitList(playlists)

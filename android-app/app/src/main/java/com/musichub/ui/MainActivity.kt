@@ -17,6 +17,9 @@ import com.musichub.R
 import com.musichub.data.model.Song
 import com.musichub.databinding.ActivityMainBinding
 import com.musichub.platform.LinkParser
+import com.musichub.remote.RemoteClient
+import com.musichub.remote.RemoteMode
+import com.musichub.remote.RemoteState
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.PlaybackService
 import com.musichub.service.ShareReceiver
@@ -28,6 +31,42 @@ class MainActivity : AppCompatActivity() {
 
     private var playbackService: PlaybackService? = null
     private var serviceBound = false
+
+    // Connection status listener for controller mode
+    private val remoteConnectionListener: (Boolean) -> Unit = { connected ->
+        runOnUiThread {
+            if (connected) {
+                binding.tvConnectionStatus.visibility = View.GONE
+            } else {
+                binding.tvConnectionStatus.text = getString(R.string.remote_disconnected_reconnecting)
+                binding.tvConnectionStatus.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    // Remote state listener for controller mode
+    private val remoteStateListener: (RemoteState) -> Unit = { state ->
+        runOnUiThread {
+            val song = state.currentSong
+            if (song != null) {
+                binding.nowPlayingBar.visibility = View.VISIBLE
+                binding.tvNowPlayingTitle.text = song.title
+                binding.tvNowPlayingArtist.text = song.artist
+
+                val coverUrl = (song.coverUrl as String?) ?: ""
+                if (coverUrl.isNotEmpty()) {
+                    binding.ivNowPlayingCover.load(coverUrl) {
+                        placeholder(R.drawable.ic_album)
+                        error(R.drawable.ic_album)
+                    }
+                } else {
+                    binding.ivNowPlayingCover.setImageResource(R.drawable.ic_album)
+                }
+            } else {
+                binding.nowPlayingBar.visibility = View.GONE
+            }
+        }
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -56,7 +95,19 @@ class MainActivity : AppCompatActivity() {
 
         setupNavigation()
         setupNowPlayingBar()
-        bindPlaybackService()
+
+        if (RemoteMode.isController()) {
+            // In controller mode, listen to remote state updates instead of binding local service
+            RemoteClient.addStateListener(remoteStateListener)
+            RemoteClient.addConnectionListener(remoteConnectionListener)
+            // Show initial connection status
+            if (!RemoteClient.isConnected) {
+                binding.tvConnectionStatus.text = getString(R.string.remote_disconnected_reconnecting)
+                binding.tvConnectionStatus.visibility = View.VISIBLE
+            }
+        } else {
+            bindPlaybackService()
+        }
 
         // Handle share intent
         handleIntent(intent)
@@ -77,11 +128,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupNowPlayingBar() {
         binding.btnNowPlayingPrev.setOnClickListener {
-            playbackService?.playPrevious()
+            if (RemoteMode.isController()) {
+                RemoteClient.playPrevious()
+            } else {
+                playbackService?.playPrevious()
+            }
         }
 
         binding.btnNowPlayingNext.setOnClickListener {
-            playbackService?.playNext()
+            if (RemoteMode.isController()) {
+                RemoteClient.playNext()
+            } else {
+                playbackService?.playNext()
+            }
         }
 
         binding.nowPlayingBar.setOnClickListener {
@@ -148,6 +207,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        RemoteClient.removeStateListener(remoteStateListener)
+        RemoteClient.removeConnectionListener(remoteConnectionListener)
         if (serviceBound) {
             unbindService(serviceConnection)
             serviceBound = false

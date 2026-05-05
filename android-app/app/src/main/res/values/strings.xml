@@ -133,6 +133,11 @@
     <string name="confirm_delete">Are you sure you want to delete this?</string>
     <string name="confirm_delete_cn">确定要删除吗？</string>
 
+    <!-- Remote Control -->
+    <string name="remote_load_songs_failed">加载歌曲失败</string>
+    <string name="remote_load_playlists_failed">加载歌单失败</string>
+    <string name="remote_disconnected_reconnecting">已断开 - 重连中...</string>
+
     <!-- Errors -->
     <string name="error_network">Network error</string>
     <string name="error_network_cn">网络错误</string>
