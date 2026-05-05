@@ -1,6 +1,7 @@
 package com.musichub.ui.fragment
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -11,6 +12,7 @@ import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SwitchPreferenceCompat
 import com.musichub.MusicHubApplication
 import com.musichub.R
+import com.musichub.service.DeepLinkLauncher
 import com.musichub.service.FloatingWindowService
 import com.musichub.service.MediaMonitorService
 import com.musichub.service.PlayerAccessibilityService
@@ -62,6 +64,19 @@ class SettingsFragment : PreferenceFragmentCompat() {
             }
         }
 
+        // Write settings permission (for auto-rotate toggle workaround)
+        findPreference<Preference>("write_settings_access")?.apply {
+            setOnPreferenceClickListener {
+                if (!Settings.System.canWrite(requireContext())) {
+                    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                        data = Uri.parse("package:${requireContext().packageName}")
+                    }
+                    startActivity(intent)
+                }
+                true
+            }
+        }
+
         // Delete all songs preference
         findPreference<Preference>("delete_all_songs")?.apply {
             setOnPreferenceClickListener {
@@ -107,6 +122,12 @@ class SettingsFragment : PreferenceFragmentCompat() {
             if (!Settings.canDrawOverlays(requireContext())) {
                 isChecked = false
             }
+        }
+
+        // Update write settings status
+        findPreference<Preference>("write_settings_access")?.apply {
+            val canWrite = Settings.System.canWrite(requireContext())
+            summary = if (canWrite) "已授权" else "未授权 - 点击授权"
         }
     }
 }
