@@ -111,6 +111,34 @@ interface PlaylistItemDao {
     """)
     suspend fun getSyncedItemsForPlaylist(playlistId: Long): List<PlaylistItem>
 
+    @Query("""
+        SELECT songs.* FROM songs
+        INNER JOIN playlist_items ON songs.id = playlist_items.song_id
+        WHERE playlist_items.playlist_id = :playlistId
+        AND (songs.title LIKE '%' || :query || '%' OR songs.artist LIKE '%' || :query || '%')
+        ORDER BY playlist_items.position ASC
+    """)
+    fun searchSongsInPlaylist(query: String, playlistId: Long): Flow<List<Song>>
+
+    @Query("""
+        SELECT songs.* FROM songs
+        INNER JOIN playlist_items ON songs.id = playlist_items.song_id
+        WHERE playlist_items.playlist_id = :playlistId
+        AND songs.platform = :platform
+        ORDER BY playlist_items.position ASC
+    """)
+    fun getSongsInPlaylistByPlatform(playlistId: Long, platform: String): Flow<List<Song>>
+
+    @Query("""
+        SELECT songs.* FROM songs
+        INNER JOIN playlist_items ON songs.id = playlist_items.song_id
+        WHERE playlist_items.playlist_id = :playlistId
+        AND songs.platform = :platform
+        AND (songs.title LIKE '%' || :query || '%' OR songs.artist LIKE '%' || :query || '%')
+        ORDER BY playlist_items.position ASC
+    """)
+    fun searchSongsInPlaylistByPlatform(query: String, playlistId: Long, platform: String): Flow<List<Song>>
+
     @Transaction
     suspend fun reorderSong(playlistId: Long, songId: Long, newPosition: Int) {
         val item = getItem(playlistId, songId) ?: return
