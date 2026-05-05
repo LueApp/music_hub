@@ -103,24 +103,33 @@ class MediaMonitorService : NotificationListenerService() {
                     lastMetadataDuration > 0 &&
                     maxPositionReached > MIN_POSITION_FOR_END_MS) {
 
-                    // Check if we were near the end of the previous song
-                    // Method 1: Absolute time remaining (45 seconds threshold)
-                    val remainingTime = lastMetadataDuration - maxPositionReached
-                    val wasNearEndAbsolute = remainingTime <= 45000L
+                    // Sanity check: if maxPositionReached exceeds lastMetadataDuration by >10%,
+                    // it's stale data from a different song's playback state — ignore it
+                    if (maxPositionReached > lastMetadataDuration * 1.1) {
+                        Log.d(TAG, "Metadata change: maxPos=$maxPositionReached exceeds lastDuration=$lastMetadataDuration by >10%, stale position data — skipping song-end detection")
+                        maxPositionReached = 0
+                        lastPosition = 0
+                        songEndTriggered = false
+                    } else {
+                        // Check if we were near the end of the previous song
+                        // Method 1: Absolute time remaining (45 seconds threshold)
+                        val remainingTime = lastMetadataDuration - maxPositionReached
+                        val wasNearEndAbsolute = remainingTime <= 45000L
 
-                    // Method 2: Percentage-based (played more than 85% of the song)
-                    // This handles cases where position reporting lags behind actual playback
-                    val percentPlayed = (maxPositionReached.toDouble() / lastMetadataDuration.toDouble()) * 100
-                    val wasNearEndPercent = percentPlayed >= 85.0
+                        // Method 2: Percentage-based (played more than 85% of the song)
+                        // This handles cases where position reporting lags behind actual playback
+                        val percentPlayed = (maxPositionReached.toDouble() / lastMetadataDuration.toDouble()) * 100
+                        val wasNearEndPercent = percentPlayed >= 85.0
 
-                    val wasNearEnd = wasNearEndAbsolute || wasNearEndPercent
+                        val wasNearEnd = wasNearEndAbsolute || wasNearEndPercent
 
-                    Log.d(TAG, "Metadata change while playing: maxPos=$maxPositionReached, lastDuration=$lastMetadataDuration, remaining=$remainingTime, percentPlayed=${"%.1f".format(percentPlayed)}%, wasNearEnd=$wasNearEnd, alreadyTriggered=$songEndTriggered")
+                        Log.d(TAG, "Metadata change while playing: maxPos=$maxPositionReached, lastDuration=$lastMetadataDuration, remaining=$remainingTime, percentPlayed=${"%.1f".format(percentPlayed)}%, wasNearEnd=$wasNearEnd, alreadyTriggered=$songEndTriggered")
 
-                    // Only trigger if we haven't already triggered via early detection
-                    if (wasNearEnd && !songEndTriggered) {
-                        Log.d(TAG, "Song ended (metadata change detection). Triggering song finished.")
-                        sendSongFinishedBroadcast()
+                        // Only trigger if we haven't already triggered via early detection
+                        if (wasNearEnd && !songEndTriggered) {
+                            Log.d(TAG, "Song ended (metadata change detection). Triggering song finished.")
+                            sendSongFinishedBroadcast()
+                        }
                     }
 
                     // Reset tracking for the new song regardless of whether we triggered
@@ -237,10 +246,28 @@ class MediaMonitorService : NotificationListenerService() {
                 Log.d(TAG, "Removed media controller for: $pkg")
             }
 
-            // Add new controllers
+            // Add or update controllers
             controllers.forEach { controller ->
                 val pkg = controller.packageName
-                if (pkg in targetPackages && pkg !in activeControllers) {
+                if (pkg !in targetPackages) return@forEach
+
+                // Check if we already have a controller for this package
+                val existingController = activeControllers[pkg]
+                val isNewSession = existingController != null &&
+                    existingController.sessionToken != controller.sessionToken
+
+                if (isNewSession) {
+                    // Session token changed — the app created a new MediaSession.
+                    // The old controller is stale and its callback will never fire.
+                    Log.d(TAG, "Session token changed for $pkg, replacing stale controller")
+                    controllerCallbacks[pkg]?.let { cb ->
+                        try { existingController?.unregisterCallback(cb) } catch (_: Exception) {}
+                    }
+                    activeControllers.remove(pkg)
+                    controllerCallbacks.remove(pkg)
+                }
+
+                if (pkg !in activeControllers) {
                     try {
                         val cb = createCallbackForPackage(pkg)
                         controller.registerCallback(cb, handler)
@@ -341,11 +368,11 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         lastPlaybackState = currentState
-        // Only update lastPosition if it's a meaningful value (> 0)
-        // This prevents resetting lastPosition when song transitions happen
-        if (position > 0) {
+        // Only update positions if not during manual control (song switching).
+        // Stale state callbacks from the old song can re-set these after pauseAllMedia resets them,
+        // causing false song-end detection when the old position exceeds the new song's duration.
+        if (position > 0 && !manualControlActive) {
             lastPosition = position
-            // Track the maximum position reached during this song
             if (position > maxPositionReached) {
                 maxPositionReached = position
             }
@@ -435,12 +462,14 @@ class MediaMonitorService : NotificationListenerService() {
                         val isCurrentPlatform = currentPlatformPackage == null || pkg == currentPlatformPackage
                         if (!isCurrentPlatform) return@forEach
 
-                        // Update tracking
-                        if (estimatedPosition > lastPosition) {
-                            lastPosition = estimatedPosition
-                        }
-                        if (estimatedPosition > maxPositionReached) {
-                            maxPositionReached = estimatedPosition
+                        // Update tracking (skip during manual control to prevent stale data)
+                        if (!manualControlActive) {
+                            if (estimatedPosition > lastPosition) {
+                                lastPosition = estimatedPosition
+                            }
+                            if (estimatedPosition > maxPositionReached) {
+                                maxPositionReached = estimatedPosition
+                            }
                         }
 
                         // Early song end detection: trigger close to end to beat the original app's auto-advance
@@ -713,8 +742,42 @@ class MediaMonitorService : NotificationListenerService() {
         val isPlaying: Boolean,
         val position: Long,     // Current position in milliseconds
         val duration: Long,     // Total duration in milliseconds
-        val packageName: String?
+        val packageName: String?,
+        val title: String? = null
     )
+
+    /**
+     * Lightweight pause for a specific package. Does NOT reset tracking state
+     * or set manualControlActive. Used to silence auto-advanced songs during
+     * same-platform switches without interfering with pending deep links.
+     */
+    fun pausePackage(packageName: String) {
+        val controller = synchronized(controllersLock) {
+            activeControllers[packageName]
+        }
+        if (controller != null) {
+            try {
+                controller.transportControls.pause()
+                Log.d(TAG, "Lightweight pause sent to $packageName")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error pausing $packageName: ${e.message}")
+            }
+        }
+    }
+
+    fun playPackage(packageName: String) {
+        val controller = synchronized(controllersLock) {
+            activeControllers[packageName]
+        }
+        if (controller != null) {
+            try {
+                controller.transportControls.play()
+                Log.d(TAG, "Lightweight play sent to $packageName")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error playing $packageName: ${e.message}")
+            }
+        }
+    }
 
     /**
      * Check whether an active MediaController exists for the given package.
@@ -753,13 +816,15 @@ class MediaMonitorService : NotificationListenerService() {
                     val timeSinceUpdate = elapsedRealtime - lastUpdateTime
                     val position = state.position + (timeSinceUpdate * state.playbackSpeed).toLong()
                     val duration = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                    val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
 
                     if (duration > 0) {
                         return PlaybackInfo(
                             isPlaying = true,
                             position = position,
                             duration = duration,
-                            packageName = controller.packageName
+                            packageName = controller.packageName,
+                            title = title
                         )
                     }
                 }
@@ -777,11 +842,13 @@ class MediaMonitorService : NotificationListenerService() {
                 if (state != null && metadata != null) {
                     val duration = metadata.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
                     if (duration > 0) {
+                        val title = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
                         return PlaybackInfo(
                             isPlaying = false,
                             position = state.position,
                             duration = duration,
-                            packageName = controller.packageName
+                            packageName = controller.packageName,
+                            title = title
                         )
                     }
                 }

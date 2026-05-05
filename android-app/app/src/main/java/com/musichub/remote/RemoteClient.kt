@@ -186,7 +186,8 @@ object RemoteClient {
     fun seekTo(positionMs: Long) = postAsync("/api/seek/$positionMs")
     fun playAtIndex(index: Int) = postAsync("/api/play/index/$index")
     fun playSong(songId: Long) = postAsync("/api/play/song/$songId")
-    fun playPlaylist(playlistId: Long) = postAsync("/api/play/playlist/$playlistId")
+    fun playPlaylist(playlistId: Long, shuffle: Boolean = false) =
+        postAsync("/api/play/playlist/$playlistId" + if (shuffle) "?shuffle=true" else "")
 
     private fun postAsync(path: String) {
         val url = baseUrl() + path

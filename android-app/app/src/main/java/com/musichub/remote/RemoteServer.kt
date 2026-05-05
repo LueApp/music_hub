@@ -68,7 +68,7 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
 
                 // Play from library
                 method == Method.POST && uri.matches(Regex("/api/play/song/\\d+")) -> handlePlaySong(uri)
-                method == Method.POST && uri.matches(Regex("/api/play/playlist/\\d+")) -> handlePlayPlaylist(uri)
+                method == Method.POST && uri.matches(Regex("/api/play/playlist/\\d+")) -> handlePlayPlaylist(session, uri)
 
                 else -> jsonResponse(Response.Status.NOT_FOUND, mapOf("error" to "Not found"))
             }
@@ -99,7 +99,8 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
             shuffleEnabled = playback?.isShuffleEnabled() ?: false,
             currentSong = currentSong?.toRemoteSong(),
             currentIndex = playback?.getCurrentIndex() ?: -1,
-            queueSize = playback?.getQueue()?.size ?: 0
+            queueSize = playback?.getQueue()?.size ?: 0,
+            shuffleOrder = playback?.getShuffleOrder()
         )
     }
 
@@ -230,9 +231,11 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }
 
-    private fun handlePlayPlaylist(uri: String): Response {
+    private fun handlePlayPlaylist(session: IHTTPSession, uri: String): Response {
         val playlistId = uri.substringAfterLast("/").toLongOrNull()
             ?: return jsonResponse(Response.Status.BAD_REQUEST, mapOf("error" to "Invalid playlist ID"))
+
+        val shuffle = session.parms["shuffle"] == "true"
 
         val songs = runBlocking(Dispatchers.IO) {
             MusicHubApplication.getInstance().database.playlistItemDao()
@@ -244,8 +247,20 @@ class RemoteServer(port: Int = RemoteMode.DEFAULT_PORT) : NanoWSD(port) {
         }
 
         mainHandler.post {
-            PlaybackService.getInstance()?.setQueue(songs, 0)
-            PlaybackService.getInstance()?.playAtIndex(0)
+            val playback = PlaybackService.getInstance() ?: return@post
+            // Enable/disable shuffle atomically before setting the queue
+            if (shuffle && !playback.isShuffleEnabled()) {
+                playback.setShuffleEnabled(true)
+            } else if (!shuffle && playback.isShuffleEnabled()) {
+                playback.setShuffleEnabled(false)
+            }
+            val startIndex = if (playback.isShuffleEnabled() && songs.size > 1) {
+                (0 until songs.size).random()
+            } else {
+                0
+            }
+            playback.setQueue(songs, startIndex)
+            playback.playAtIndex(startIndex)
         }
         return jsonResponse(Response.Status.OK, mapOf("ok" to true))
     }

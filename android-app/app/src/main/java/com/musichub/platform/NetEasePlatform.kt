@@ -120,17 +120,11 @@ class NetEasePlatform : PlatformHandler {
                         return@withContext SongAvailability(false, "歌曲不存在")
                     }
 
-                    // Check privileges - NetEase uses 'privileges' array to indicate availability
-                    // st < 0 means the song is not available (e.g., taken down, region-locked)
-                    val privileges = json.getAsJsonArray("privileges")
-                    if (privileges != null && privileges.size() > 0) {
-                        val priv = privileges[0].asJsonObject
-                        val st = priv.get("st")?.asInt ?: 0
-                        if (st < 0) {
-                            Log.d(TAG, "Song $platformSongId unavailable: st=$st")
-                            return@withContext SongAvailability(false, "歌曲已下架或无版权")
-                        }
-                    }
+                    // Note: privileges[0].st < 0 is NOT reliable for availability.
+                    // st=-200 can mean "VIP required" when queried without auth cookies,
+                    // but the song is still playable in the NetEase app with a logged-in
+                    // account. Only treat songs as unavailable if they truly don't exist
+                    // (handled by the empty songs/title checks above).
 
                     SongAvailability(true)
                 }
