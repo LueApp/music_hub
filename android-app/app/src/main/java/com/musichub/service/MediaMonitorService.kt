@@ -503,12 +503,10 @@ class MediaMonitorService : NotificationListenerService() {
         return false
     }
 
-    // Track package name of the platform we're switching FROM
+    // Track package name of the platform we're switching FROM (only for cross-platform switches)
     private var switchingFromPackage: String? = null
     // Whether we're switching between different platforms
     private var isCrossPlatformSwitch: Boolean = false
-    // Whether this is a same-platform NetEase switch (needs shorter repeated pause)
-    private var isSamePlatformNetEaseSwitch: Boolean = false
 
     /**
      * Pause all active media controllers.
@@ -528,30 +526,17 @@ class MediaMonitorService : NotificationListenerService() {
         // Remember which packages we're pausing so we can monitor them
         switchingFromPackage = null
         isCrossPlatformSwitch = false
-        isSamePlatformNetEaseSwitch = false
 
-        val neteasePackage = Platforms.PACKAGE_NAMES[Platforms.NETEASE]
-
-        // Detect switch type: check if target platform controller exists first
+        // Detect cross-platform switch: if target is specified, check if any OTHER
+        // platform's controller exists (regardless of current playback state).
+        // This fixes a race condition where the controller may have already transitioned
+        // to PAUSED by the time we check, but the app can still auto-advance to a new song.
         val controllerSnapshot = synchronized(controllersLock) {
             activeControllers.entries.map { (pkg, controller) -> pkg to controller }
         }
-
-        // First pass: check if target platform has an active controller (same-platform switch)
-        val hasTargetController = targetPlatformPackage != null &&
-            controllerSnapshot.any { it.first == targetPlatformPackage }
-
-        if (hasTargetController && targetPlatformPackage == neteasePackage) {
-            // Same-platform NetEase switch — need repeated pause to prevent
-            // NetEase's internal queue from auto-advancing after early song-end detection
-            switchingFromPackage = targetPlatformPackage
-            isSamePlatformNetEaseSwitch = true
-        }
-
-        // Second pass: pause all controllers and detect cross-platform switches
         controllerSnapshot.forEach { (pkg, controller) ->
             try {
-                if (targetPlatformPackage != null && targetPlatformPackage != pkg && !isSamePlatformNetEaseSwitch) {
+                if (targetPlatformPackage != null && targetPlatformPackage != pkg) {
                     // This controller belongs to a different platform than the target
                     switchingFromPackage = pkg
                     isCrossPlatformSwitch = true
@@ -576,15 +561,12 @@ class MediaMonitorService : NotificationListenerService() {
             }
         }
 
-        // Schedule repeated pause attempts for cross-platform switches (4s window)
-        // and same-platform NetEase switches (2s window to prevent auto-advance
-        // after early song-end detection, without pausing the newly launched song)
+        // Schedule repeated pause attempts ONLY for cross-platform switches
+        // For same-platform switches, the new song will start in the same app,
+        // and we don't want to pause it!
         if (isCrossPlatformSwitch) {
             Log.d(TAG, "Cross-platform switch detected, scheduling repeated pause for $switchingFromPackage")
             scheduleRepeatedPause()
-        } else if (isSamePlatformNetEaseSwitch) {
-            Log.d(TAG, "Same-platform NetEase switch, scheduling short repeated pause for $switchingFromPackage")
-            scheduleShortRepeatedPause()
         } else {
             Log.d(TAG, "Same-platform switch, skipping repeated pause")
         }
@@ -609,22 +591,6 @@ class MediaMonitorService : NotificationListenerService() {
         delays.forEach { delay ->
             handler.postDelayed({
                 if (manualControlActive && switchingFromPackage != null && isCrossPlatformSwitch) {
-                    pauseSpecificPackage(switchingFromPackage!!)
-                }
-            }, delay)
-        }
-    }
-
-    /**
-     * Schedule a shorter repeated pause window (~2s) for same-platform NetEase switches.
-     * NetEase auto-advances ~1.5s after early song-end detection. We need to catch this
-     * but stop before the new song (launched via deep link) starts playing.
-     */
-    private fun scheduleShortRepeatedPause() {
-        val delays = listOf(500L, 1000L, 1500L, 2000L)
-        delays.forEach { delay ->
-            handler.postDelayed({
-                if (manualControlActive && switchingFromPackage != null && isSamePlatformNetEaseSwitch) {
                     pauseSpecificPackage(switchingFromPackage!!)
                 }
             }, delay)
@@ -675,7 +641,6 @@ class MediaMonitorService : NotificationListenerService() {
             Log.d(TAG, "Re-enabling auto-advance detection (manual control deactivated)")
             manualControlActive = false
             switchingFromPackage = null  // Stop re-pausing the old package
-            isSamePlatformNetEaseSwitch = false
             songEndTriggered = false
         }, 3000L)  // 3 seconds to let the music app settle
     }

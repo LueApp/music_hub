@@ -2,18 +2,22 @@ package com.musichub.service
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
+import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 import android.util.Log
 import android.view.ContextThemeWrapper
+import android.view.GestureDetector
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -35,6 +39,7 @@ import coil.load
 import com.google.android.material.card.MaterialCardView
 import com.musichub.R
 import com.musichub.data.model.Song
+import com.musichub.platform.LinkParser
 import com.musichub.remote.RemoteClient
 import com.musichub.remote.RemoteMode
 import com.musichub.remote.RemoteState
@@ -85,6 +90,9 @@ class FloatingWindowService : Service() {
 
     // Coroutine scope for remote operations
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    // GestureDetector for double-click detection on mini ball
+    private var gestureDetector: GestureDetector? = null
 
     // Remote state listener for controller mode
     private val remoteStateListener: (RemoteState) -> Unit = { state ->
@@ -950,13 +958,22 @@ class FloatingWindowService : Service() {
     }
 
     private fun setupMiniBallView() {
-        miniBallView?.apply {
-            // Tap to expand to full mode
-            setOnClickListener {
-                Log.d(TAG, "Mini ball clicked, expanding to full mode")
-                switchToFullMode()
+        // Initialize GestureDetector for double-click
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                Log.d(TAG, "Mini ball double-clicked")
+                handleDoubleClick()
+                return true
             }
 
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                Log.d(TAG, "Mini ball single-clicked, expanding to full mode")
+                switchToFullMode()
+                return true
+            }
+        })
+
+        miniBallView?.apply {
             // Long press to toggle play/pause
             setOnLongClickListener {
                 Log.d(TAG, "Mini ball long pressed, toggling play/pause")
@@ -986,6 +1003,7 @@ class FloatingWindowService : Service() {
         val clickThreshold = 10 // pixels
 
         miniBallView?.setOnTouchListener { view, event ->
+            gestureDetector?.onTouchEvent(event)
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     initialX = params.x
@@ -1013,7 +1031,6 @@ class FloatingWindowService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (!isDragging) {
-                        // This was a tap, not a drag - trigger click
                         view.performClick()
                     }
                     true
@@ -1186,6 +1203,109 @@ class FloatingWindowService : Service() {
         RemoteClient.removeStateListener(remoteStateListener)
         hideFloatingWindow()
         Log.d(TAG, "FloatingWindowService destroyed")
+    }
+
+    private fun getForegroundAppPackage(): String? {
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return null
+        val currentTime = System.currentTimeMillis()
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY,
+            currentTime - 5000,
+            currentTime
+        )
+        return stats?.maxByOrNull { it.lastTimeUsed }?.packageName
+    }
+
+    private fun hasUsageStatsPermission(): Boolean {
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as? android.app.AppOpsManager
+            ?: return false
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                packageName
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(
+                android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+                android.os.Process.myUid(),
+                packageName
+            )
+        }
+        return mode == android.app.AppOpsManager.MODE_ALLOWED
+    }
+
+    private fun openUsageStatsSettings() {
+        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
+    }
+
+    private fun handleDoubleClick() {
+        if (!hasUsageStatsPermission()) {
+            Log.w(TAG, "Usage stats permission not granted, double-click navigation disabled")
+            return
+        }
+
+        val foregroundApp = getForegroundAppPackage()
+        val currentPlatform = if (RemoteMode.isController()) {
+            RemoteClient.currentState?.currentSong?.platform
+        } else {
+            PlaybackService.getInstance()?.getCurrentPlatform()
+        }
+
+        Log.d(TAG, "Double-click: foregroundApp=$foregroundApp, currentPlatform=$currentPlatform")
+
+        when {
+            foregroundApp == packageName && currentPlatform != null -> {
+                launchPlatformApp(currentPlatform)
+            }
+            foregroundApp == getPlatformPackage(currentPlatform) -> {
+                launchMusicHub()
+            }
+            currentPlatform != null -> {
+                launchPlatformApp(currentPlatform)
+            }
+        }
+    }
+
+    private fun launchMusicHub() {
+        val intent = Intent(this, com.musichub.ui.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        startActivity(intent)
+        Log.d(TAG, "Launched Music Hub")
+    }
+
+    private fun launchPlatformApp(platform: String?) {
+        val targetPackage = getPlatformPackage(platform)
+        if (targetPackage == null) {
+            Log.w(TAG, "Unknown platform: $platform")
+            return
+        }
+
+        // Bring the existing platform app to foreground via its launch intent.
+        // This avoids re-launching the deep link which would restart the activity
+        // and lose the current orientation / state.
+        val launchIntent = packageManager.getLaunchIntentForPackage(targetPackage)
+        if (launchIntent != null) {
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            startActivity(launchIntent)
+            Log.d(TAG, "Brought platform app to foreground: $targetPackage")
+        } else {
+            Log.w(TAG, "No launch intent for package: $targetPackage")
+        }
+    }
+
+    private fun getPlatformPackage(platform: String?): String? {
+        return when (platform) {
+            "netease" -> "com.netease.cloudmusic"
+            "qqmusic" -> "com.tencent.qqmusic"
+            "bilibili" -> "tv.danmaku.bili"
+            else -> null
+        }
     }
 
     companion object {

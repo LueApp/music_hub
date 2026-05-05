@@ -21,8 +21,8 @@ class BilibiliPlatform : PlatformHandler {
     override val packageName = Platforms.PACKAGE_NAMES[Platforms.BILIBILI]!!
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(3, TimeUnit.SECONDS)
+        .readTimeout(3, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
 
