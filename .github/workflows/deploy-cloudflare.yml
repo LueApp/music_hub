@@ -1,0 +1,12 @@
+name: Deploy to Cloudflare on tag push
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Cloudflare deploy hook
+        run: curl -sS -X POST "${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}"
