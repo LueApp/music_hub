@@ -70,6 +70,8 @@
     <string name="platform_netease_cn">网易云</string>
     <string name="platform_qqmusic">QQ Music</string>
     <string name="platform_qqmusic_cn">QQ音乐</string>
+    <string name="platform_bilibili">Bilibili</string>
+    <string name="platform_bilibili_cn">B站</string>
 
     <!-- Playback -->
     <string name="now_playing">Now Playing</string>
@@ -154,6 +156,46 @@
     <string name="play_state">播放状态</string>
     <string name="locate_current_song">定位当前歌曲</string>
 
+    <!-- Import from Library -->
+    <string name="import_from_library">从曲库导入</string>
+    <string name="import_screen_title">从曲库导入</string>
+    <string name="import_filter_all">全部</string>
+    <string name="import_filter_bilibili">B站</string>
+    <string name="import_select_all">全选</string>
+    <string name="import_deselect_all">取消全选</string>
+    <string name="import_selected_count">已选择 %d 首</string>
+    <string name="import_confirm">导入选中歌曲</string>
+    <string name="import_success">已添加 %d 首歌曲</string>
+    <string name="import_empty_all_in_playlist">所有歌曲已在此歌单中</string>
+    <string name="import_empty_no_songs">曲库中没有歌曲</string>
+    <string name="import_empty_no_results">没有找到匹配的歌曲</string>
+
     <!-- Accessibility Service -->
     <string name="accessibility_service_desc_cn">用于在前台模式下自动打开QQ音乐播放器页面（歌词页面）</string>
+
+    <!-- Sync -->
+    <string name="sync_last_sync">上次同��: %s</string>
+    <string name="sync_never">从未同步</string>
+    <string name="sync_syncing">同步中…</string>
+    <string name="sync_failed">同步失败</string>
+    <string name="sync_success">同步成功</string>
+    <string name="sync_now">立即同步</string>
+    <string name="sync_manage_sources">管理同步源</string>
+    <string name="sync_sources_count">%d 个同步源</string>
+    <string name="sync_keep_synced">保持与源歌单同步</string>
+    <string name="sync_result">添加了 %1$d 首，移除了 %2$d 首</string>
+    <string name="sync_no_sources">未配置同步源</string>
+    <string name="sync_add_source">添加同步源</string>
+    <string name="sync_add_source_hint">粘贴网易云或QQ音乐歌单链接</string>
+    <string name="sync_remove_source">移除同步源</string>
+    <string name="sync_remove_confirm">移除此同步源？该源导入的歌曲也将从歌单中移除。</string>
+    <string name="sync_source_added">同步源已添加</string>
+    <string name="sync_source_exists">此同步源已存在</string>
+    <string name="sync_source_invalid">不支持此链接作为同步源</string>
+    <string name="sync_bilibili_not_supported">B站暂不支持歌单同步</string>
+    <string name="sync_ago_minutes">%d 分钟前</string>
+    <string name="sync_ago_hours">%d 小时前</string>
+    <string name="sync_ago_days">%d 天前</string>
+    <string name="sync_just_now">刚刚</string>
+    <string name="sync_manage_sources_title">管理同步源</string>
 </resources>

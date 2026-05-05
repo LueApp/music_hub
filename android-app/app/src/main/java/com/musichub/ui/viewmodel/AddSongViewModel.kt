@@ -7,9 +7,11 @@ import com.musichub.MusicHubApplication
 import com.musichub.data.model.ParsedSong
 import com.musichub.data.model.Playlist
 import com.musichub.data.model.Song
+import com.musichub.data.model.SyncSource
 import com.musichub.data.repository.MusicRepository
 import com.musichub.platform.LinkParser
 import com.musichub.platform.ParsedPlaylist
+import com.musichub.sync.SyncScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +28,8 @@ data class AddSongUiState(
     val importProgress: Int = 0,
     val importTotal: Int = 0,
     val existingPlaylists: List<Playlist> = emptyList(),
-    val selectedPlaylistId: Long? = null  // null = create new, >0 = import to existing
+    val selectedPlaylistId: Long? = null,  // null = create new, >0 = import to existing
+    val sourceUrl: String = ""  // Original URL used for parsing (used for sync source creation)
 )
 
 class AddSongViewModel(
@@ -59,7 +62,7 @@ class AddSongViewModel(
 
     fun parseLink(link: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null, parsedSong = null, parsedPlaylist = null, isPlaylist = false, addSuccess = false) }
+            _uiState.update { it.copy(isLoading = true, error = null, parsedSong = null, parsedPlaylist = null, isPlaylist = false, addSuccess = false, sourceUrl = link) }
 
             try {
                 // First check if it's a playlist URL
@@ -126,9 +129,10 @@ class AddSongViewModel(
         }
     }
 
-    fun importPlaylist() {
+    fun importPlaylist(keepSynced: Boolean = false) {
         val parsedPlaylist = _uiState.value.parsedPlaylist ?: return
         val targetPlaylistId = _uiState.value.selectedPlaylistId
+        val sourceUrl = _uiState.value.sourceUrl
 
         viewModelScope.launch {
             try {
@@ -147,6 +151,25 @@ class AddSongViewModel(
                         coverPath = parsedPlaylist.coverUrl
                     )
                     repository.insertPlaylist(playlist)
+                }
+
+                // Create sync source if keepSynced is enabled
+                var syncSourceId: Long? = null
+                if (keepSynced && parsedPlaylist.platform.isNotEmpty() && parsedPlaylist.playlistId.isNotEmpty()) {
+                    val syncSource = SyncSource(
+                        playlistId = playlistId,
+                        platform = parsedPlaylist.platform,
+                        remotePlaylistId = parsedPlaylist.playlistId,
+                        sourceUrl = sourceUrl
+                    )
+                    val insertedId = repository.addSyncSource(syncSource)
+                    if (insertedId > 0) {
+                        syncSourceId = insertedId
+                        // Schedule periodic sync now that we have a sync source
+                        SyncScheduler.schedulePeriodicSync(
+                            MusicHubApplication.getInstance()
+                        )
+                    }
                 }
 
                 // Import songs
@@ -176,8 +199,8 @@ class AddSongViewModel(
                             repository.insertSong(song)
                         }
 
-                        // Add to playlist
-                        repository.addSongToPlaylist(playlistId, songId)
+                        // Add to playlist (with sync source ID if syncing)
+                        repository.addSongToPlaylistWithSync(playlistId, songId, syncSourceId)
                         importedCount++
                         _uiState.update { it.copy(importProgress = importedCount) }
                     } catch (e: Exception) {

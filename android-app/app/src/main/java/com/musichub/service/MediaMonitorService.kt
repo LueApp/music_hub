@@ -24,11 +24,16 @@ class MediaMonitorService : NotificationListenerService() {
 
     private var mediaSessionManager: MediaSessionManager? = null
     private var activeControllers = mutableMapOf<String, MediaController>()
+    private var controllerCallbacks = mutableMapOf<String, MediaController.Callback>()
     private var lastPlaybackState: Int? = null
     private var lastPosition: Long = 0
     private var maxPositionReached: Long = 0  // Track highest position during song playback
     private var lastMetadataDuration: Long = 0
     private val handler = Handler(Looper.getMainLooper())
+
+    // The package name of the platform currently playing via Music Hub.
+    // Only song-end events from this package trigger auto-advance.
+    private var currentPlatformPackage: String? = null
 
     // Position polling for apps that don't report position in callbacks (like NetEase)
     private val POSITION_POLL_INTERVAL_MS = 1000L  // Poll every 1 second for faster detection
@@ -57,15 +62,25 @@ class MediaMonitorService : NotificationListenerService() {
         onActiveSessionsChanged(controllers)
     }
 
-    private val callback = object : MediaController.Callback() {
+    /**
+     * Create a per-controller callback that knows which package it belongs to.
+     * This allows us to only trigger song-end detection for the current platform.
+     */
+    private fun createCallbackForPackage(packageName: String) = object : MediaController.Callback() {
         override fun onPlaybackStateChanged(state: PlaybackState?) {
-            handlePlaybackStateChange(state)
+            handlePlaybackStateChange(state, packageName)
         }
 
         override fun onMetadataChanged(metadata: android.media.MediaMetadata?) {
             metadata?.let {
                 val newDuration = it.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
                 val newTitle = it.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: ""
+
+                // Only process song-end detection for the current platform
+                if (currentPlatformPackage != null && packageName != currentPlatformPackage) {
+                    Log.d(TAG, "Ignoring metadata change from $packageName (current platform: $currentPlatformPackage), title: $newTitle")
+                    return
+                }
 
                 // Detect song change while playing (common for NetEase)
                 // If we were playing and metadata changes to a new song, the old song finished
@@ -104,12 +119,12 @@ class MediaMonitorService : NotificationListenerService() {
                 }
 
                 lastMetadataDuration = newDuration
-                Log.d(TAG, "Metadata changed, duration: $newDuration ms, title: $newTitle")
+                Log.d(TAG, "Metadata changed from $packageName, duration: $newDuration ms, title: $newTitle")
             }
         }
 
         override fun onSessionDestroyed() {
-            Log.d(TAG, "Media session destroyed")
+            Log.d(TAG, "Media session destroyed for $packageName")
         }
     }
 
@@ -170,14 +185,15 @@ class MediaMonitorService : NotificationListenerService() {
 
             mediaSessionManager?.removeOnActiveSessionsChangedListener(sessionListener)
 
-            activeControllers.values.forEach { controller ->
+            activeControllers.forEach { (pkg, controller) ->
                 try {
-                    controller.unregisterCallback(callback)
+                    controllerCallbacks[pkg]?.let { cb -> controller.unregisterCallback(cb) }
                 } catch (e: Exception) {
                     // Ignore
                 }
             }
             activeControllers.clear()
+            controllerCallbacks.clear()
 
             Log.d(TAG, "Stopped monitoring media sessions")
         } catch (e: Exception) {
@@ -189,22 +205,21 @@ class MediaMonitorService : NotificationListenerService() {
         if (controllers == null) return
 
         // Track which packages we care about for auto-advance
-        // NOTE: Bilibili is intentionally EXCLUDED because:
-        // 1. Users watch videos, not listen to sequential audio
-        // 2. Bilibili doesn't report proper duration metadata
-        // 3. Auto-advance doesn't make sense for video content
         val targetPackages = setOf(
             Platforms.PACKAGE_NAMES[Platforms.NETEASE],
-            Platforms.PACKAGE_NAMES[Platforms.QQMUSIC]
-            // Bilibili excluded - no auto-advance for video content
+            Platforms.PACKAGE_NAMES[Platforms.QQMUSIC],
+            Platforms.PACKAGE_NAMES[Platforms.BILIBILI]
         )
 
         // Remove old controllers
         val currentPackages = controllers.map { it.packageName }.toSet()
         val toRemove = activeControllers.keys - currentPackages
         toRemove.forEach { pkg ->
-            activeControllers[pkg]?.unregisterCallback(callback)
+            controllerCallbacks[pkg]?.let { cb ->
+                activeControllers[pkg]?.unregisterCallback(cb)
+            }
             activeControllers.remove(pkg)
+            controllerCallbacks.remove(pkg)
             Log.d(TAG, "Removed media controller for: $pkg")
         }
 
@@ -213,18 +228,22 @@ class MediaMonitorService : NotificationListenerService() {
             val pkg = controller.packageName
             if (pkg in targetPackages && pkg !in activeControllers) {
                 try {
-                    controller.registerCallback(callback, handler)
+                    val cb = createCallbackForPackage(pkg)
+                    controller.registerCallback(cb, handler)
                     activeControllers[pkg] = controller
+                    controllerCallbacks[pkg] = cb
                     Log.d(TAG, "Added media controller for: $pkg")
 
-                    // Get initial metadata for duration
-                    controller.metadata?.let { metadata ->
-                        lastMetadataDuration = metadata.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
-                        Log.d(TAG, "Initial duration for $pkg: $lastMetadataDuration ms")
+                    // Get initial metadata for duration (only for current platform)
+                    if (currentPlatformPackage == null || pkg == currentPlatformPackage) {
+                        controller.metadata?.let { metadata ->
+                            lastMetadataDuration = metadata.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
+                            Log.d(TAG, "Initial duration for $pkg: $lastMetadataDuration ms")
+                        }
                     }
 
                     // Check current state
-                    handlePlaybackStateChange(controller.playbackState)
+                    handlePlaybackStateChange(controller.playbackState, pkg)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to register callback for $pkg: ${e.message}")
                 }
@@ -232,11 +251,17 @@ class MediaMonitorService : NotificationListenerService() {
         }
     }
 
-    private fun handlePlaybackStateChange(state: PlaybackState?) {
+    private fun handlePlaybackStateChange(state: PlaybackState?, fromPackage: String? = null) {
         val currentState = state?.state ?: return
         val position = state.position
 
-        Log.d(TAG, "Playback state changed: $currentState (was: $lastPlaybackState), position: $position, duration: $lastMetadataDuration, songEndTriggered: $songEndTriggered")
+        Log.d(TAG, "Playback state changed from $fromPackage: $currentState (was: $lastPlaybackState), position: $position, duration: $lastMetadataDuration, songEndTriggered: $songEndTriggered")
+
+        // Only process song-end detection for the current platform
+        if (fromPackage != null && currentPlatformPackage != null && fromPackage != currentPlatformPackage) {
+            Log.d(TAG, "Ignoring state change from $fromPackage (current platform: $currentPlatformPackage)")
+            return
+        }
 
         // Only detect song end when transitioning from PLAYING to PAUSED/STOPPED/NONE
         if (lastPlaybackState == PlaybackState.STATE_PLAYING &&
@@ -339,8 +364,9 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     private fun pollCurrentPosition() {
-        // Poll position from all active controllers
-        activeControllers.values.forEach { controller ->
+        // Poll position from all active controllers, but only trigger song-end
+        // detection for the current platform's controller
+        activeControllers.forEach { (pkg, controller) ->
             try {
                 val state = controller.playbackState
                 if (state != null && state.state == PlaybackState.STATE_PLAYING) {
@@ -355,7 +381,11 @@ class MediaMonitorService : NotificationListenerService() {
                     val estimatedPosition = position + (timeSinceUpdate * playbackSpeed).toLong()
 
                     if (estimatedPosition > 0) {
-                        Log.d(TAG, "Polled position for ${controller.packageName}: estimated=$estimatedPosition ms (base=$position, elapsed=$timeSinceUpdate)")
+                        Log.d(TAG, "Polled position for $pkg: estimated=$estimatedPosition ms (base=$position, elapsed=$timeSinceUpdate)")
+
+                        // Only track position and detect song end for the current platform
+                        val isCurrentPlatform = currentPlatformPackage == null || pkg == currentPlatformPackage
+                        if (!isCurrentPlatform) return@forEach
 
                         // Update tracking
                         if (estimatedPosition > lastPosition) {
@@ -471,18 +501,27 @@ class MediaMonitorService : NotificationListenerService() {
         switchingFromPackage = null
         isCrossPlatformSwitch = false
 
-        activeControllers.values.forEach { controller ->
+        // Detect cross-platform switch: if target is specified, check if any OTHER
+        // platform's controller exists (regardless of current playback state).
+        // This fixes a race condition where the controller may have already transitioned
+        // to PAUSED by the time we check, but the app can still auto-advance to a new song.
+        activeControllers.forEach { (pkg, controller) ->
             try {
+                if (targetPlatformPackage != null && targetPlatformPackage != pkg) {
+                    // This controller belongs to a different platform than the target
+                    switchingFromPackage = pkg
+                    isCrossPlatformSwitch = true
+                }
+
                 val state = controller.playbackState
-                if (state != null && state.state == PlaybackState.STATE_PLAYING) {
-                    Log.d(TAG, "Pausing media for ${controller.packageName}")
-                    switchingFromPackage = controller.packageName
+                val isPlayingOrRecentlyPlaying = state != null && (
+                    state.state == PlaybackState.STATE_PLAYING ||
+                    state.state == PlaybackState.STATE_PAUSED ||
+                    state.state == PlaybackState.STATE_BUFFERING
+                )
 
-                    // Check if this is a cross-platform switch
-                    // Only schedule repeated pauses for cross-platform switches
-                    isCrossPlatformSwitch = targetPlatformPackage != null &&
-                            targetPlatformPackage != controller.packageName
-
+                if (isPlayingOrRecentlyPlaying) {
+                    Log.d(TAG, "Pausing media for ${controller.packageName} (state=${state?.state})")
                     // Send pause command
                     controller.transportControls.pause()
                     // Send stop command as backup - some apps respond better to stop
@@ -514,10 +553,12 @@ class MediaMonitorService : NotificationListenerService() {
      * Schedule repeated pause attempts to catch apps that auto-advance after initial pause.
      * This is needed because NetEase Cloud Music will start playing the next song
      * even after we send pause/stop commands, when switching to a DIFFERENT platform.
+     * Extended to 4 seconds with frequent checks because auto-advance can happen
+     * up to ~2 seconds after the initial pause.
      */
     private fun scheduleRepeatedPause() {
-        // Pause again after 500ms, 1000ms, 1500ms, and 2000ms to catch auto-advance
-        val delays = listOf(500L, 1000L, 1500L, 2000L)
+        // Pause at frequent intervals up to 4 seconds to catch auto-advance
+        val delays = listOf(500L, 1000L, 1500L, 2000L, 2500L, 3000L, 3500L, 4000L)
         delays.forEach { delay ->
             handler.postDelayed({
                 if (manualControlActive && switchingFromPackage != null && isCrossPlatformSwitch) {
@@ -543,6 +584,16 @@ class MediaMonitorService : NotificationListenerService() {
                 Log.e(TAG, "Error re-pausing media for $packageName: ${e.message}")
             }
         }
+    }
+
+    /**
+     * Set which platform package is currently playing via Music Hub.
+     * Only events from this package will trigger song-end detection.
+     * This prevents false auto-advance from stale controllers of other platforms.
+     */
+    fun setCurrentPlatform(packageName: String?) {
+        Log.d(TAG, "Current platform set to: $packageName (was: $currentPlatformPackage)")
+        currentPlatformPackage = packageName
     }
 
     /**

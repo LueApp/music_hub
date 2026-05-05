@@ -33,8 +33,149 @@ class BilibiliPlatform : PlatformHandler {
     private val avidPattern = Regex("""bilibili\.com/video/av(\d+)""")
     private val audioPattern = Regex("""bilibili\.com/audio/au(\d+)""")
 
+    // Regex patterns for parsing Bilibili medialist/favorites URLs
+    private val medialistPattern = Regex("""bilibili\.com/medialist/detail/ml(\d+)""")
+    private val favlistPattern = Regex("""space\.bilibili\.com/\d+/favlist.*[?&]fid=(\d+)""")
+
     override fun canHandle(url: String): Boolean {
         return url.contains("bilibili.com") || url.contains("b23.tv")
+    }
+
+    override fun parsePlaylistUrl(url: String): ParsedPlaylist? {
+        val medialistMatch = medialistPattern.find(url)
+        if (medialistMatch != null) {
+            val mediaId = medialistMatch.groupValues[1]
+            Log.d(TAG, "Parsed Bilibili medialist ID: $mediaId from URL: $url")
+            return ParsedPlaylist(platform = platformName, playlistId = mediaId)
+        }
+
+        val favlistMatch = favlistPattern.find(url)
+        if (favlistMatch != null) {
+            val mediaId = favlistMatch.groupValues[1]
+            Log.d(TAG, "Parsed Bilibili favlist ID: $mediaId from URL: $url")
+            return ParsedPlaylist(platform = platformName, playlistId = mediaId)
+        }
+
+        return null
+    }
+
+    override suspend fun fetchPlaylistSongs(playlistId: String): ParsedPlaylist? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val songs = mutableListOf<ParsedSong>()
+                var playlistName = ""
+                var playlistCover = ""
+                var totalCount = 0
+                var page = 1
+
+                while (true) {
+                    val url = "https://api.bilibili.com/x/v3/fav/resource/list?media_id=$playlistId&pn=$page&ps=20&order=mtime&type=0&tid=0&platform=web"
+
+                    val request = Request.Builder()
+                        .url(url)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                        .header("Referer", "https://www.bilibili.com/")
+                        .build()
+
+                    val response = client.newCall(request).execute()
+                    if (!response.isSuccessful) {
+                        Log.e(TAG, "Favorites API request failed: ${response.code}")
+                        response.close()
+                        return@withContext null
+                    }
+
+                    val body = response.body?.string()
+                    response.close()
+                    if (body == null) {
+                        Log.e(TAG, "Favorites API returned empty body")
+                        return@withContext null
+                    }
+
+                    val json = gson.fromJson(body, JsonObject::class.java)
+                    val code = json.get("code")?.asInt ?: -1
+
+                    if (code != 0) {
+                        val message = json.get("message")?.asString ?: "未知错误"
+                        Log.e(TAG, "Favorites API error: code=$code, message=$message")
+                        return@withContext null
+                    }
+
+                    val data = json.getAsJsonObject("data") ?: return@withContext null
+
+                    // Extract playlist metadata from first page
+                    if (page == 1) {
+                        val info = data.getAsJsonObject("info")
+                        if (info != null) {
+                            playlistName = info.get("title")?.asString ?: ""
+                            playlistCover = info.get("cover")?.asString?.replace("http://", "https://") ?: ""
+                            totalCount = info.get("media_count")?.asInt ?: 0
+                            Log.d(TAG, "Fetching Bilibili favorites: '$playlistName' ($totalCount items)")
+                        }
+                    }
+
+                    val medias = data.getAsJsonArray("medias")
+                    if (medias == null || medias.size() == 0) break
+
+                    for (element in medias) {
+                        val media = element.asJsonObject
+
+                        // Only include video items (type == 2)
+                        val type = media.get("type")?.asInt ?: 0
+                        if (type != 2) continue
+
+                        // Skip invalidated/deleted items (attr == 9)
+                        val attr = media.get("attr")?.asInt ?: 0
+                        if (attr == 9) continue
+
+                        val title = media.get("title")?.asString ?: ""
+                        val cover = media.get("cover")?.asString?.replace("http://", "https://") ?: ""
+                        val bvId = media.get("bv_id")?.asString ?: media.get("bvid")?.asString ?: ""
+                        val avId = media.get("id")?.asLong ?: 0L
+
+                        // Determine platformSongId: prefer BV ID, fall back to av ID
+                        val platformSongId = if (bvId.isNotEmpty()) {
+                            "video:$bvId"
+                        } else if (avId > 0) {
+                            "video:av$avId"
+                        } else {
+                            continue // Skip items with no usable ID
+                        }
+
+                        // Extract uploader name
+                        val upper = media.getAsJsonObject("upper")
+                        val artist = upper?.get("name")?.asString ?: ""
+
+                        songs.add(ParsedSong(
+                            platform = platformName,
+                            platformSongId = platformSongId,
+                            deepLink = generateDeepLink(platformSongId),
+                            fallbackUrl = generateFallbackUrl(platformSongId),
+                            title = title,
+                            artist = artist,
+                            coverUrl = cover
+                        ))
+                    }
+
+                    // Check if we've fetched all items
+                    if (songs.size >= totalCount || medias.size() < 20) break
+                    page++
+                }
+
+                Log.d(TAG, "Fetched ${songs.size} videos from Bilibili favorites '$playlistName'")
+
+                ParsedPlaylist(
+                    platform = platformName,
+                    playlistId = playlistId,
+                    name = playlistName,
+                    coverUrl = playlistCover,
+                    songCount = totalCount,
+                    songs = songs
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch Bilibili favorites $playlistId: ${e.message}", e)
+                null
+            }
+        }
     }
 
     override fun parseSongUrl(url: String): ParsedSong? {
@@ -81,16 +222,15 @@ class BilibiliPlatform : PlatformHandler {
         return when {
             platformSongId.startsWith("video:BV") -> {
                 val bvid = platformSongId.removePrefix("video:")
-                // Bilibili app supports multiple URI formats
-                "https://www.bilibili.com/video/$bvid"
+                "bilibili://video/$bvid?start_progress=0"
             }
             platformSongId.startsWith("video:av") -> {
                 val avid = platformSongId.removePrefix("video:av")
-                "https://www.bilibili.com/video/av$avid"
+                "bilibili://video/av$avid?start_progress=0"
             }
             platformSongId.startsWith("audio:") -> {
                 val auid = platformSongId.removePrefix("audio:")
-                "https://www.bilibili.com/audio/au$auid"
+                "bilibili://music/detail/$auid"
             }
             else -> "https://www.bilibili.com"
         }

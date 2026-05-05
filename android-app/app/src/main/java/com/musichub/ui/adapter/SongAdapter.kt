@@ -71,6 +71,10 @@ class SongAdapter(
                     binding.tvPlatform.text = "QQ音乐"
                     binding.tvPlatform.setBackgroundResource(R.drawable.bg_badge_qqmusic)
                 }
+                Platforms.BILIBILI -> {
+                    binding.tvPlatform.text = "B站"
+                    binding.tvPlatform.setBackgroundResource(R.drawable.bg_badge_bilibili)
+                }
                 else -> {
                     binding.tvPlatform.text = song.platform
                 }

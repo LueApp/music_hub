@@ -82,6 +82,7 @@ class LibraryFragment : Fragment() {
             val platform = when {
                 checkedIds.contains(R.id.chipNetease) -> Platforms.NETEASE
                 checkedIds.contains(R.id.chipQQMusic) -> Platforms.QQMUSIC
+                checkedIds.contains(R.id.chipBilibili) -> Platforms.BILIBILI
                 else -> null
             }
             viewModel.setPlatformFilter(platform)

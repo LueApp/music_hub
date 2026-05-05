@@ -65,7 +65,8 @@ class AddSongFragment : Fragment() {
         binding.btnAddToLibrary.setOnClickListener {
             val state = viewModel.uiState.value
             if (state.isPlaylist) {
-                viewModel.importPlaylist()
+                val keepSynced = binding.cbKeepSynced.isChecked
+                viewModel.importPlaylist(keepSynced)
             } else {
                 val playlistId = if (args.playlistId > 0) args.playlistId else null
                 viewModel.addSongToLibrary(playlistId)
@@ -148,6 +149,10 @@ class AddSongFragment : Fragment() {
                     // Show playlist selector for playlist imports
                     binding.layoutPlaylistSelector.visibility = View.VISIBLE
 
+                    // Show sync checkbox for syncable platforms (not Bilibili)
+                    binding.cbKeepSynced.visibility =
+                        if (parsedPlaylist.platform != Platforms.BILIBILI) View.VISIBLE else View.GONE
+
                     // Platform badge
                     when (parsedPlaylist.platform) {
                         Platforms.NETEASE -> {
@@ -189,8 +194,9 @@ class AddSongFragment : Fragment() {
                 }
                 // Parsed song preview
                 else {
-                    // Hide playlist selector for single song
+                    // Hide playlist selector and sync checkbox for single song
                     binding.layoutPlaylistSelector.visibility = View.GONE
+                    binding.cbKeepSynced.visibility = View.GONE
 
                     val parsedSong = state.parsedSong
                     if (parsedSong != null && state.error == null) {

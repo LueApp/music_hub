@@ -186,6 +186,16 @@
 
                 </LinearLayout>
 
+                <!-- Sync checkbox (shown for playlist imports) -->
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/cbKeepSynced"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/sync_keep_synced"
+                    android:checked="true"
+                    android:layout_marginTop="8dp"
+                    android:visibility="gone" />
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnAddToLibrary"
                     android:layout_width="match_parent"

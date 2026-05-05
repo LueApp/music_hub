@@ -50,6 +50,13 @@ class HomeViewModel(
                 _platformCounts.value = current
             }
         }
+        viewModelScope.launch {
+            repository.getSongCountByPlatform(Platforms.BILIBILI).collect { bilibiliCount ->
+                val current = _platformCounts.value.toMutableMap()
+                current[Platforms.BILIBILI] = bilibiliCount
+                _platformCounts.value = current
+            }
+        }
     }
 
     companion object {
