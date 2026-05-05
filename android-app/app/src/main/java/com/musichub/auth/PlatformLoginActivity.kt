@@ -163,19 +163,18 @@ class PlatformLoginActivity : AppCompatActivity() {
                     Log.d(TAG, "Auth cookie '$key' detected for $platform on domain $domain (source: $source)")
                     loginCompleted = true
                     handler.removeCallbacks(cookiePollingRunnable)
-                    onLoginSuccess(cookies, domain)
+                    onLoginSuccess(domain)
                     return
                 }
             }
         }
     }
 
-    private fun onLoginSuccess(cookies: String, source: String) {
+    private fun onLoginSuccess(source: String) {
         Log.i(TAG, "Login successful for $platform (from $source)")
 
         // Collect all relevant cookies from all domains
         val allCookies = collectAllRelevantCookies()
-        Log.d(TAG, "Collected cookies: ${allCookies.take(200)}...")
 
         val resultIntent = Intent().apply {
             putExtra(EXTRA_PLATFORM, platform)

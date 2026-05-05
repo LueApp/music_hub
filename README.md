@@ -13,14 +13,14 @@ Music Hub 不播放、不下载、不缓存任何音乐。它是一个**跨平�
 | | 平台App<br>(网易云/QQ音乐) | 聚合播放器<br>(Listen 1等) | Music Hub |
 |---|---|---|---|
 | **播放方式** | 自己播放 | 自己播放（爬取API） | 调起官方App播放 |
-| **技术实现** | 官方客户端 | 逆向API、爬虫 | 深度链接（官方支持） |
+| **技术实现** | 官方客户端 | 逆向API、爬虫 | 深度链接 + 非官方元数据API |
 | **曲库范围** | 仅自家平台 | 多平台（爬取） | 跨平台统一管理 |
 | **播放列表** | 仅自家歌曲 | 可混合多平台 | 可混合多平台 |
 | **切歌方式** | App内切歌 | App内切歌 | 跨App自动切歌 |
 | **会员歌曲** | 需要对应会员 | 通常无法播放 | 使用你已有的会员 |
 | **音频数据** | 流媒体/本地播放 | 爬取后播放 | 不接触音频数据 |
-| **法律合规** | 合法 | 灰色地带 | 合法 |
-| **平台封禁风险** | 无 | 可能被封 | 无 |
+| **法律合规** | 合法 | 灰色地带 | 灰色地带（见免责声明） |
+| **平台封禁风险** | 无 | 可能被封 | 元数据API可能被封 |
 | **维护成本** | 官方维护 | API改动即失效 | 深度链接长期稳定 |
 
 **核心定位：**
@@ -258,9 +258,41 @@ music-hub/
 
 ---
 
+## 免责声明 Disclaimer
+
+**关于非官方 API / Regarding Unofficial APIs**
+
+本应用在获取歌曲元数据（标题、封面等）时，使用了网易云音乐、QQ 音乐和哔哩哔哩的**非官方、未公开文档的 API 接口**。这些接口并非由各平台官方授权供第三方使用，可能违反各平台的服务条款（ToS）。
+
+This app uses **unofficial, undocumented API endpoints** from NetEase Cloud Music, QQ Music, and Bilibili to fetch song metadata (titles, cover art, etc.). These endpoints are not officially authorized for third-party use and may violate the Terms of Service of the respective platforms.
+
+- 音频内容始终通过各平台官方 App 播放，本项目不播放、不下载、不缓存任何音频数据
+- 平台方可能随时更改或封锁其 API，导致相关功能失效
+- 网易云音乐、QQ 音乐和哔哩哔哩均已提供官方开放平台 API 或 SDK，但仅对企业/商业合作伙伴开放，个人开发者无法申请接入；若上述平台向个人开发者开放官方 API，本项目将优先迁移至官方接口
+- 使用本项目所带来的任何法律风险由使用者自行承担，作者不承担任何责任
+
+- Audio content is always played through the official apps; this project does not play, download, or cache any audio data
+- Platform providers may change or block their APIs at any time, breaking related features
+- NetEase Cloud Music, QQ Music, and Bilibili do provide official open platform APIs or SDKs, but access is restricted to enterprise/commercial partners and is not available to independent developers; should these platforms open their official APIs to individual developers, this project will migrate to them accordingly
+- Any legal risks arising from using this project are borne solely by the user; the author assumes no liability
+
+**非隶属关系与商标声明 / Non-Affiliation and Trademark Notice**
+
+- Music Hub 是独立的非官方项目，与网易云音乐、腾讯/QQ 音乐、哔哩哔哩及其关联公司没有隶属、赞助、认可或合作关系
+- 文档和界面中出现的第三方平台名称、商标、Logo、服务名称和应用包名仅用于说明兼容性、链接解析和播放委托关系，其权利归各自所有者所有
+- 本仓库的 MIT 许可证仅适用于本项目作者拥有版权的源代码和文档，不授予任何第三方平台内容、接口、商标、Logo、音乐作品或用户数据的使用权
+- 使用者应自行确认其使用方式符合所在地法律法规、第三方平台服务条款和版权要求
+
+- Music Hub is an independent, unofficial project and is not affiliated with, sponsored by, endorsed by, or partnered with NetEase Cloud Music, Tencent/QQ Music, Bilibili, or their affiliates
+- Third-party platform names, trademarks, logos, service names, and package names appear only to identify compatibility, link parsing, and playback delegation behavior; all rights remain with their respective owners
+- The MIT License in this repository applies only to source code and documentation owned by this project author; it does not grant rights to any third-party platform content, APIs, trademarks, logos, musical works, or user data
+- Users are responsible for ensuring their own use complies with applicable laws, third-party platform terms, and copyright requirements
+
+---
+
 ## 许可证 License
 
-MIT License
+[MIT License](LICENSE) © 2026 Lue
 
 ---
 
