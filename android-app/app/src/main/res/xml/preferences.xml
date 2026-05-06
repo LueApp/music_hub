@@ -131,7 +131,6 @@
         <Preference
             android:key="version"
             android:title="版本"
-            android:summary="1.0.0"
             android:selectable="false"
             app:iconSpaceReserved="false" />
 

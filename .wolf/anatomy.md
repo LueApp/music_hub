@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-06T03:27:04.507Z
-> Files: 654 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-06T05:51:33.411Z
+> Files: 656 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -760,7 +760,12 @@
 ## android-app/app/src/main/java/com/musichub/ui/fragment/
 
 - `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4886 tok)
+- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences, appVersionSummary, handleRemoteModeChange, updateRemoteMo (~4278 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
 
 - `PlaylistDetailViewModel.kt` — Format the sync status text for display. (~1404 tok)
+
+## android-app/app/src/main/res/xml/
+
+- `preferences.xml` (~1186 tok)

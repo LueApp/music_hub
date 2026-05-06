@@ -241,8 +241,21 @@ class SettingsFragment : PreferenceFragmentCompat() {
             true
         }
 
+        findPreference<Preference>("version")?.summary = appVersionSummary()
+
         // Add connection listener
         RemoteClient.addConnectionListener(connectionListener)
+    }
+
+    private fun appVersionSummary(): String {
+        val ctx = requireContext()
+        val info = ctx.packageManager.getPackageInfo(ctx.packageName, 0)
+        val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode
+        } else {
+            @Suppress("DEPRECATION") info.versionCode.toLong()
+        }
+        return "${info.versionName} ($code)"
     }
 
     private fun handleRemoteModeChange(mode: String) {

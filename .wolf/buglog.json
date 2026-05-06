@@ -1,4 +1,17 @@
 {
   "version": 1,
-  "bugs": []
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-05-06T13:51:00Z",
+      "error_message": "Settings page shows wrong/stale version (1.0.0 hardcoded)",
+      "file": "android-app/app/src/main/res/xml/preferences.xml, android-app/app/src/main/java/com/musichub/ui/fragment/SettingsFragment.kt",
+      "root_cause": "preferences.xml hardcoded android:summary=\"1.0.0\" for the version preference, while the actual app versionName is generated at build time from `git describe --tags --always --dirty` in app/build.gradle.kts. The two never tracked.",
+      "fix": "Removed hardcoded summary from preferences.xml. In SettingsFragment.onCreatePreferences, set the version preference summary at runtime via PackageManager.getPackageInfo(packageName, 0) -> versionName + longVersionCode.",
+      "tags": ["settings", "version", "preferences", "buildconfig"],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T13:51:00Z"
+    }
+  ]
 }

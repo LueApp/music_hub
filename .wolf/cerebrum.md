@@ -12,6 +12,7 @@
 
 - **Project:** music-hub
 - **Description:** 跨平台音乐播放列表管理器和启动器，支持网易云音乐、QQ音乐和哔哩哔哩。
+- **App version is generated from git** at build time: `app/build.gradle.kts` reads `git describe --tags --always --dirty` for `versionName` and `git rev-list --count HEAD` for `versionCode`. Anything that wants to display the version must read it from `PackageManager.getPackageInfo()` at runtime — never hardcode it. (BuildConfig generation is not enabled, so use PackageInfo, not BuildConfig.VERSION_NAME.)
 
 ## Do-Not-Repeat
 
