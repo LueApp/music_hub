@@ -1,11 +1,9 @@
 package com.musichub.ui.fragment
 
 import android.os.Bundle
-import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -17,9 +15,6 @@ import com.musichub.platform.Platforms
 import com.musichub.remote.RemoteClient
 import com.musichub.remote.RemoteMode
 import com.musichub.remote.toSong
-import com.musichub.service.FloatingWindowService
-import com.musichub.service.MediaMonitorService
-import com.musichub.service.PlaybackService
 import com.musichub.ui.MainActivity
 import com.musichub.ui.adapter.SongAdapter
 import com.musichub.ui.viewmodel.HomeViewModel
@@ -50,13 +45,7 @@ class HomeFragment : Fragment() {
 
         setupRecyclerView()
         setupClickListeners()
-        setupPermissionButtons()
         observeData()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updatePermissionStatus()
     }
 
     private fun setupRecyclerView() {
@@ -99,83 +88,6 @@ class HomeFragment : Fragment() {
         binding.cardBilibili.setOnClickListener {
             // TODO: Filter library by Bilibili
         }
-    }
-
-    private fun setupPermissionButtons() {
-        binding.btnEnableNotification.setOnClickListener {
-            MediaMonitorService.openSettings(requireContext())
-        }
-
-        binding.btnEnableOverlay.setOnClickListener {
-            requireActivity().findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(
-                R.id.bottom_navigation
-            )?.selectedItemId = R.id.nav_settings
-        }
-
-        // Auto-start permission for MIUI devices
-        binding.btnEnableAutoStart.setOnClickListener {
-            MediaMonitorService.openMiuiAutoStartSettings(requireContext())
-        }
-
-        binding.btnShowFloatingWindow.setOnClickListener {
-            if (Settings.canDrawOverlays(requireContext())) {
-                PlaybackService.startService(requireContext())
-                FloatingWindowService.start(requireContext())
-                Toast.makeText(requireContext(), "悬浮窗已显示", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(requireContext(), "请先在设置-权限页面授权悬浮窗", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private fun updatePermissionStatus() {
-        // Notification listener status
-        val notificationEnabled = MediaMonitorService.isEnabled(requireContext())
-        binding.tvNotificationStatus.text = if (notificationEnabled) {
-            "通知监听: ✓ 已授权"
-        } else {
-            "通知监听: ✗ 未授权"
-        }
-        binding.tvNotificationStatus.setTextColor(
-            resources.getColor(
-                if (notificationEnabled) R.color.success else R.color.warning,
-                null
-            )
-        )
-        binding.btnEnableNotification.visibility =
-            if (notificationEnabled) View.GONE else View.VISIBLE
-
-        // Overlay permission status
-        val overlayEnabled = Settings.canDrawOverlays(requireContext())
-        binding.tvOverlayStatus.text = if (overlayEnabled) {
-            "悬浮窗: ✓ 已授权"
-        } else {
-            "悬浮窗: ✗ 未授权"
-        }
-        binding.tvOverlayStatus.setTextColor(
-            resources.getColor(
-                if (overlayEnabled) R.color.success else R.color.warning,
-                null
-            )
-        )
-        binding.btnEnableOverlay.visibility =
-            if (overlayEnabled) View.GONE else View.VISIBLE
-
-        // Auto-start permission for MIUI devices
-        if (MediaMonitorService.isMiui()) {
-            binding.layoutAutoStart.visibility = View.VISIBLE
-            // We can't programmatically check auto-start status, so always show it
-            binding.tvAutoStartStatus.text = "自启动: 请确保已开启"
-        } else {
-            binding.layoutAutoStart.visibility = View.GONE
-        }
-
-        // Update card stroke color based on permissions
-        val allGranted = notificationEnabled && overlayEnabled
-        binding.cardPermissions.strokeColor = resources.getColor(
-            if (allGranted) R.color.success else R.color.warning,
-            null
-        )
     }
 
     private fun observeData() {
