@@ -1,7 +1,5 @@
 package com.musichub.ui.fragment
 
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.LayoutInflater
@@ -109,11 +107,9 @@ class HomeFragment : Fragment() {
         }
 
         binding.btnEnableOverlay.setOnClickListener {
-            val intent = Intent(
-                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                Uri.parse("package:${requireContext().packageName}")
-            )
-            startActivity(intent)
+            requireActivity().findViewById<com.google.android.material.bottomnavigation.BottomNavigationView>(
+                R.id.bottom_navigation
+            )?.selectedItemId = R.id.nav_settings
         }
 
         // Auto-start permission for MIUI devices
@@ -123,18 +119,11 @@ class HomeFragment : Fragment() {
 
         binding.btnShowFloatingWindow.setOnClickListener {
             if (Settings.canDrawOverlays(requireContext())) {
-                // Start PlaybackService if not running
                 PlaybackService.startService(requireContext())
-                // Show floating window
                 FloatingWindowService.start(requireContext())
                 Toast.makeText(requireContext(), "悬浮窗已显示", Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(requireContext(), "请先授权悬浮窗权限", Toast.LENGTH_SHORT).show()
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${requireContext().packageName}")
-                )
-                startActivity(intent)
+                Toast.makeText(requireContext(), "请先在设置-权限页面授权悬浮窗", Toast.LENGTH_SHORT).show()
             }
         }
     }
