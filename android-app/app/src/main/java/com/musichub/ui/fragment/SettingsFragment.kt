@@ -103,16 +103,26 @@ class SettingsFragment : PreferenceFragmentCompat() {
                     if (Settings.canDrawOverlays(requireContext())) {
                         FloatingWindowService.start(requireContext())
                     } else {
-                        // Request overlay permission
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION
-                        )
+                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                            data = Uri.parse("package:${requireContext().packageName}")
+                        }
                         startActivity(intent)
-                        false // Don't update the preference yet
+                        return@setOnPreferenceChangeListener false
                     }
                 } else {
                     FloatingWindowService.stop(requireContext())
                 }
+                true
+            }
+        }
+
+        // Overlay permission preference
+        findPreference<Preference>("overlay_access")?.apply {
+            setOnPreferenceClickListener {
+                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                    data = Uri.parse("package:${requireContext().packageName}")
+                }
+                startActivity(intent)
                 true
             }
         }
@@ -345,9 +355,17 @@ class SettingsFragment : PreferenceFragmentCompat() {
         // Grey out the auto-open switch when the accessibility service is not running
         findPreference<SwitchPreferenceCompat>("qqmusic_auto_open_player")?.isEnabled = a11yEnabled && a11yRunning
 
-        // Update floating window status
+        // Update overlay permission status
+        val canDrawOverlays = Settings.canDrawOverlays(requireContext())
+        findPreference<Preference>("overlay_access")?.apply {
+            summary = if (canDrawOverlays) "已授权" else "未授权 - 点击授权"
+        }
+
+        // Update floating window status; auto-start if permission was just granted
         findPreference<SwitchPreferenceCompat>("floating_window")?.apply {
-            if (!Settings.canDrawOverlays(requireContext())) {
+            if (canDrawOverlays) {
+                if (isChecked) FloatingWindowService.start(requireContext())
+            } else {
                 isChecked = false
             }
         }

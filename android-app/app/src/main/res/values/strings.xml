@@ -105,6 +105,15 @@
     <string name="open_in_app">Open in App</string>
     <string name="open_in_app_cn">在App中打开</string>
 
+    <!-- Settings - Permissions -->
+    <string name="overlay_access_cn">悬浮窗权限</string>
+    <string name="overlay_access_desc_cn">在其他应用上方显示浮窗控制栏</string>
+    <string name="accessibility_access_cn">无障碍服务权限</string>
+    <string name="write_settings_cn">修改系统设置权限</string>
+    <string name="write_settings_desc_cn">用于横屏时自动修复网易云音乐方向检测</string>
+    <string name="usage_stats_cn">应用使用情况权限</string>
+    <string name="usage_stats_desc_cn">用于浮窗双击智能导航功能</string>
+
     <!-- Settings -->
     <string name="enable_floating_window">Enable Floating Window</string>
     <string name="enable_floating_window_cn">启用悬浮窗</string>

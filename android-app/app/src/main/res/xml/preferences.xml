@@ -34,6 +34,12 @@
         app:iconSpaceReserved="false">
 
         <Preference
+            android:key="overlay_access"
+            android:title="@string/overlay_access_cn"
+            android:summary="@string/overlay_access_desc_cn"
+            app:iconSpaceReserved="false" />
+
+        <Preference
             android:key="notification_access"
             android:title="@string/notification_access_cn"
             android:summary="@string/notification_access_desc_cn"
@@ -41,20 +47,20 @@
 
         <Preference
             android:key="accessibility_access"
-            android:title="无障碍服务权限"
-            android:summary="用于前台模式下自动打开QQ音乐播放器页面"
+            android:title="@string/accessibility_access_cn"
+            android:summary="@string/accessibility_service_desc_cn"
             app:iconSpaceReserved="false" />
 
         <Preference
             android:key="write_settings_access"
-            android:title="修改系统设置权限"
-            android:summary="用于横屏时自动修复网易云音乐方向检测"
+            android:title="@string/write_settings_cn"
+            android:summary="@string/write_settings_desc_cn"
             app:iconSpaceReserved="false" />
 
         <Preference
             android:key="usage_stats_access"
-            android:title="应用使用情况权限"
-            android:summary="用于浮窗双击智能导航功能"
+            android:title="@string/usage_stats_cn"
+            android:summary="@string/usage_stats_desc_cn"
             app:iconSpaceReserved="false" />
 
     </PreferenceCategory>
