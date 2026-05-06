@@ -980,8 +980,17 @@ class MediaMonitorService : NotificationListenerService() {
             activeControllers.values.toList()
         }
 
+        // Prefer the platform Music Hub last launched so a stale paused controller
+        // from another app can't shadow the song the user actually expects to see.
+        val target = currentPlatformPackage
+        val orderedControllers = if (target != null) {
+            controllerSnapshot.sortedByDescending { it.packageName == target }
+        } else {
+            controllerSnapshot
+        }
+
         // First pass: find a controller that is actively playing
-        controllerSnapshot.forEach { controller ->
+        orderedControllers.forEach { controller ->
             try {
                 val state = controller.playbackState
                 val metadata = controller.metadata
@@ -1010,7 +1019,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // Second pass: find any controller with valid metadata (paused state)
-        controllerSnapshot.forEach { controller ->
+        orderedControllers.forEach { controller ->
             try {
                 val state = controller.playbackState
                 val metadata = controller.metadata
@@ -1045,8 +1054,17 @@ class MediaMonitorService : NotificationListenerService() {
             activeControllers.values.toList()
         }
 
+        // Prefer the platform Music Hub last launched so resume can't accidentally
+        // start a stale paused song in a different music app the user touched manually.
+        val target = currentPlatformPackage
+        val orderedControllers = if (target != null) {
+            controllerSnapshot.sortedByDescending { it.packageName == target }
+        } else {
+            controllerSnapshot
+        }
+
         // First, try to find a playing controller to pause
-        controllerSnapshot.forEach { controller ->
+        orderedControllers.forEach { controller ->
             try {
                 val state = controller.playbackState
                 if (state != null && state.state == PlaybackState.STATE_PLAYING) {
@@ -1060,7 +1078,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // No playing controller found, try to resume any paused controller
-        controllerSnapshot.forEach { controller ->
+        orderedControllers.forEach { controller ->
             try {
                 val state = controller.playbackState
                 if (state != null && state.state == PlaybackState.STATE_PAUSED) {
@@ -1074,7 +1092,7 @@ class MediaMonitorService : NotificationListenerService() {
         }
 
         // Last resort: try the first controller with any state
-        controllerSnapshot.firstOrNull()?.let { controller ->
+        orderedControllers.firstOrNull()?.let { controller ->
             try {
                 Log.d(TAG, "Attempting to play ${controller.packageName}")
                 controller.transportControls.play()
