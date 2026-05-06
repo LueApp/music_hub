@@ -1,7 +1,11 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-06T05:51:33.411Z
-> Files: 656 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-06T12:10:32.319Z
+> Files: 660 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../../.claude/plans/
+
+- `now-we-have-a-giggly-harbor.md` — Plan: Include SyncSources in Export/Import (~776 tok)
 
 ## ./
 
@@ -20,7 +24,7 @@
 ## .claude/
 
 - `settings.json` (~441 tok)
-- `settings.local.json` (~146 tok)
+- `settings.local.json` (~78 tok)
 
 ## .claude/rules/
 
@@ -759,13 +763,22 @@
 
 ## android-app/app/src/main/java/com/musichub/ui/fragment/
 
+- `HomeFragment.kt` — HomeFragment: onCreateView, onViewCreated, setupRecyclerView, setupClickListeners (~1565 tok)
 - `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4886 tok)
-- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences, appVersionSummary, handleRemoteModeChange, updateRemoteMo (~4278 tok)
+- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences, appVersionSummary, handleRemoteModeChange (~4450 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
 
 - `PlaylistDetailViewModel.kt` — Format the sync status text for display. (~1404 tok)
 
+## android-app/app/src/main/res/layout/
+
+- `fragment_home.xml` (~2526 tok)
+
+## android-app/app/src/main/res/values/
+
+- `strings.xml` (~3278 tok)
+
 ## android-app/app/src/main/res/xml/
 
-- `preferences.xml` (~1186 tok)
+- `preferences.xml` (~1272 tok)

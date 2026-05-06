@@ -19,6 +19,8 @@
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
 
+[2026-05-06] When removing imports from a fragment, grep the *entire* file for all usages before deleting — not just the deleted methods. `Toast` was used in `observeData()` but the import was removed because it only appeared in the deleted `setupPermissionButtons`/`updatePermissionStatus` methods.
+
 ## Decision Log
 
 <!-- Significant technical decisions with rationale. Why X was chosen over Y. -->

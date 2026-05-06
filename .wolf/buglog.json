@@ -8,10 +8,111 @@
       "file": "android-app/app/src/main/res/xml/preferences.xml, android-app/app/src/main/java/com/musichub/ui/fragment/SettingsFragment.kt",
       "root_cause": "preferences.xml hardcoded android:summary=\"1.0.0\" for the version preference, while the actual app versionName is generated at build time from `git describe --tags --always --dirty` in app/build.gradle.kts. The two never tracked.",
       "fix": "Removed hardcoded summary from preferences.xml. In SettingsFragment.onCreatePreferences, set the version preference summary at runtime via PackageManager.getPackageInfo(packageName, 0) -> versionName + longVersionCode.",
-      "tags": ["settings", "version", "preferences", "buildconfig"],
+      "tags": [
+        "settings",
+        "version",
+        "preferences",
+        "buildconfig"
+      ],
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-06T13:51:00Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-05-06T11:03:52.138Z",
+      "error_message": "Significant refactor of ",
+      "file": ".claude/settings.local.json",
+      "root_cause": "13 lines replaced/restructured",
+      "fix": "Rewrote 24→14 lines (13 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "json"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T11:03:52.138Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-05-06T11:17:37.363Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/res/xml/preferences.xml",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 29→35 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T11:17:37.363Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-05-06T11:17:47.221Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/SettingsFragment.kt",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 22→32 lines (5 removed) | Also: // Update floating window status; if (!Settings.canDrawOverlays(requireContext())) {",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-06T11:17:57.989Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-05-06T11:36:38.527Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/HomeFragment.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T11:36:38.527Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-05-06T11:36:46.332Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/HomeFragment.kt",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 16→9 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T11:36:46.332Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-05-06T11:41:16.877Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/res/layout/fragment_home.xml",
+      "root_cause": "66 lines replaced/restructured",
+      "fix": "Rewrote 121→11 lines (66 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-06T11:41:16.877Z"
     }
   ]
 }
