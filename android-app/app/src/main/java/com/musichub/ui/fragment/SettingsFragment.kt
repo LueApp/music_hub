@@ -103,10 +103,7 @@ class SettingsFragment : PreferenceFragmentCompat() {
                     if (Settings.canDrawOverlays(requireContext())) {
                         FloatingWindowService.start(requireContext())
                     } else {
-                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                            data = Uri.parse("package:${requireContext().packageName}")
-                        }
-                        startActivity(intent)
+                        Toast.makeText(requireContext(), "请先在权限页面授权悬浮窗", Toast.LENGTH_SHORT).show()
                         return@setOnPreferenceChangeListener false
                     }
                 } else {
