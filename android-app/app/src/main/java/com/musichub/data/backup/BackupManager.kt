@@ -9,6 +9,7 @@ import com.musichub.data.local.MusicHubDatabase
 import com.musichub.data.model.Playlist
 import com.musichub.data.model.PlaylistItem
 import com.musichub.data.model.Song
+import com.musichub.data.model.SyncSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.InputStreamReader
@@ -35,6 +36,13 @@ data class BackupPlaylistItem(
     val addedAt: Long
 )
 
+data class BackupSyncSource(
+    val platform: String,
+    val remotePlaylistId: String,
+    val sourceUrl: String,
+    val createdAt: Long
+)
+
 data class BackupPlaylist(
     val name: String,
     val description: String,
@@ -42,7 +50,8 @@ data class BackupPlaylist(
     val createdAt: Long,
     val updatedAt: Long,
     val syncIntervalMinutes: Long,
-    val items: List<BackupPlaylistItem>
+    val items: List<BackupPlaylistItem>,
+    val syncSources: List<BackupSyncSource> = emptyList()
 )
 
 data class BackupFile(
@@ -59,7 +68,8 @@ data class ImportResult(
     val songsExisting: Int,
     val playlistsAdded: Int,
     val itemsAdded: Int,
-    val itemsSkipped: Int
+    val itemsSkipped: Int,
+    val syncSourcesAdded: Int = 0
 )
 
 class BackupManager(private val database: MusicHubDatabase) {
@@ -85,7 +95,17 @@ class BackupManager(private val database: MusicHubDatabase) {
                         addedAt = item.addedAt
                     )
                 }
-            playlist.toBackup(items)
+            val syncSources = database.syncSourceDao()
+                .getByPlaylistIdList(playlist.id)
+                .map { src ->
+                    BackupSyncSource(
+                        platform = src.platform,
+                        remotePlaylistId = src.remotePlaylistId,
+                        sourceUrl = src.sourceUrl,
+                        createdAt = src.createdAt
+                    )
+                }
+            playlist.toBackup(items, syncSources)
         }
 
         val backup = BackupFile(
@@ -122,6 +142,7 @@ class BackupManager(private val database: MusicHubDatabase) {
         var playlistsAdded = 0
         var itemsAdded = 0
         var itemsSkipped = 0
+        var syncSourcesAdded = 0
 
         database.withTransaction {
             val keyToLocalId = mutableMapOf<Pair<String, String>, Long>()
@@ -159,10 +180,23 @@ class BackupManager(private val database: MusicHubDatabase) {
                     )
                     itemsAdded++
                 }
+
+                for (src in backupPlaylist.syncSources ?: emptyList()) {
+                    database.syncSourceDao().insert(
+                        SyncSource(
+                            playlistId = newPlaylistId,
+                            platform = src.platform,
+                            remotePlaylistId = src.remotePlaylistId,
+                            sourceUrl = src.sourceUrl,
+                            createdAt = src.createdAt
+                        )
+                    )
+                    syncSourcesAdded++
+                }
             }
         }
 
-        ImportResult(songsAdded, songsExisting, playlistsAdded, itemsAdded, itemsSkipped)
+        ImportResult(songsAdded, songsExisting, playlistsAdded, itemsAdded, itemsSkipped, syncSourcesAdded)
     }
 
     private fun Song.toBackup() = BackupSong(
@@ -191,14 +225,15 @@ class BackupManager(private val database: MusicHubDatabase) {
         customDurationMs = customDurationMs
     )
 
-    private fun Playlist.toBackup(items: List<BackupPlaylistItem>) = BackupPlaylist(
+    private fun Playlist.toBackup(items: List<BackupPlaylistItem>, syncSources: List<BackupSyncSource>) = BackupPlaylist(
         name = name,
         description = description,
         coverPath = coverPath,
         createdAt = createdAt,
         updatedAt = updatedAt,
         syncIntervalMinutes = syncIntervalMinutes,
-        items = items
+        items = items,
+        syncSources = syncSources
     )
 
     private fun BackupPlaylist.toEntity() = Playlist(
