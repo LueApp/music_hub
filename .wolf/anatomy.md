@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-06T02:20:52.963Z
-> Files: 644 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-06T03:27:04.507Z
+> Files: 654 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -730,3 +730,37 @@
 - `gpropertyaction.h` — Declares gchar (~583 tok)
 - `gproxy.h` — G_PROXY_EXTENSION_POINT_NAME: (~1151 tok)
 - `gproxyaddress.h` — Declares gchar (~916 tok)
+
+## android-app/app/src/main/java/com/musichub/data/backup/
+
+- `BackupManager.kt` — Data class: BackupSong (~1842 tok)
+
+## android-app/app/src/main/java/com/musichub/data/local/
+
+- `MusicHubDatabase.kt` — MusicHubDatabase: songDao, playlistDao, playlistItemDao, syncSourceDao (~471 tok)
+- `SongDao.kt` — insert, update, delete, deleteById, getById (~888 tok)
+
+## android-app/app/src/main/java/com/musichub/data/model/
+
+- `Models.kt` — Song entity representing a song in the user's library. (~1211 tok)
+
+## android-app/app/src/main/java/com/musichub/data/repository/
+
+- `MusicRepository.kt` — MusicRepository: getAllSongs, getRecentSongs, searchSongs, getSongsByPlatform (~1734 tok)
+
+## android-app/app/src/main/java/com/musichub/service/
+
+- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15272 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~12064 tok)
+
+## android-app/app/src/main/java/com/musichub/ui/adapter/
+
+- `SongAdapter.kt` — SongAdapter: onCreateViewHolder, onBindViewHolder, removeItem, bind (~1052 tok)
+
+## android-app/app/src/main/java/com/musichub/ui/fragment/
+
+- `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4886 tok)
+
+## android-app/app/src/main/java/com/musichub/ui/viewmodel/
+
+- `PlaylistDetailViewModel.kt` — Format the sync status text for display. (~1404 tok)

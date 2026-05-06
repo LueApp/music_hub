@@ -34,6 +34,12 @@ class MusicRepository(private val database: MusicHubDatabase) {
     suspend fun deleteAllSongs(): Int =
         database.songDao().deleteAll()
 
+    suspend fun updateSongCustomDuration(songId: Long, customDurationMs: Long?): Int =
+        database.songDao().updateCustomDuration(songId, customDurationMs)
+
+    suspend fun getSongById(songId: Long): Song? =
+        database.songDao().getById(songId)
+
     fun getSongCountByPlatform(platform: String): Flow<Int> =
         database.songDao().getCountByPlatform(platform)
 

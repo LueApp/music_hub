@@ -14,6 +14,10 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.text.InputType
+import android.widget.EditText
+import android.widget.FrameLayout
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.musichub.R
 import com.musichub.data.model.Song
@@ -95,6 +99,9 @@ class PlaylistDetailFragment : Fragment() {
             onDeleteClick = { song ->
                 viewModel.removeSongFromPlaylist(song.id)
                 Snackbar.make(binding.root, "已移除: ${song.title}", Snackbar.LENGTH_SHORT).show()
+            },
+            onSongLongClick = { song ->
+                showCustomDurationDialog(song)
             }
         )
 
@@ -383,6 +390,67 @@ class PlaylistDetailFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun showCustomDurationDialog(song: Song) {
+        val ctx = requireContext()
+        val current = song.customDurationMs
+        val input = EditText(ctx).apply {
+            inputType = InputType.TYPE_CLASS_TEXT
+            hint = "mm:ss 或 秒数 (例: 1:30 或 90)"
+            setText(current?.let { formatMs(it) } ?: "")
+            setSelection(text.length)
+        }
+        val padding = (16 * resources.displayMetrics.density).toInt()
+        val frame = FrameLayout(ctx).apply {
+            setPadding(padding, padding / 2, padding, 0)
+            addView(input)
+        }
+        val currentLabel = current?.let { "当前: ${formatMs(it)}" } ?: "当前: 未设置"
+        MaterialAlertDialogBuilder(ctx)
+            .setTitle("提前结束播放: ${song.title}")
+            .setMessage("$currentLabel\n\n播放到设定时间时自动跳到下一首，用于跳过较长的解说或前奏。")
+            .setView(frame)
+            .setPositiveButton("保存") { _, _ ->
+                val parsed = parseDurationInput(input.text?.toString() ?: "")
+                if (parsed == null) {
+                    Snackbar.make(binding.root, "时长格式无效", Snackbar.LENGTH_SHORT).show()
+                } else {
+                    viewModel.setSongCustomDuration(song.id, parsed)
+                    Snackbar.make(binding.root, "已设置: ${formatMs(parsed)}", Snackbar.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("清除") { _, _ ->
+                viewModel.setSongCustomDuration(song.id, null)
+                Snackbar.make(binding.root, "已清除自定义时长", Snackbar.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("取消", null)
+            .show()
+    }
+
+    private fun parseDurationInput(text: String): Long? {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return null
+        return try {
+            val totalSecs = if (trimmed.contains(":")) {
+                val parts = trimmed.split(":")
+                if (parts.size != 2) return null
+                val mins = parts[0].toLong()
+                val secs = parts[1].toLong()
+                if (mins < 0 || secs !in 0..59) return null
+                mins * 60 + secs
+            } else {
+                trimmed.toLong()
+            }
+            if (totalSecs <= 0) null else totalSecs * 1000L
+        } catch (e: NumberFormatException) {
+            null
+        }
+    }
+
+    private fun formatMs(ms: Long): String {
+        val totalSecs = ms / 1000
+        return "%d:%02d".format(totalSecs / 60, totalSecs % 60)
     }
 
     override fun onDestroyView() {

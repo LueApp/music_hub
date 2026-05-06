@@ -14,7 +14,8 @@ import com.musichub.platform.Platforms
 class SongAdapter(
     private val onSongClick: (Song) -> Unit,
     private val onPlayClick: (Song) -> Unit,
-    private val onDeleteClick: ((Song) -> Unit)? = null
+    private val onDeleteClick: ((Song) -> Unit)? = null,
+    private val onSongLongClick: ((Song) -> Unit)? = null
 ) : ListAdapter<Song, SongAdapter.SongViewHolder>(SongDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SongViewHolder {
@@ -46,6 +47,16 @@ class SongAdapter(
                 val position = bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
                     onSongClick(getItem(position))
+                }
+            }
+
+            binding.root.setOnLongClickListener {
+                val position = bindingAdapterPosition
+                if (position != RecyclerView.NO_POSITION && onSongLongClick != null) {
+                    onSongLongClick.invoke(getItem(position))
+                    true
+                } else {
+                    false
                 }
             }
 

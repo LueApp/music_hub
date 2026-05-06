@@ -91,6 +91,12 @@ class PlaylistDetailViewModel(
         }
     }
 
+    fun setSongCustomDuration(songId: Long, customDurationMs: Long?) {
+        viewModelScope.launch {
+            repository.updateSongCustomDuration(songId, customDurationMs)
+        }
+    }
+
     fun syncNow() {
         viewModelScope.launch {
             _isSyncing.value = true

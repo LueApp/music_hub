@@ -39,6 +39,11 @@ class MediaMonitorService : NotificationListenerService() {
     // Only song-end events from this package trigger auto-advance.
     private var currentPlatformPackage: String? = null
 
+    // Per-song user-configured early end-of-song trigger in milliseconds.
+    // When set, song-finished fires once playback position reaches this value,
+    // even if the song's natural duration is longer.
+    private var currentSongCustomDurationMs: Long? = null
+
     // Position polling for apps that don't report position in callbacks (like NetEase)
     private val POSITION_POLL_INTERVAL_MS = 1000L  // Poll every 1 second for faster detection
     private var isPolling = false
@@ -590,6 +595,17 @@ class MediaMonitorService : NotificationListenerService() {
                             }
                         }
 
+                        // Custom duration check: user-configured early end (for talks/long intros).
+                        // Bypasses the MIN_POSITION_FOR_END_MS floor because the user explicitly
+                        // chose this timeout — it may legitimately be shorter than 30s.
+                        val customTimeout = currentSongCustomDurationMs
+                        if (customTimeout != null && estimatedPosition >= customTimeout && !songEndTriggered) {
+                            Log.d(TAG, "Custom timeout reached: position=$estimatedPosition ms, timeout=$customTimeout ms, package=$pkg")
+                            songEndTriggered = true
+                            sendSongFinishedBroadcast()
+                            return@forEach
+                        }
+
                         // Early song end detection: trigger close to end to beat the original app's auto-advance
                         // But not too early to avoid cutting off the song
                         if (lastMetadataDuration > 0 && !songEndTriggered) {
@@ -828,6 +844,15 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     fun getCurrentPlatformPackage(): String? = currentPlatformPackage
+
+    /**
+     * Set the per-song custom end-of-song timeout in milliseconds.
+     * Pass null to clear (use natural song end).
+     */
+    fun setCurrentSongCustomDuration(customDurationMs: Long?) {
+        Log.d(TAG, "Custom song duration set to: $customDurationMs ms (was: $currentSongCustomDurationMs)")
+        currentSongCustomDurationMs = customDurationMs
+    }
 
     /**
      * Register a one-shot callback that fires when the specified platform's

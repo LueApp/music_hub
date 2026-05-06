@@ -32,7 +32,12 @@ data class Song(
     @ColumnInfo(name = "cover_url")
     val coverUrl: String = "",
     @ColumnInfo(name = "created_at")
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    // User-configured early end-of-song trigger in milliseconds.
+    // When set, MediaMonitorService fires song-finished once playback position reaches this value,
+    // so songs containing long talks/intros can be skipped before their natural end.
+    @ColumnInfo(name = "custom_duration_ms")
+    val customDurationMs: Long? = null
 )
 
 /**

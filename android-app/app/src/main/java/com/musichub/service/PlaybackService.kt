@@ -636,6 +636,9 @@ class PlaybackService : Service() {
         // triggers song-end detection from the correct controller
         MediaMonitorService.getInstance()?.setCurrentPlatform(targetPackage)
 
+        // Apply per-song custom end-of-song timeout (e.g. to skip long talks).
+        MediaMonitorService.getInstance()?.setCurrentSongCustomDuration(song.customDurationMs)
+
         // Pause all currently playing media before launching the new song
         // Pass the target package so we know if this is a same-platform or cross-platform switch
         // For same-platform switches, we skip repeated pause attempts to avoid pausing the new song

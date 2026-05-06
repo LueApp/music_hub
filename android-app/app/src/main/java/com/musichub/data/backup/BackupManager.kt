@@ -24,7 +24,8 @@ data class BackupSong(
     val deepLink: String,
     val sourceUrl: String,
     val coverUrl: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val customDurationMs: Long? = null
 )
 
 data class BackupPlaylistItem(
@@ -173,7 +174,8 @@ class BackupManager(private val database: MusicHubDatabase) {
         deepLink = deepLink,
         sourceUrl = sourceUrl,
         coverUrl = coverUrl,
-        createdAt = createdAt
+        createdAt = createdAt,
+        customDurationMs = customDurationMs
     )
 
     private fun BackupSong.toEntity() = Song(
@@ -185,7 +187,8 @@ class BackupManager(private val database: MusicHubDatabase) {
         deepLink = deepLink,
         sourceUrl = sourceUrl,
         coverUrl = coverUrl,
-        createdAt = createdAt
+        createdAt = createdAt,
+        customDurationMs = customDurationMs
     )
 
     private fun Playlist.toBackup(items: List<BackupPlaylistItem>) = BackupPlaylist(

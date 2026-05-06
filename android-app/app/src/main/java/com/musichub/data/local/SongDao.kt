@@ -40,6 +40,9 @@ interface SongDao {
     @Query("UPDATE songs SET cover_url = :coverUrl WHERE id = :songId")
     suspend fun updateCoverUrl(songId: Long, coverUrl: String): Int
 
+    @Query("UPDATE songs SET custom_duration_ms = :customDurationMs WHERE id = :songId")
+    suspend fun updateCustomDuration(songId: Long, customDurationMs: Long?): Int
+
     @Query("SELECT * FROM songs WHERE cover_url = '' OR cover_url IS NULL")
     suspend fun getSongsWithoutCover(): List<Song>
 
