@@ -1523,17 +1523,20 @@ class FloatingWindowService : Service() {
     }
 
     private fun handleDoubleClick() {
+        // In CONTROLLER mode, playback happens on the remote phone, so launching
+        // the local platform app would be meaningless. Open Music Hub instead.
+        if (RemoteMode.isController()) {
+            launchMusicHub()
+            return
+        }
+
         if (!hasUsageStatsPermission()) {
             Log.w(TAG, "Usage stats permission not granted, double-click navigation disabled")
             return
         }
 
         val foregroundApp = getForegroundAppPackage()
-        val currentPlatform = if (RemoteMode.isController()) {
-            RemoteClient.currentState?.currentSong?.platform
-        } else {
-            PlaybackService.getInstance()?.getCurrentPlatform()
-        }
+        val currentPlatform = PlaybackService.getInstance()?.getCurrentPlatform()
 
         Log.d(TAG, "Double-click: foregroundApp=$foregroundApp, currentPlatform=$currentPlatform")
 
