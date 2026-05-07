@@ -14,12 +14,19 @@
 - **Description:** 跨平台音乐播放列表管理器和启动器，支持网易云音乐、QQ音乐和哔哩哔哩。
 - **App version is generated from git** at build time: `app/build.gradle.kts` reads `git describe --tags --always --dirty` for `versionName` and `git rev-list --count HEAD` for `versionCode`. Anything that wants to display the version must read it from `PackageManager.getPackageInfo()` at runtime — never hardcode it. (BuildConfig generation is not enabled, so use PackageInfo, not BuildConfig.VERSION_NAME.)
 
+## Key Learnings
+
+- **Fragment coroutine pattern**: Use `viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED)` inside any `viewLifecycleOwner.lifecycleScope.launch` block that collects from a StateFlow/Flow and accesses `binding`. Plain `collectLatest` has a race window where a final emission can fire after `onDestroyView()`. This matters especially when fragments are pushed off-screen immediately (e.g., first-run navigation).
+- **First-run onboarding**: Setup screen (SetupFragment) is navigated to from MainActivity.onCreate() via `navController.navigate(R.id.nav_setup)` if `musichub_prefs.setup_complete` SharedPreferences flag is false. Covers POST_NOTIFICATIONS, SYSTEM_ALERT_WINDOW, notification listener, accessibility. SYSTEM_ALERT_WINDOW is the key permission that suppresses the "app wants to open QQ Music?" Android background activity launch dialog.
+
 ## Do-Not-Repeat
 
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->
 <!-- Format: [YYYY-MM-DD] Description of what went wrong and what to do instead. -->
 
 [2026-05-06] When removing imports from a fragment, grep the *entire* file for all usages before deleting — not just the deleted methods. `Toast` was used in `observeData()` but the import was removed because it only appeared in the deleted `setupPermissionButtons`/`updatePermissionStatus` methods.
+
+[2026-05-07] Fragment `collectLatest` coroutines crash if they access `binding` after navigation pushes the fragment off-screen. Always use `repeatOnLifecycle(STARTED)` to gate Flow collectors in Fragments.
 
 ## Decision Log
 

@@ -38,8 +38,8 @@ object DeepLinkLauncher {
 
 
     // Patterns for converting legacy HTTPS Bilibili deep links to bilibili:// scheme
-    private val bilibiliVideoPattern = Regex("""https?://(?:www\.)?bilibili\.com/video/((?:BV[a-zA-Z0-9]+|av\d+))""")
-    private val bilibiliAudioPattern = Regex("""https?://(?:www\.)?bilibili\.com/audio/au(\d+)""")
+    private val bilibiliVideoPattern = Regex("""https?://(?:(?:www|m)\.)?bilibili\.com/video/((?:BV[a-zA-Z0-9]+|av\d+))""")
+    private val bilibiliAudioPattern = Regex("""https?://(?:(?:www|m)\.)?bilibili\.com/audio/au(\d+)""")
 
     /**
      * Launch a deep link URL, falling back to web URL if the app isn't installed.
@@ -104,7 +104,7 @@ object DeepLinkLauncher {
                 // CLEAR_TASK forces a fresh PlayerActivity with a new OrientationEventListener
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK)
             }
-            if (resolvedLink.startsWith("bilibili://")) {
+            if (resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")) {
                 setPackage(BILIBILI_PACKAGE)
             }
         }
@@ -151,8 +151,9 @@ object DeepLinkLauncher {
             if (isNeteaseLandscape) {
                 restoreAutoRotation(context)
             }
-            // For bilibili:// links, fall back to HTTPS URL (browser)
-            if (resolvedLink.startsWith("bilibili://") && fallbackUrl.isNotEmpty()) {
+            // For Bilibili links, fall back to HTTPS URL (browser)
+            val isBilibili = resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")
+            if (isBilibili && fallbackUrl.isNotEmpty()) {
                 Log.d(TAG, "Bilibili app not available, falling back to browser: $fallbackUrl")
                 return launchFallback(context, fallbackUrl)
             }
@@ -176,7 +177,7 @@ object DeepLinkLauncher {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
             addFlags(Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-            if (resolvedLink.startsWith("bilibili://")) {
+            if (resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")) {
                 setPackage(BILIBILI_PACKAGE)
             }
         }
@@ -188,7 +189,8 @@ object DeepLinkLauncher {
                     Log.i(TAG, "Successfully launched for locked screen: $resolvedLink")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to launch for locked screen: ${e.message}")
-                    if (resolvedLink.startsWith("bilibili://") && fallbackUrl.isNotEmpty()) {
+                    val isBilibili = resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")
+                    if (isBilibili && fallbackUrl.isNotEmpty()) {
                         Log.d(TAG, "Bilibili app not available on locked screen, falling back to browser")
                         launchFallback(context, fallbackUrl)
                     } else if (fallbackUrl.isNotEmpty()) {

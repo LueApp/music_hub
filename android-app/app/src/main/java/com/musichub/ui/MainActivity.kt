@@ -83,6 +83,7 @@ class MainActivity : AppCompatActivity() {
 
         setupNavigation()
         setupNowPlayingBar()
+        showSetupIfFirstRun()
 
         if (RemoteMode.isController()) {
             // In controller mode, listen to remote state updates instead of binding local service
@@ -209,6 +210,13 @@ class MainActivity : AppCompatActivity() {
         val url = pendingSharedUrl
         pendingSharedUrl = null
         return url
+    }
+
+    private fun showSetupIfFirstRun() {
+        val prefs = getSharedPreferences("musichub_prefs", MODE_PRIVATE)
+        if (!prefs.getBoolean("setup_complete", false)) {
+            navController.navigate(R.id.nav_setup)
+        }
     }
 
     override fun onDestroy() {

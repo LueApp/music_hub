@@ -113,6 +113,75 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-06T11:41:16.877Z"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-05-07T03:37:19.124Z",
+      "error_message": "Wrong reference: lifecycleScope should be Lifecycle",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/HomeFragment.kt",
+      "root_cause": "Used \"lifecycleScope\" instead of \"Lifecycle\"",
+      "fix": "Changed lifecycleScope → Lifecycle",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-07T03:37:19.124Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-05-07T11:33:21Z",
+      "error_message": "App crashes immediately on first launch after adding setup screen — NPE on _binding!! in HomeFragment.observeData()",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/HomeFragment.kt",
+      "root_cause": "HomeFragment is the nav start destination so it creates its view immediately. MainActivity then navigates to SetupFragment, destroying HomeFragment's view (_binding = null). The StateFlow collectors launched with viewLifecycleOwner.lifecycleScope.launch { collectLatest } have a race window where one final emission can fire after onDestroyView() before the scope fully cancels.",
+      "fix": "Wrapped both collectors inside viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED). This suspends the entire block when the fragment stops and resumes it when it starts again — no emission can reach the binding access while the view is destroyed.",
+      "tags": [
+        "crash",
+        "lifecycle",
+        "coroutines",
+        "stateflow",
+        "binding",
+        "navigation"
+      ],
+      "related_bugs": [
+        "bug-005"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-07T11:33:21Z"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-05-07T05:40:01.627Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Had \"https?://(?:www\\.)?bilibili\\.com/video/((?:BV[a-z",
+      "fix": "Changed to \"https?://(?:(?:www|m)\\.)?bilibili\\.com/video/((?:",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-07T05:40:01.627Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-05-07T05:40:19.690Z",
+      "error_message": "Wrong condition in logic",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Condition was: if (resolvedLink.startsWith(\"bilibili://\")",
+      "fix": "Changed to: if (isBilibili && fallbackUrl.isNotEmpty()",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-07T05:40:34.635Z"
     }
   ]
 }

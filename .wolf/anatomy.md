@@ -1,10 +1,11 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-06T12:10:32.319Z
-> Files: 660 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-07T05:53:34.252Z
+> Files: 666 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
 
+- `now-our-app-seems-robust-starfish.md` — Feasibility Analysis: Background Song Switching via MediaSession (~887 tok)
 - `now-we-have-a-giggly-harbor.md` — Plan: Include SyncSources in Export/Import (~776 tok)
 
 ## ./
@@ -737,7 +738,7 @@
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
-- `BackupManager.kt` — Data class: BackupSong (~1842 tok)
+- `BackupManager.kt` — Data class: BackupSong (~2215 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/local/
 
@@ -754,8 +755,13 @@
 
 ## android-app/app/src/main/java/com/musichub/service/
 
+- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~4279 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15272 tok)
 - `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~12064 tok)
+
+## android-app/app/src/main/java/com/musichub/ui/
+
+- `MainActivity.kt` — MainActivity: onServiceConnected, onServiceDisconnected, onCreate, onNewIntent (~2246 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/adapter/
 
@@ -763,9 +769,10 @@
 
 ## android-app/app/src/main/java/com/musichub/ui/fragment/
 
-- `HomeFragment.kt` — HomeFragment: onCreateView, onViewCreated, setupRecyclerView, setupClickListeners (~1565 tok)
+- `HomeFragment.kt` — HomeFragment: onCreateView, onViewCreated, setupRecyclerView, setupClickListeners (~1642 tok)
 - `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4886 tok)
 - `SettingsFragment.kt` — SettingsFragment: onCreatePreferences, appVersionSummary, handleRemoteModeChange (~4450 tok)
+- `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1256 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
 
@@ -774,6 +781,11 @@
 ## android-app/app/src/main/res/layout/
 
 - `fragment_home.xml` (~2526 tok)
+- `fragment_setup.xml` (~3708 tok)
+
+## android-app/app/src/main/res/navigation/
+
+- `nav_graph.xml` (~1484 tok)
 
 ## android-app/app/src/main/res/values/
 

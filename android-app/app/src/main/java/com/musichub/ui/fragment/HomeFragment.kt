@@ -7,7 +7,9 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.musichub.R
@@ -129,20 +131,23 @@ class HomeFragment : Fragment() {
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.recentSongs.collectLatest { songs ->
-                songAdapter.submitList(songs)
-                binding.tvNoRecentPlays.visibility =
-                    if (songs.isEmpty()) View.VISIBLE else View.GONE
-                binding.rvRecentPlays.visibility =
-                    if (songs.isEmpty()) View.GONE else View.VISIBLE
-            }
-        }
-
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.platformCounts.collectLatest { counts ->
-                binding.tvNeteaseSongCount.text = "${counts[Platforms.NETEASE] ?: 0} 首"
-                binding.tvQQMusicSongCount.text = "${counts[Platforms.QQMUSIC] ?: 0} 首"
-                binding.tvBilibiliSongCount.text = "${counts[Platforms.BILIBILI] ?: 0} 首"
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.recentSongs.collectLatest { songs ->
+                        songAdapter.submitList(songs)
+                        binding.tvNoRecentPlays.visibility =
+                            if (songs.isEmpty()) View.VISIBLE else View.GONE
+                        binding.rvRecentPlays.visibility =
+                            if (songs.isEmpty()) View.GONE else View.VISIBLE
+                    }
+                }
+                launch {
+                    viewModel.platformCounts.collectLatest { counts ->
+                        binding.tvNeteaseSongCount.text = "${counts[Platforms.NETEASE] ?: 0} 首"
+                        binding.tvQQMusicSongCount.text = "${counts[Platforms.QQMUSIC] ?: 0} 首"
+                        binding.tvBilibiliSongCount.text = "${counts[Platforms.BILIBILI] ?: 0} 首"
+                    }
+                }
             }
         }
     }
