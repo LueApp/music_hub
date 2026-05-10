@@ -105,6 +105,23 @@
     <string name="open_in_app">Open in App</string>
     <string name="open_in_app_cn">在App中打开</string>
 
+    <!-- Launch Mode Health -->
+    <string name="launch_mode_health_title">启动模式状态</string>
+    <string name="launch_mode_health_summary_ok">系统设置正常</string>
+    <string name="launch_mode_health_warning_force_resizable">⚠ 强制可调整大小 (force_resizable_activities) 已开启，可能导致前台模式下音乐应用在横屏时出现黑边</string>
+    <string name="launch_mode_health_warning_rotation_locked">⚠ 自动旋转已被禁用且锁定为竖屏</string>
+    <string name="launch_mode_health_warning_user_rotation_leak">⚠ 用户旋转 (USER_ROTATION) 被遗留为非默认值，可能影响旋转行为</string>
+    <string name="launch_mode_health_freeform_support">空闲：enable_freeform_support=%s</string>
+    <string name="launch_mode_health_reset_button">重置</string>
+    <string name="launch_mode_health_dialog_title">启动模式状态</string>
+    <string name="launch_mode_health_dialog_ok">好的</string>
+    <string name="launch_mode_health_reset_rotation">重置旋转设置（恢复自动旋转）</string>
+    <string name="launch_mode_health_reset_force_resizable">关闭 force_resizable_activities</string>
+    <string name="launch_mode_health_shizuku_required">（需要 Shizuku）</string>
+    <string name="launch_mode_health_adb_hint">手动命令: adb shell settings put global %1$s %2$s</string>
+    <string name="launch_mode_health_reset_done">已重置 %s</string>
+    <string name="launch_mode_health_reset_failed">重置失败：%s</string>
+
     <!-- Settings - Permissions -->
     <string name="overlay_access_cn">悬浮窗权限</string>
     <string name="overlay_access_desc_cn">在其他应用上方显示浮窗控制栏</string>

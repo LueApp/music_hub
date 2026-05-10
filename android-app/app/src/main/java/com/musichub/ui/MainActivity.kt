@@ -14,6 +14,7 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.navigation.NavigationBarView
 import coil.load
+import com.musichub.MusicHubApplication
 import com.musichub.R
 import com.musichub.data.model.Song
 import com.musichub.databinding.ActivityMainBinding
@@ -84,6 +85,12 @@ class MainActivity : AppCompatActivity() {
         setupNavigation()
         setupNowPlayingBar()
         showSetupIfFirstRun()
+
+        // HyperOS frequently leaves MediaMonitorService unbound after the
+        // process is killed (which happens between playback sessions). Force
+        // a rebind every time the user opens the UI so auto-advance keeps
+        // working.
+        (application as? MusicHubApplication)?.rebindMediaMonitor()
 
         if (RemoteMode.isController()) {
             // In controller mode, listen to remote state updates instead of binding local service

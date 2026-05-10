@@ -126,6 +126,89 @@ class PlaybackService : Service() {
         } else {
             registerReceiver(songFinishedReceiver, filter)
         }
+
+        registerDisplayListener()
+
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            .registerOnSharedPreferenceChangeListener(launchModePrefListener)
+    }
+
+    // Display / config rotation re-applies HyperOS's default freeform bounds
+    // to the music-app task, undoing our off-screen positioning. Re-fire the
+    // resize a few times across the rotation animation window — HyperOS
+    // keeps adjusting bounds for ~1-2 seconds during rotation. Single
+    // triggers don't catch this.
+    //
+    // We hook BOTH the DisplayListener (catches physical device rotation)
+    // and onConfigurationChanged (catches app-driven rotation when another
+    // app calls setRequestedOrientation). One of those fires for any kind
+    // of orientation change.
+    //
+    // Gated on launch_mode = background because foreground mode wants the
+    // music app to be fullscreen and able to use its own landscape activity
+    // — firing `am task resize` against a fullscreen task is at best a
+    // no-op, and at worst (if the task is freeform from a prior background
+    // launch) it yanks the music app off-screen mid-foreground-launch.
+    private fun fireRotationTriggerSequence() {
+        val mode = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            .getString("launch_mode", DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
+        if (mode != DeepLinkLauncher.LAUNCH_MODE_BACKGROUND) {
+            Log.d(TAG, "Rotation trigger skipped: launch_mode=$mode")
+            return
+        }
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val offsets = longArrayOf(0L, 300L, 800L, 1500L, 2500L, 4000L)
+        offsets.forEach { off ->
+            handler.postDelayed({ ShizukuLauncher.triggerResizeForCurrentTarget() }, off)
+        }
+    }
+
+    // Pref-change listener: when the user switches launch_mode away from
+    // background, drop any in-flight Shizuku tracking state so a stale
+    // currentTargetPkg can't fire resizes against a foreground-mode launch.
+    // Kept as a member (not local) so the same instance can be removed in
+    // onDestroy — anonymous lambdas don't compare equal across calls.
+    private val launchModePrefListener =
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+            if (key == "launch_mode") {
+                val mode = prefs.getString(key, DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
+                if (mode != DeepLinkLauncher.LAUNCH_MODE_BACKGROUND) {
+                    ShizukuLauncher.clearTargetState()
+                    Log.d(TAG, "launch_mode changed to $mode; cleared Shizuku target state")
+                }
+            }
+        }
+
+    private val displayListener = object : android.hardware.display.DisplayManager.DisplayListener {
+        override fun onDisplayChanged(displayId: Int) {
+            fireRotationTriggerSequence()
+        }
+        override fun onDisplayAdded(displayId: Int) {}
+        override fun onDisplayRemoved(displayId: Int) {}
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Fires on ANY device-level configuration change — orientation,
+        // density, locale, etc. — including rotations triggered by another
+        // app's setRequestedOrientation (which the DisplayListener may miss).
+        fireRotationTriggerSequence()
+    }
+
+    private fun registerDisplayListener() {
+        try {
+            val dm = getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager
+            dm?.registerDisplayListener(displayListener, android.os.Handler(android.os.Looper.getMainLooper()))
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to register display listener: ${e.message}")
+        }
+    }
+
+    private fun unregisterDisplayListener() {
+        try {
+            val dm = getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager
+            dm?.unregisterDisplayListener(displayListener)
+        } catch (_: Exception) { }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -150,6 +233,11 @@ class PlaybackService : Service() {
         serviceJob.cancel()
         releaseWakeLock()
         releaseScreenWakeLock()
+        unregisterDisplayListener()
+        try {
+            androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                .unregisterOnSharedPreferenceChangeListener(launchModePrefListener)
+        } catch (_: Exception) { }
         try {
             unregisterReceiver(songFinishedReceiver)
         } catch (e: Exception) {

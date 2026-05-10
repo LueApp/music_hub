@@ -21,6 +21,11 @@
     <!-- For remote control server (getting device IP) -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
+    <!-- Package visibility for Shizuku (Android 11+) -->
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
     <application
         android:name=".MusicHubApplication"
         android:allowBackup="true"
@@ -110,6 +115,15 @@
             android:name=".remote.RemoteServerService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Shizuku content provider — allows the Shizuku app to bind into ours -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
     </application>
 

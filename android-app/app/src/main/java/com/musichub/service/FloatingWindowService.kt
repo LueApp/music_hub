@@ -129,6 +129,7 @@ class FloatingWindowService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         Log.d(TAG, "FloatingWindowService created")
     }
 
@@ -1479,9 +1480,45 @@ class FloatingWindowService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        instance = null
         RemoteClient.removeStateListener(remoteStateListener)
         hideFloatingWindow()
         Log.d(TAG, "FloatingWindowService destroyed")
+    }
+
+    /**
+     * Returns the screen-coordinate Rect of the currently visible overlay
+     * (mini ball if active, full panel otherwise) so callers can anchor
+     * other windows to the same position. Null if no overlay is showing or
+     * its size hasn't been measured yet.
+     *
+     * Both mini and full modes use `gravity = TOP|END`, so [LayoutParams.x]
+     * is an offset from the *right* edge and [LayoutParams.y] is from the
+     * top. We translate that to absolute screen coordinates here.
+     */
+    fun getOverlayScreenBounds(): android.graphics.Rect? {
+        val params: WindowManager.LayoutParams
+        val viewWidth: Int
+        val viewHeight: Int
+        if (isMiniMode) {
+            params = miniModeParams ?: return null
+            val view = miniBallView ?: return null
+            viewWidth = if (view.width > 0) view.width else params.width
+            viewHeight = if (view.height > 0) view.height else params.height
+        } else {
+            params = fullModeParams ?: return null
+            val view = floatingView ?: return null
+            viewWidth = if (view.width > 0) view.width else 0
+            viewHeight = if (view.height > 0) view.height else 0
+        }
+        if (viewWidth <= 0 || viewHeight <= 0) return null
+
+        val screenW = resources.displayMetrics.widthPixels
+        val gravity = params.gravity
+        val isEndAnchored = (gravity and Gravity.END) != 0
+        val left = if (isEndAnchored) screenW - params.x - viewWidth else params.x
+        val top = params.y
+        return android.graphics.Rect(left, top, left + viewWidth, top + viewHeight)
     }
 
     private fun getForegroundAppPackage(): String? {
@@ -1594,6 +1631,11 @@ class FloatingWindowService : Service() {
         private const val TAG = "FloatingWindowService"
         private const val CHANNEL_ID = "floating_window_channel"
         private const val NOTIFICATION_ID = 1002
+
+        @Volatile
+        private var instance: FloatingWindowService? = null
+
+        fun getInstance(): FloatingWindowService? = instance
 
         const val ACTION_SHOW = "com.musichub.action.SHOW_FLOATING"
         const val ACTION_UPDATE = "com.musichub.action.UPDATE_FLOATING"

@@ -3,6 +3,33 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <PreferenceCategory
+        android:title="启动模式"
+        app:iconSpaceReserved="false">
+
+        <ListPreference
+            android:key="launch_mode"
+            android:title="音乐应用启动方式"
+            android:summary="当前模式: 后台模式"
+            android:entries="@array/launch_mode_entries"
+            android:entryValues="@array/launch_mode_values"
+            android:defaultValue="background"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="shizuku_status"
+            android:title="Shizuku 授权"
+            android:summary="后台小窗启动需要 Shizuku 提供 shell 权限"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="launch_mode_health"
+            android:title="@string/launch_mode_health_title"
+            android:summary="@string/launch_mode_health_summary_ok"
+            app:iconSpaceReserved="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
         android:title="播放控制"
         app:iconSpaceReserved="false">
 

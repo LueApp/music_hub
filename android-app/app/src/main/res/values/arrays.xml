@@ -10,4 +10,12 @@
         <item>player</item>
         <item>controller</item>
     </string-array>
+    <string-array name="launch_mode_entries">
+        <item>后台模式（小窗启动，不打扰）</item>
+        <item>前台模式（兼容性最佳）</item>
+    </string-array>
+    <string-array name="launch_mode_values">
+        <item>background</item>
+        <item>foreground</item>
+    </string-array>
 </resources>

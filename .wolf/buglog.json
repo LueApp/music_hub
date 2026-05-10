@@ -182,6 +182,833 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-05-07T05:40:34.635Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-05-08T05:39:27.377Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T05:39:27.377Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-05-08T05:39:46.293Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T05:39:46.293Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-05-08T05:45:27.473Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/SettingsFragment.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T05:45:27.473Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-05-08T05:46:24.440Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 10→21 lines (5 removed) | Also: // Try to launch the music app in freeform (small ; // stays visible behind it instead of being fully ",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-08T05:46:43.821Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-05-08T05:46:33.814Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Had \"Launching deep link: $resolvedLink (original: $de",
+      "fix": "Changed to \"Launching deep link (foreground mode): $resolvedL",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T05:46:33.814Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-05-08T05:46:59.662Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T05:46:59.662Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-05-08T05:54:43.192Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 32→51 lines (7 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T05:54:43.192Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-05-08T08:36:29.041Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T08:36:29.041Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-05-08T08:36:43.002Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 8→11 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T08:36:43.002Z"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-05-08T08:36:54.991Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T08:36:54.991Z"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-05-08T09:20:20.155Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 23→33 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T09:20:20.155Z"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-05-08T09:42:43.536Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "12 lines replaced/restructured",
+      "fix": "Rewrote 20→38 lines (12 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T09:42:43.536Z"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-05-08T10:04:00.919Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T10:04:00.919Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-05-08T11:25:32.162Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T11:25:32.162Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-05-08T12:00:00Z",
+      "error_message": "Auto-advance always times out and skips songs; music plays but Music Hub can't detect playback state. Affects all platforms in both foreground and background mode.",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "After APK reinstall on HyperOS, the system left NotificationListenerService unbound even though the user's permission was still granted. dumpsys notification's 'Live notification listeners' section did not contain MediaMonitorService, so MediaSession callbacks never reached it. getPlaybackInfo() therefore returned null at the warm-timeout (5s), and PlaybackService treated the song as failed and skipped to next.",
+      "fix": "Added NotificationListenerService.requestRebind(ComponentName(ctx, MediaMonitorService::class.java)) call in MusicHubApplication.onCreate(). Adb-side workaround for already-installed builds: cmd notification disallow_listener com.musichub/.service.MediaMonitorService then allow_listener.",
+      "tags": [
+        "media-session",
+        "notification-listener",
+        "playback",
+        "auto-advance",
+        "hyperos",
+        "rebind"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T12:00:00Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-05-08T15:27:36.296Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T15:27:36.296Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-05-08T15:45:01.504Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T15:45:01.504Z"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-05-08T15:45:34.085Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 21→39 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T15:45:34.085Z"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-05-08T15:45:58.275Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/MainActivity.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-08T15:45:58.275Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-05-09T03:32:47.231Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 6→8 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T03:32:47.231Z"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-05-09T07:27:09.045Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "No early return/throw for edge case: isMiniMode",
+      "fix": "Added guard clause: if (isMiniMode)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T07:27:09.045Z"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-05-09T07:27:41.805Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T07:27:41.805Z"
+    },
+    {
+      "id": "bug-034",
+      "timestamp": "2026-05-09T07:50:51.810Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T07:50:51.810Z"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-05-09T08:07:19.129Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T08:07:19.129Z"
+    },
+    {
+      "id": "bug-036",
+      "timestamp": "2026-05-09T08:07:34.486Z",
+      "error_message": "Wrong condition in logic",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Condition was: if (ShizukuLauncher.launchFreeform(context, resolvedLi)",
+      "fix": "Changed to: if (ShizukuLauncher.launchFreeform(context, resolvedLi)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T08:07:34.486Z"
+    },
+    {
+      "id": "bug-037",
+      "timestamp": "2026-05-09T08:13:21.700Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 31→54 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T08:13:21.700Z"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-05-09T08:53:00.694Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 18→25 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T08:53:00.694Z"
+    },
+    {
+      "id": "bug-039",
+      "timestamp": "2026-05-09T11:12:48.066Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: /**; * The packages PlayerAccessibilityService should listen to f",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-09T11:13:23.683Z"
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-05-09T11:14:00.327Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T11:14:00.327Z"
+    },
+    {
+      "id": "bug-041",
+      "timestamp": "2026-05-09T11:34:12.612Z",
+      "error_message": "Wrong return value",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Was returning: if (target != pkg) return",
+      "fix": "Now returns: triggerResize(pkg)",
+      "tags": [
+        "auto-detected",
+        "return-value",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T11:34:12.612Z"
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-05-09T11:34:52.138Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T11:34:52.138Z"
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-05-09T12:08:18.958Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "No early return/throw for edge case: now - lastTriggerMs < 100L",
+      "fix": "Added guard clause: if (now - lastTriggerMs < 100L)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T12:08:18.958Z"
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-05-09T12:08:37.650Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 16→33 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T12:08:37.650Z"
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-05-09T13:25:45.128Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 13→28 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-09T13:25:45.128Z"
+    },
+    {
+      "id": "bug-046",
+      "timestamp": "2026-05-10T16:09:40.476Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/AddSongFragment.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 15→20 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-10T16:09:40.476Z"
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-05-11T02:58:26.845Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/platform/KugouPlatform.kt",
+      "root_cause": "No early return/throw for edge case: !response.isSuccessful",
+      "fix": "Added guard clause: if (!response.isSuccessful)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T02:58:26.845Z"
+    },
+    {
+      "id": "bug-048",
+      "timestamp": "2026-05-11T05:33:31.689Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/platform/KugouPlatform.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T05:33:31.689Z"
+    },
+    {
+      "id": "bug-049",
+      "timestamp": "2026-05-11T06:07:32.165Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/platform/KugouPlatform.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 18→30 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T06:07:32.165Z"
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-05-11T14:50:00Z",
+      "error_message": "Kugou song starts playing correctly but immediately times out and skips: 'Playback timeout: wrong song playing! Expected ABC君, actual 有心的定不止五六个'",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "Kugou (like NetEase) cycles current-lyric lines and credit lines (词：方杰, 曲：雷颂德, etc.) through the MediaSession title metadata so the notification/lockscreen shows scrolling lyrics. PlaybackService.schedulePlaybackTimeout used the metadata title to verify the playing song; for Kugou the title flips to a lyric line within ~1-2 seconds, triggering the wrong-song-playing branch and a spurious skip.",
+      "fix": "Extended the NetEase-only title-verification exemption to also cover Platforms.KUGOU. Hoisted titleCyclesLyrics out of the isPlaying block so the play-nudge branch (when position<1000ms) also bypasses title matching for both platforms.",
+      "tags": [
+        "kugou",
+        "media-session",
+        "playback-timeout",
+        "metadata-title",
+        "lyrics"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T14:50:00Z"
+    },
+    {
+      "id": "bug-051",
+      "timestamp": "2026-05-11T06:51:59.537Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/res/drawable/ic_kugou.xml",
+      "root_cause": "Had \"#FFFFFF\"",
+      "fix": "Changed to \"#0096FF\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T06:51:59.537Z"
+    },
+    {
+      "id": "bug-052",
+      "timestamp": "2026-05-11T08:10:54.756Z",
+      "error_message": "Significant refactor of ",
+      "file": "openspec/changes/add-kugou-platform/tasks.md",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 6→6 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T08:10:54.756Z"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-05-11T10:00:46.677Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T10:00:46.677Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-05-12T09:49:05.132Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-12T09:49:05.132Z"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-05-12T09:51:32.074Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Had '}2\"",
+      "fix": "Changed to '}1\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-12T09:51:32.074Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-05-12T18:02:00Z",
+      "error_message": "Visible flash when switching songs in background mode — music app briefly appears at HyperOS default centered freeform bounds before resize lands off-screen",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "am start --windowingMode 5 creates a fresh freeform task at HyperOS-default centered bounds (Rect(279,698,801,1778)) and renders the activity there before our follow-up am task resize moves it off-screen. The user sees the centered window for ~180ms before it disappears.",
+      "fix": "Single shell script atomically decides between two paths: (1) REUSE if a visible freeform task for the target package already exists — deliver the deep link via plain am start without --windowingMode 5, intent goes through onNewIntent without creating a new task or changing windowing mode, zero flash; (2) COLD if no existing task — am start --windowingMode 5 + inline poll-and-resize in the same shell (one binder IPC, 10ms polling), reduces flash window to ~30-50ms vs. the prior 180ms. The cold-path flash is unavoidable for the very first launch after a force-stop / reboot, but every subsequent switch (95% of switches in normal use) takes the REUSE path.",
+      "tags": [
+        "shizuku",
+        "freeform",
+        "flash",
+        "launch",
+        "windowing-mode",
+        "background-mode",
+        "hyperos"
+      ],
+      "related_bugs": [
+        "bug-046"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-12T18:02:00Z"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-05-14T05:24:00.344Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-14T05:24:00.344Z"
+    },
+    {
+      "id": "bug-058",
+      "timestamp": "2026-05-14T05:24:44.785Z",
+      "error_message": "Incorrect value in code",
+      "file": "openspec/changes/fix-foreground-landscape-regression/tasks.md",
+      "root_cause": "Had `. Document the outcome in a code comment.\n- [ ] 1",
+      "fix": "Changed to `. Document the outcome in a code comment. *(Imple",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-14T05:24:44.785Z"
+    },
+    {
+      "id": "bug-059",
+      "timestamp": "2026-05-14T05:26:21.639Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/SettingsFragment.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-14T05:26:21.639Z"
+    },
+    {
+      "id": "bug-060",
+      "timestamp": "2026-05-14T05:27:03.338Z",
+      "error_message": "Significant refactor of ",
+      "file": "openspec/changes/fix-foreground-landscape-regression/tasks.md",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 5→5 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-14T05:27:03.338Z"
+    },
+    {
+      "id": "bug-061",
+      "timestamp": "2026-05-14T05:28:09.869Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-14T05:28:09.869Z"
+    },
+    {
+      "id": "bug-062",
+      "timestamp": "2026-05-14T05:30:57.106Z",
+      "error_message": "Incorrect value in code",
+      "file": "openspec/changes/fix-foreground-landscape-regression/tasks.md",
+      "root_cause": "Had `pixi run logcat-app`",
+      "fix": "Changed to `Settings.<ns>.putInt <name> <old> -> <new>`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-14T05:30:57.106Z"
     }
   ]
 }

@@ -71,6 +71,18 @@ class PlayerAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
+        // Window-bounds-changed events fire when HyperOS pulls a freeform task
+        // back on-screen during a home-gesture/recents transition. Re-fire the
+        // resize immediately so the music-app stays off-screen / sized down.
+        // This replaces the high-rate dumpsys watchdog with an event-driven
+        // path that has near-zero idle cost.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+            val pkg = event.packageName?.toString()
+            if (pkg != null && pkg in ShizukuLauncher.musicAppPackages()) {
+                ShizukuLauncher.triggerResize(pkg)
+            }
+        }
+
         // Log all click events to help identify which node opens the player page
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             val source = event.source

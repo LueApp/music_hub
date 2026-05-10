@@ -1,12 +1,17 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-07T05:53:34.252Z
-> Files: 666 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-14T05:33:19.922Z
+> Files: 707 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
 
 - `now-our-app-seems-robust-starfish.md` — Feasibility Analysis: Background Song Switching via MediaSession (~887 tok)
 - `now-we-have-a-giggly-harbor.md` — Plan: Include SyncSources in Export/Import (~776 tok)
+
+## ../../.claude/projects/-home-lue-boring-music-hub/memory/
+
+- `feedback_deploy_command.md` (~189 tok)
+- `MEMORY.md` (~58 tok)
 
 ## ./
 
@@ -736,6 +741,18 @@
 - `gproxy.h` — G_PROXY_EXTENSION_POINT_NAME: (~1151 tok)
 - `gproxyaddress.h` — Declares gchar (~916 tok)
 
+## android-app/app/
+
+- `build.gradle.kts` — runGit (~1262 tok)
+
+## android-app/app/src/main/
+
+- `AndroidManifest.xml` (~1471 tok)
+
+## android-app/app/src/main/java/com/musichub/
+
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~946 tok)
+
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
 - `BackupManager.kt` — Data class: BackupSong (~2215 tok)
@@ -753,34 +770,60 @@
 
 - `MusicRepository.kt` — MusicRepository: getAllSongs, getRecentSongs, searchSongs, getSongsByPlatform (~1734 tok)
 
+## android-app/app/src/main/java/com/musichub/platform/
+
+- `KugouPlatform.kt` — Handler for Kugou Music (酷狗音乐). Songs are identified by 32-char hex hash; (~4208 tok)
+- `LinkParser.kt` — Link parser service for extracting song information from shared URLs. (~2022 tok)
+- `PlatformHandler.kt` — Parsed playlist data from URL parsing. (~737 tok)
+
 ## android-app/app/src/main/java/com/musichub/service/
 
-- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~4279 tok)
-- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15272 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~12064 tok)
+- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~9549 tok)
+- `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17830 tok)
+- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15287 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13294 tok)
+- `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6490 tok)
+- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~9144 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 
-- `MainActivity.kt` — MainActivity: onServiceConnected, onServiceDisconnected, onCreate, onNewIntent (~2246 tok)
+- `MainActivity.kt` — MainActivity: onServiceConnected, onServiceDisconnected, onCreate, onNewIntent (~2341 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/adapter/
 
-- `SongAdapter.kt` — SongAdapter: onCreateViewHolder, onBindViewHolder, removeItem, bind (~1052 tok)
+- `ChartAdapter.kt` — ChartAdapter: onCreateViewHolder, onBindViewHolder, bind, areItemsTheSame (~922 tok)
+- `DiscoverSongAdapter.kt` — DiscoverSongAdapter: onCreateViewHolder, onBindViewHolder, bind, areItemsTheSame (~991 tok)
+- `QueueAdapter.kt` — Adapter for displaying queue songs in the floating window. (~1806 tok)
+- `SelectableSongAdapter.kt` — SelectableSongAdapter: getSelectedIds, selectAll, deselectAll, onCreateViewHolder (~1094 tok)
+- `SkipLogAdapter.kt` — SkipLogAdapter: onCreateViewHolder, onBindViewHolder, bind, areItemsTheSame (~711 tok)
+- `SongAdapter.kt` — SongAdapter: onCreateViewHolder, onBindViewHolder, removeItem, bind (~1104 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/fragment/
 
-- `HomeFragment.kt` — HomeFragment: onCreateView, onViewCreated, setupRecyclerView, setupClickListeners (~1642 tok)
-- `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4886 tok)
-- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences, appVersionSummary, handleRemoteModeChange (~4450 tok)
+- `AddSongFragment.kt` — AddSongFragment: onCreateView, onViewCreated, setupClickListeners, setupPlaylistSpinner (~3123 tok)
+- `HomeFragment.kt` — HomeFragment: onCreateView, onViewCreated, setupRecyclerView, setupClickListeners (~1734 tok)
+- `ImportFromLibraryFragment.kt` — ImportFromLibraryFragment: onCreateView, onViewCreated, setupAdapter, setupSearchAndFilter (~2562 tok)
+- `LibraryFragment.kt` — Scroll to the currently playing song in the list. (~1544 tok)
+- `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4923 tok)
+- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences (~7458 tok)
 - `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1256 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
 
+- `ManageSourcesViewModel.kt` — Data class: AddSourceResult (~1610 tok)
 - `PlaylistDetailViewModel.kt` — Format the sync status text for display. (~1404 tok)
+
+## android-app/app/src/main/res/drawable/
+
+- `bg_badge_kugou.xml` (~62 tok)
+- `ic_kugou.xml` (~168 tok)
 
 ## android-app/app/src/main/res/layout/
 
-- `fragment_home.xml` (~2526 tok)
+- `fragment_home.xml` (~3004 tok)
+- `fragment_import_from_library.xml` (~1712 tok)
+- `fragment_library.xml` (~1965 tok)
+- `fragment_playlist_detail.xml` (~3704 tok)
 - `fragment_setup.xml` (~3708 tok)
 
 ## android-app/app/src/main/res/navigation/
@@ -789,8 +832,45 @@
 
 ## android-app/app/src/main/res/values/
 
-- `strings.xml` (~3278 tok)
+- `arrays.xml` (~170 tok)
+- `colors.xml` (~588 tok)
+- `strings.xml` (~3656 tok)
 
 ## android-app/app/src/main/res/xml/
 
-- `preferences.xml` (~1272 tok)
+- `accessibility_service_config.xml` (~159 tok)
+- `preferences.xml` (~1515 tok)
+
+## openspec/changes/add-kugou-platform/
+
+- `design.md` — Context (~3410 tok)
+- `proposal.md` — Why (~1234 tok)
+- `tasks.md` — 1. Platform registry & handler skeleton (~1849 tok)
+
+## openspec/changes/add-kugou-platform/specs/kugou-platform/
+
+- `spec.md` — ADDED Requirements (~3360 tok)
+
+## openspec/changes/enable-kugou-background-mode/
+
+- `design.md` — Context (~2863 tok)
+- `proposal.md` — Why (~1092 tok)
+- `tasks.md` — 1. ShizukuLauncher — package-targeted `am start` (~1022 tok)
+
+## openspec/changes/enable-kugou-background-mode/specs/kugou-platform/
+
+- `spec.md` — ADDED Requirements (~1489 tok)
+
+## openspec/changes/fix-foreground-landscape-regression/
+
+- `design.md` — Context (~4378 tok)
+- `proposal.md` — Why (~1628 tok)
+- `tasks.md` — 1. Diagnostic Infrastructure (~2253 tok)
+
+## openspec/changes/fix-foreground-landscape-regression/specs/foreground-launch-mode/
+
+- `spec.md` — ADDED Requirements (~1972 tok)
+
+## openspec/specs/kugou-platform/
+
+- `spec.md` — Purpose (~3481 tok)
