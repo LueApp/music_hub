@@ -157,6 +157,14 @@ object ShizukuLauncher {
             return false
         }
 
+        // Constrain intent resolution to the music app for this deep link.
+        // Kugou's deep link is an HTTPS URL that browsers also claim — without
+        // `-p`, HyperOS's resolver routes m.kugou.com to the browser instead
+        // of com.kugou.android. Custom-scheme deep links (orpheus://, qqmusic://,
+        // bilibili://) are unambiguous, so `-p` is redundant but harmless there.
+        // null = unknown deep link → omit `-p` and let the resolver pick.
+        val targetPackage = packageForDeepLink(deepLink)
+
         // Flag breakdown:
         //   0x10000000 = FLAG_ACTIVITY_NEW_TASK
         //   0x00010000 = FLAG_ACTIVITY_NO_ANIMATION (suppress activity-side
@@ -173,13 +181,16 @@ object ShizukuLauncher {
         // lists it, this HyperOS build's `am` rejects it with "Unknown option"
         // and the whole `am start` then throws, our code falls back to a
         // standard Intent launch (no windowing-mode hint) → fullscreen.
-        val cmd = arrayOf(
-            "am", "start",
-            "--windowingMode", "5",
-            "-a", "android.intent.action.VIEW",
-            "-d", deepLink,
-            "-f", "0x10010000"
-        )
+        val cmd = buildList {
+            add("am"); add("start")
+            add("--windowingMode"); add("5")
+            add("-a"); add("android.intent.action.VIEW")
+            add("-d"); add(deepLink)
+            if (targetPackage != null) {
+                add("-p"); add(targetPackage)
+            }
+            add("-f"); add("0x10010000")
+        }.toTypedArray()
 
         return try {
             val process = newShizukuProcess(cmd) ?: return false
@@ -189,7 +200,7 @@ object ShizukuLauncher {
             } catch (_: Exception) {
                 ""
             }
-            Log.i(TAG, "Shizuku am start exit=$exit output=${output.take(200)}")
+            Log.i(TAG, "Shizuku am start exit=$exit pkg=${targetPackage ?: "<unspecified>"} output=${output.take(200)}")
 
             if (exit == 0 && bounds != null) {
                 scheduleResize(deepLink, bounds, boundsProvider)

@@ -843,6 +843,22 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-11T08:10:54.756Z"
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-05-11T10:00:46.677Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-11T10:00:46.677Z"
     }
   ]
 }

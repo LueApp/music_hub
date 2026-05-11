@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-11T08:10:54.749Z
-> Files: 698 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-11T11:07:46.207Z
+> Files: 703 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
 
@@ -783,7 +783,7 @@
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15287 tok)
 - `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~12766 tok)
 - `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6490 tok)
-- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~6383 tok)
+- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~6579 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 
@@ -850,3 +850,17 @@
 ## openspec/changes/add-kugou-platform/specs/kugou-platform/
 
 - `spec.md` — ADDED Requirements (~3360 tok)
+
+## openspec/changes/enable-kugou-background-mode/
+
+- `design.md` — Context (~2863 tok)
+- `proposal.md` — Why (~1092 tok)
+- `tasks.md` — 1. ShizukuLauncher — package-targeted `am start` (~1022 tok)
+
+## openspec/changes/enable-kugou-background-mode/specs/kugou-platform/
+
+- `spec.md` — ADDED Requirements (~1489 tok)
+
+## openspec/specs/kugou-platform/
+
+- `spec.md` — Purpose (~3481 tok)
