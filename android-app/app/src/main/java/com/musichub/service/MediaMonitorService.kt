@@ -243,7 +243,8 @@ class MediaMonitorService : NotificationListenerService() {
         val targetPackages = setOf(
             Platforms.PACKAGE_NAMES[Platforms.NETEASE],
             Platforms.PACKAGE_NAMES[Platforms.QQMUSIC],
-            Platforms.PACKAGE_NAMES[Platforms.BILIBILI]
+            Platforms.PACKAGE_NAMES[Platforms.BILIBILI],
+            Platforms.PACKAGE_NAMES[Platforms.KUGOU]
         )
 
         synchronized(controllersLock) {

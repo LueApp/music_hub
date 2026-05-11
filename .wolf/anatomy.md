@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-14T05:33:19.922Z
-> Files: 707 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-11T08:10:54.749Z
+> Files: 698 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
 
@@ -751,7 +751,7 @@
 
 ## android-app/app/src/main/java/com/musichub/
 
-- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~946 tok)
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~917 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
@@ -778,12 +778,12 @@
 
 ## android-app/app/src/main/java/com/musichub/service/
 
-- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~9549 tok)
+- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~7859 tok)
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17830 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15287 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13294 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~12766 tok)
 - `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6490 tok)
-- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~9144 tok)
+- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~6383 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 
@@ -805,7 +805,7 @@
 - `ImportFromLibraryFragment.kt` — ImportFromLibraryFragment: onCreateView, onViewCreated, setupAdapter, setupSearchAndFilter (~2562 tok)
 - `LibraryFragment.kt` — Scroll to the currently playing song in the list. (~1544 tok)
 - `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4923 tok)
-- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences (~7458 tok)
+- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences, appVersionSummary (~5298 tok)
 - `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1256 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
@@ -834,12 +834,12 @@
 
 - `arrays.xml` (~170 tok)
 - `colors.xml` (~588 tok)
-- `strings.xml` (~3656 tok)
+- `strings.xml` (~3318 tok)
 
 ## android-app/app/src/main/res/xml/
 
 - `accessibility_service_config.xml` (~159 tok)
-- `preferences.xml` (~1515 tok)
+- `preferences.xml` (~1451 tok)
 
 ## openspec/changes/add-kugou-platform/
 
@@ -850,27 +850,3 @@
 ## openspec/changes/add-kugou-platform/specs/kugou-platform/
 
 - `spec.md` — ADDED Requirements (~3360 tok)
-
-## openspec/changes/enable-kugou-background-mode/
-
-- `design.md` — Context (~2863 tok)
-- `proposal.md` — Why (~1092 tok)
-- `tasks.md` — 1. ShizukuLauncher — package-targeted `am start` (~1022 tok)
-
-## openspec/changes/enable-kugou-background-mode/specs/kugou-platform/
-
-- `spec.md` — ADDED Requirements (~1489 tok)
-
-## openspec/changes/fix-foreground-landscape-regression/
-
-- `design.md` — Context (~4378 tok)
-- `proposal.md` — Why (~1628 tok)
-- `tasks.md` — 1. Diagnostic Infrastructure (~2253 tok)
-
-## openspec/changes/fix-foreground-landscape-regression/specs/foreground-launch-mode/
-
-- `spec.md` — ADDED Requirements (~1972 tok)
-
-## openspec/specs/kugou-platform/
-
-- `spec.md` — Purpose (~3481 tok)

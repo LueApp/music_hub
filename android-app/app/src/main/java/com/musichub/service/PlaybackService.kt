@@ -23,6 +23,7 @@ import com.musichub.platform.PlatformHandler
 import com.musichub.platform.NetEasePlatform
 import com.musichub.platform.QQMusicPlatform
 import com.musichub.platform.BilibiliPlatform
+import com.musichub.platform.KugouPlatform
 import com.musichub.remote.RemoteMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -704,6 +705,7 @@ class PlaybackService : Service() {
             Platforms.NETEASE -> NetEasePlatform()
             Platforms.QQMUSIC -> QQMusicPlatform()
             Platforms.BILIBILI -> BilibiliPlatform()
+            Platforms.KUGOU -> KugouPlatform()
             else -> null
         }
     }
@@ -978,20 +980,22 @@ class PlaybackService : Service() {
             }
 
             val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
+            // For NetEase and Kugou, skip title verification — both cycle lyric
+            // lines and credits through the MediaSession title metadata, making
+            // title matching unreliable. For QQ Music, verify song identity to
+            // detect desync.
+            val titleCyclesLyrics = song.platform == Platforms.NETEASE
+                || song.platform == Platforms.KUGOU
             if (playbackInfo?.isPlaying == true) {
-                // For NetEase, skip title verification — NetEase cycles lyrics/credits
-                // as the metadata title, making title matching unreliable.
-                // For QQ Music, verify song identity to detect desync.
                 val actualTitle = playbackInfo.title
-                val isNetease = song.platform == Platforms.NETEASE
-                val titleMismatch = !isNetease && actualTitle != null && !titleMatches(song.title, actualTitle)
+                val titleMismatch = !titleCyclesLyrics && actualTitle != null && !titleMatches(song.title, actualTitle)
 
                 if (titleMismatch) {
                     Log.w(TAG, "Playback timeout: wrong song playing! Expected '${song.title}', actual '$actualTitle' - treating as timeout")
                 } else {
-                    // Song is playing (correct or NetEase where we can't verify) — reset consecutive skips
+                    // Song is playing (correct or lyric-cycling platform) — reset consecutive skips
                     Log.d(TAG, "Playback timeout check: ${song.title} is playing, all good" +
-                        if (isNetease && actualTitle != null) " (NetEase title: '$actualTitle', skipping verification)" else "")
+                        if (titleCyclesLyrics && actualTitle != null) " (${song.platform} title: '$actualTitle', skipping verification)" else "")
                     consecutiveSkips = 0
                     lastTimedOutSongTitle = null
                     return@Runnable
@@ -1015,7 +1019,7 @@ class PlaybackService : Service() {
             if (!playbackTimeoutRetried && expectedPackage != null && playbackInfo != null
                 && playbackInfo.packageName == expectedPackage && playbackInfo.position < 1000L) {
                 val actualTitle = playbackInfo.title
-                val titleOk = actualTitle == null || titleMatches(song.title, actualTitle)
+                val titleOk = titleCyclesLyrics || actualTitle == null || titleMatches(song.title, actualTitle)
                 if (titleOk) {
                     Log.d(TAG, "Playback timeout: ${song.title} loaded but not playing (pos=${playbackInfo.position}ms), sending play nudge and retrying")
                     playbackTimeoutRetried = true

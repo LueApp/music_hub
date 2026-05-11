@@ -63,6 +63,12 @@ class ChartAdapter(
                     binding.ivChartCover.setImageResource(R.drawable.ic_bilibili)
                     binding.ivChartCover.imageTintList = null
                 }
+                Platforms.KUGOU -> {
+                    binding.tvPlatform.text = "酷狗"
+                    binding.tvPlatform.setBackgroundResource(R.drawable.bg_badge_kugou)
+                    binding.ivChartCover.setImageResource(R.drawable.ic_kugou)
+                    binding.ivChartCover.imageTintList = null
+                }
                 else -> {
                     binding.tvPlatform.text = chart.platform
                 }

@@ -29,6 +29,10 @@ object DeepLinkLauncher {
 
     private const val BILIBILI_PACKAGE = "tv.danmaku.bili"
     private const val NETEASE_PACKAGE = "com.netease.cloudmusic"
+    private const val KUGOU_PACKAGE = "com.kugou.android"
+
+    private fun isKugouLink(deepLink: String): Boolean =
+        deepLink.startsWith("kugou://") || deepLink.contains("kugou.com")
 
     private const val LAUNCH_MODE_KEY = "launch_mode"
     const val LAUNCH_MODE_BACKGROUND = "background"
@@ -140,6 +144,9 @@ object DeepLinkLauncher {
             if (resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")) {
                 setPackage(BILIBILI_PACKAGE)
             }
+            if (isKugouLink(resolvedLink)) {
+                setPackage(KUGOU_PACKAGE)
+            }
         }
 
         return try {
@@ -188,6 +195,10 @@ object DeepLinkLauncher {
             val isBilibili = resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")
             if (isBilibili && fallbackUrl.isNotEmpty()) {
                 Log.d(TAG, "Bilibili app not available, falling back to browser: $fallbackUrl")
+                return launchFallback(context, fallbackUrl)
+            }
+            if (isKugouLink(resolvedLink) && fallbackUrl.isNotEmpty()) {
+                Log.d(TAG, "Kugou app not available, falling back to browser: $fallbackUrl")
                 return launchFallback(context, fallbackUrl)
             }
             if (fallbackUrl.isNotEmpty()) {
@@ -253,6 +264,9 @@ object DeepLinkLauncher {
             if (resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")) {
                 setPackage(BILIBILI_PACKAGE)
             }
+            if (isKugouLink(resolvedLink)) {
+                setPackage(KUGOU_PACKAGE)
+            }
         }
 
         val launchBundle = buildFreeformLaunchBundle(context)
@@ -270,6 +284,10 @@ object DeepLinkLauncher {
             val isBilibili = resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")
             if (isBilibili && fallbackUrl.isNotEmpty()) {
                 Log.d(TAG, "Bilibili app not available, falling back to browser: $fallbackUrl")
+                return launchFallback(context, fallbackUrl)
+            }
+            if (isKugouLink(resolvedLink) && fallbackUrl.isNotEmpty()) {
+                Log.d(TAG, "Kugou app not available, falling back to browser: $fallbackUrl")
                 return launchFallback(context, fallbackUrl)
             }
             if (fallbackUrl.isNotEmpty()) launchFallback(context, fallbackUrl) else false
@@ -291,6 +309,9 @@ object DeepLinkLauncher {
             if (resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")) {
                 setPackage(BILIBILI_PACKAGE)
             }
+            if (isKugouLink(resolvedLink)) {
+                setPackage(KUGOU_PACKAGE)
+            }
         }
 
         return try {
@@ -303,6 +324,9 @@ object DeepLinkLauncher {
                     val isBilibili = resolvedLink.startsWith("bilibili://") || resolvedLink.contains("bilibili.com")
                     if (isBilibili && fallbackUrl.isNotEmpty()) {
                         Log.d(TAG, "Bilibili app not available on locked screen, falling back to browser")
+                        launchFallback(context, fallbackUrl)
+                    } else if (isKugouLink(resolvedLink) && fallbackUrl.isNotEmpty()) {
+                        Log.d(TAG, "Kugou app not available on locked screen, falling back to browser")
                         launchFallback(context, fallbackUrl)
                     } else if (fallbackUrl.isNotEmpty()) {
                         launchFallback(context, fallbackUrl)

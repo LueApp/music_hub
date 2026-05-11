@@ -88,6 +88,18 @@ class ManageSourcesViewModel(
                     }
                 }
 
+                // Check for Kugou
+                if (platform == null) {
+                    val kugouHandler = LinkParser.getHandler(Platforms.KUGOU)
+                    if (kugouHandler != null && kugouHandler.canHandle(resolvedUrl)) {
+                        val parsed = kugouHandler.parsePlaylistUrl(resolvedUrl)
+                        if (parsed != null) {
+                            platform = Platforms.KUGOU
+                            remotePlaylistId = parsed.playlistId
+                        }
+                    }
+                }
+
                 if (platform == null || remotePlaylistId == null) {
                     _addResult.value = AddSourceResult.Error("不支持此链接作为同步源")
                     _isAdding.value = false

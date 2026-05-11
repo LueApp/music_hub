@@ -66,6 +66,7 @@ class QueueAdapter(
             Platforms.NETEASE -> R.drawable.ic_netease
             Platforms.QQMUSIC -> R.drawable.ic_qqmusic
             Platforms.BILIBILI -> R.drawable.ic_bilibili
+            Platforms.KUGOU -> R.drawable.ic_kugou
             else -> R.drawable.ic_music_note
         }
         holder.ivPlatform.setImageResource(platformIcon)

@@ -91,6 +91,10 @@ class HomeFragment : Fragment() {
         binding.cardBilibili.setOnClickListener {
             // TODO: Filter library by Bilibili
         }
+
+        binding.cardKugou.setOnClickListener {
+            // TODO: Filter library by Kugou
+        }
     }
 
     private fun observeData() {
@@ -116,9 +120,11 @@ class HomeFragment : Fragment() {
                     val neteaseCnt = songs.count { it.platform == Platforms.NETEASE }
                     val qqCnt = songs.count { it.platform == Platforms.QQMUSIC }
                     val biliCnt = songs.count { it.platform == Platforms.BILIBILI }
+                    val kugouCnt = songs.count { it.platform == Platforms.KUGOU }
                     binding.tvNeteaseSongCount.text = "$neteaseCnt 首"
                     binding.tvQQMusicSongCount.text = "$qqCnt 首"
                     binding.tvBilibiliSongCount.text = "$biliCnt 首"
+                    binding.tvKugouSongCount.text = "$kugouCnt 首"
                 } catch (e: Exception) {
                     android.util.Log.e("HomeFragment", "Failed to fetch remote songs: ${e.message}", e)
                     if (_binding == null) return@launch
@@ -146,6 +152,7 @@ class HomeFragment : Fragment() {
                         binding.tvNeteaseSongCount.text = "${counts[Platforms.NETEASE] ?: 0} 首"
                         binding.tvQQMusicSongCount.text = "${counts[Platforms.QQMUSIC] ?: 0} 首"
                         binding.tvBilibiliSongCount.text = "${counts[Platforms.BILIBILI] ?: 0} 首"
+                        binding.tvKugouSongCount.text = "${counts[Platforms.KUGOU] ?: 0} 首"
                     }
                 }
             }

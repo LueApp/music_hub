@@ -29,6 +29,7 @@
     <color name="qqmusic_green_light">#5DD598</color>
     <color name="bilibili_pink">#FB7299</color>
     <color name="bilibili_blue">#00A1D6</color>
+    <color name="kugou_blue">#0096FF</color>
 
     <!-- Status Colors -->
     <color name="success">#4CAF50</color>

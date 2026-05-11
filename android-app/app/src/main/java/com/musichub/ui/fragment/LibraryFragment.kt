@@ -88,6 +88,7 @@ class LibraryFragment : Fragment() {
                 checkedIds.contains(R.id.chipNetease) -> Platforms.NETEASE
                 checkedIds.contains(R.id.chipQQMusic) -> Platforms.QQMUSIC
                 checkedIds.contains(R.id.chipBilibili) -> Platforms.BILIBILI
+                checkedIds.contains(R.id.chipKugou) -> Platforms.KUGOU
                 else -> null
             }
             viewModel.setPlatformFilter(platform)

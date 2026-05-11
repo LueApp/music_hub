@@ -386,6 +386,7 @@ object ShizukuLauncher {
         "com.netease.cloudmusic",
         "com.tencent.qqmusic",
         "tv.danmaku.bili",
+        "com.kugou.android",
     )
 
     /**
@@ -475,6 +476,8 @@ object ShizukuLauncher {
         deepLink.startsWith("qqmusic://") -> "com.tencent.qqmusic"
         deepLink.startsWith("bilibili://") || deepLink.contains("bilibili.com") ->
             "tv.danmaku.bili"
+        deepLink.startsWith("kugou://") || deepLink.contains("kugou.com") ->
+            "com.kugou.android"
         deepLink.contains("music.163.com") -> "com.netease.cloudmusic"
         deepLink.contains("y.qq.com") -> "com.tencent.qqmusic"
         else -> null

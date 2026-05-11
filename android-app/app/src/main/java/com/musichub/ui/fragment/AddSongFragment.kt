@@ -149,9 +149,10 @@ class AddSongFragment : Fragment() {
                     // Show playlist selector for playlist imports
                     binding.layoutPlaylistSelector.visibility = View.VISIBLE
 
-                    // Show sync checkbox for syncable platforms (not Bilibili)
+                    // Show sync checkbox for syncable platforms (not Bilibili, not Kugou)
                     binding.cbKeepSynced.visibility =
-                        if (parsedPlaylist.platform != Platforms.BILIBILI) View.VISIBLE else View.GONE
+                        if (parsedPlaylist.platform != Platforms.BILIBILI &&
+                            parsedPlaylist.platform != Platforms.KUGOU) View.VISIBLE else View.GONE
 
                     // Platform badge
                     when (parsedPlaylist.platform) {
@@ -162,6 +163,10 @@ class AddSongFragment : Fragment() {
                         Platforms.QQMUSIC -> {
                             binding.tvPreviewPlatform.text = "QQ音乐歌单"
                             binding.tvPreviewPlatform.setBackgroundResource(R.drawable.bg_badge_qqmusic)
+                        }
+                        Platforms.KUGOU -> {
+                            binding.tvPreviewPlatform.text = "酷狗歌单"
+                            binding.tvPreviewPlatform.setBackgroundResource(R.drawable.bg_badge_kugou)
                         }
                     }
 
@@ -218,6 +223,10 @@ class AddSongFragment : Fragment() {
                             Platforms.BILIBILI -> {
                                 binding.tvPreviewPlatform.text = "B站"
                                 binding.tvPreviewPlatform.setBackgroundResource(R.drawable.bg_badge_bilibili)
+                            }
+                            Platforms.KUGOU -> {
+                                binding.tvPreviewPlatform.text = "酷狗"
+                                binding.tvPreviewPlatform.setBackgroundResource(R.drawable.bg_badge_kugou)
                             }
                         }
 

@@ -86,6 +86,10 @@ class SongAdapter(
                     binding.tvPlatform.text = "B站"
                     binding.tvPlatform.setBackgroundResource(R.drawable.bg_badge_bilibili)
                 }
+                Platforms.KUGOU -> {
+                    binding.tvPlatform.text = "酷狗"
+                    binding.tvPlatform.setBackgroundResource(R.drawable.bg_badge_kugou)
+                }
                 else -> {
                     binding.tvPlatform.text = song.platform
                 }

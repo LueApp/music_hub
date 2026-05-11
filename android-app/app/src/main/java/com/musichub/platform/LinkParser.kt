@@ -18,11 +18,12 @@ object LinkParser {
     private val handlers = listOf(
         NetEasePlatform(),
         QQMusicPlatform(),
-        BilibiliPlatform()
+        BilibiliPlatform(),
+        KugouPlatform()
     )
 
     // Short URL domains that need redirect resolution
-    private val shortUrlDomains = listOf("163cn.tv", ".y.qq.com/base/fcgi-bin", "b23.tv")
+    private val shortUrlDomains = listOf("163cn.tv", ".y.qq.com/base/fcgi-bin", "b23.tv", "t1.kugou.com")
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)

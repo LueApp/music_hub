@@ -89,16 +89,19 @@ object Platforms {
     const val NETEASE = "netease"
     const val QQMUSIC = "qqmusic"
     const val BILIBILI = "bilibili"
+    const val KUGOU = "kugou"
 
     val DISPLAY_NAMES = mapOf(
         NETEASE to "网易云音乐",
         QQMUSIC to "QQ音乐",
-        BILIBILI to "哔哩哔哩"
+        BILIBILI to "哔哩哔哩",
+        KUGOU to "酷狗音乐"
     )
 
     val PACKAGE_NAMES = mapOf(
         NETEASE to "com.netease.cloudmusic",
         QQMUSIC to "com.tencent.qqmusic",
-        BILIBILI to "tv.danmaku.bili"
+        BILIBILI to "tv.danmaku.bili",
+        KUGOU to "com.kugou.android"
     )
 }

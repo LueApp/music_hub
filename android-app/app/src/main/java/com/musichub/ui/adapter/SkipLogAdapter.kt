@@ -51,6 +51,10 @@ class SkipLogAdapter : ListAdapter<SkipLogEntry, SkipLogAdapter.ViewHolder>(Diff
                     binding.tvPlatform.text = "B站"
                     binding.tvPlatform.setBackgroundResource(R.drawable.bg_badge_bilibili)
                 }
+                Platforms.KUGOU -> {
+                    binding.tvPlatform.text = "酷狗"
+                    binding.tvPlatform.setBackgroundResource(R.drawable.bg_badge_kugou)
+                }
                 else -> binding.tvPlatform.text = entry.platform
             }
         }

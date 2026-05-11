@@ -72,6 +72,8 @@
     <string name="platform_qqmusic_cn">QQ音乐</string>
     <string name="platform_bilibili">Bilibili</string>
     <string name="platform_bilibili_cn">B站</string>
+    <string name="platform_kugou">Kugou</string>
+    <string name="platform_kugou_cn">酷狗</string>
 
     <!-- Playback -->
     <string name="now_playing">Now Playing</string>
@@ -199,6 +201,7 @@
     <string name="import_screen_title">从曲库导入</string>
     <string name="import_filter_all">全部</string>
     <string name="import_filter_bilibili">B站</string>
+    <string name="import_filter_kugou">酷狗</string>
     <string name="import_select_all">全选</string>
     <string name="import_deselect_all">取消全选</string>
     <string name="import_selected_count">已选择 %d 首</string>

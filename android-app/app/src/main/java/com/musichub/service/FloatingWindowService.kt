@@ -1623,6 +1623,7 @@ class FloatingWindowService : Service() {
             "netease" -> "com.netease.cloudmusic"
             "qqmusic" -> "com.tencent.qqmusic"
             "bilibili" -> "tv.danmaku.bili"
+            "kugou" -> "com.kugou.android"
             else -> null
         }
     }
