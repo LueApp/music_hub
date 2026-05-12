@@ -137,14 +137,47 @@ object ShizukuLauncher {
     }
 
     /**
-     * Launch a deep link in freeform windowing mode via `am start --windowingMode 5`.
-     * If [bounds] is non-null, asynchronously runs `am task resize` after the launch
-     * to position the window — HyperOS otherwise places freeform tasks centered at
-     * ~50% of screen, which is too obtrusive.
+     * Launch a deep link in freeform windowing mode.
      *
-     * Returns true iff the launch `am` exited with code 0. The follow-up resize is
-     * fire-and-forget on a background thread; it logs failures but doesn't affect
-     * the return value.
+     * Two paths, decided atomically inside one shell script to avoid binder
+     * round-trips and to keep the off-screen invariant tight:
+     *
+     *   REUSE: if a visible freeform task for the target package already exists,
+     *   the deep link is delivered without `--windowingMode 5`. The intent goes
+     *   to the existing task via onNewIntent; bounds stay where they were. If
+     *   the task drifted away from [bounds] (e.g. a home-gesture snap-back), it
+     *   is `am task resize`d *before* the intent is delivered so the new song's
+     *   first frame draws off-screen. No visible flash.
+     *
+     *   COLD: no existing freeform task. We fall back to `am start --windowingMode 5`
+     *   plus the legacy poll-and-resize watchdog. The first cold start of a music
+     *   app session still flashes briefly (HyperOS draws the task at its default
+     *   centered freeform bounds before our resize lands ~80–200ms later), but
+     *   every subsequent switch hits the REUSE path.
+     *
+     * Constrain intent resolution to the music app for this deep link. Kugou's
+     * deep link is an HTTPS URL that browsers also claim — without `-p`, HyperOS's
+     * resolver routes m.kugou.com to the browser instead of com.kugou.android.
+     * Custom-scheme deep links (orpheus://, qqmusic://, bilibili://) are
+     * unambiguous, so `-p` is redundant but harmless there.
+     *
+     * Flag breakdown:
+     *   0x10000000 = FLAG_ACTIVITY_NEW_TASK
+     *   0x00010000 = FLAG_ACTIVITY_NO_ANIMATION (suppress activity-side launch animation)
+     *
+     * NOTE: don't add FLAG_ACTIVITY_SINGLE_TOP. When SINGLE_TOP delivers to an
+     * existing top activity via onNewIntent and the --windowingMode hint is used,
+     * the existing activity keeps its current windowing mode — which is exactly
+     * what we want in the REUSE path, but only when we *don't* pass --windowingMode.
+     * For COLD launches we need a fresh task in freeform mode, so SINGLE_TOP would
+     * defeat the windowingMode hint there. Different flags for the two paths is
+     * the simplest correct answer.
+     *
+     * Also don't add `--no-window-animation`: this HyperOS build's `am` rejects
+     * it with "Unknown option" and the whole `am start` then throws.
+     *
+     * Returns true iff the launch script exited 0. The follow-up watchdog is
+     * fire-and-forget on a background thread.
      */
     fun launchFreeform(
         context: Context,
@@ -157,52 +190,32 @@ object ShizukuLauncher {
             return false
         }
 
-        // Constrain intent resolution to the music app for this deep link.
-        // Kugou's deep link is an HTTPS URL that browsers also claim — without
-        // `-p`, HyperOS's resolver routes m.kugou.com to the browser instead
-        // of com.kugou.android. Custom-scheme deep links (orpheus://, qqmusic://,
-        // bilibili://) are unambiguous, so `-p` is redundant but harmless there.
-        // null = unknown deep link → omit `-p` and let the resolver pick.
         val targetPackage = packageForDeepLink(deepLink)
 
-        // Flag breakdown:
-        //   0x10000000 = FLAG_ACTIVITY_NEW_TASK
-        //   0x00010000 = FLAG_ACTIVITY_NO_ANIMATION (suppress activity-side
-        //                launch animation)
-        //
-        // NOTE: don't add FLAG_ACTIVITY_SINGLE_TOP here. When SINGLE_TOP
-        // delivers the intent to an existing top activity via onNewIntent,
-        // no new activity is launched — and our --windowingMode 5 hint is
-        // ignored because the existing activity stays in whatever windowing
-        // mode it was already in. A previously-fullscreen music app would
-        // stay fullscreen on song switch, defeating the entire freeform UX.
-        //
-        // Also don't add `--no-window-animation`: although the am help text
-        // lists it, this HyperOS build's `am` rejects it with "Unknown option"
-        // and the whole `am start` then throws, our code falls back to a
-        // standard Intent launch (no windowing-mode hint) → fullscreen.
-        val cmd = buildList {
-            add("am"); add("start")
-            add("--windowingMode"); add("5")
-            add("-a"); add("android.intent.action.VIEW")
-            add("-d"); add(deepLink)
-            if (targetPackage != null) {
-                add("-p"); add(targetPackage)
-            }
-            add("-f"); add("0x10010000")
-        }.toTypedArray()
-
         return try {
-            val process = newShizukuProcess(cmd) ?: return false
+            val script = buildLaunchScript(deepLink, targetPackage, bounds)
+            val args = if (targetPackage != null) {
+                arrayOf("sh", "-c", script, "musichub", targetPackage)
+            } else {
+                arrayOf("sh", "-c", script, "musichub", "")
+            }
+            val process = newShizukuProcess(args) ?: return false
             val exit = process.waitFor()
             val output = try {
                 process.inputStream.bufferedReader().readText()
             } catch (_: Exception) {
                 ""
             }
-            Log.i(TAG, "Shizuku am start exit=$exit pkg=${targetPackage ?: "<unspecified>"} output=${output.take(200)}")
+            val mode = Regex("""MODE=(\w+)""").find(output)?.groupValues?.get(1) ?: "unknown"
+            Log.i(TAG, "Shizuku launch exit=$exit pkg=${targetPackage ?: "<unspecified>"} mode=$mode output=${output.take(200).replace("\n", " | ")}")
 
             if (exit == 0 && bounds != null) {
+                // Same scheduleResize path for both REUSE and COLD: the multi-offset
+                // resize is a no-op when bounds are already correct (REUSE), and a
+                // safety re-application when bounds are still settling (COLD,
+                // Bilibili's IntentHandler→UnitedBizDetails chain resets task
+                // bounds within 2-5s of launch). The watchdog also tracks the
+                // floating-ball position if the user drags it.
                 scheduleResize(deepLink, bounds, boundsProvider)
             }
             exit == 0
@@ -210,6 +223,109 @@ object ShizukuLauncher {
             Log.w(TAG, "Shizuku launchFreeform failed: ${e.javaClass.simpleName}: ${e.message}")
             false
         }
+    }
+
+    /**
+     * Single shell script that:
+     *   1. Looks up the visible freeform task for [targetPackage] in dumpsys.
+     *   2. REUSE path: if found, resizes it to [bounds] iff it drifted, then
+     *      delivers the deep link via plain `am start` (no --windowingMode). The
+     *      existing task receives onNewIntent without changing windowing mode →
+     *      no visible flash.
+     *   3. COLD path: no task found → `am start --windowingMode 5` to create a
+     *      fresh freeform task. Kotlin then takes over via scheduleResize.
+     *
+     * Output ends with a one-line `MODE=reuse` or `MODE=cold` marker so the
+     * caller can decide whether the cold-path watchdog is needed.
+     */
+    private fun buildLaunchScript(deepLink: String, targetPackage: String?, bounds: Rect?): String {
+        // Shell-quote the deep link. Single-quoting + escaping any single quote
+        // inside the URL is sufficient — neither orpheus:// nor https:// URLs
+        // produced by our platform handlers contain single quotes.
+        val quotedDeepLink = "'" + deepLink.replace("'", """'\''""") + "'"
+
+        // Build the -p argument conditionally — empty package means no -p.
+        val packageArg = if (!targetPackage.isNullOrEmpty()) "-p \"\$PKG\"" else ""
+
+        // Target bounds for resize-before-intent in the reuse path. If bounds
+        // is null we skip the resize check entirely.
+        val (L, T, R, B) = if (bounds != null) {
+            listOf(bounds.left, bounds.top, bounds.right, bounds.bottom).map { it.toString() }
+        } else {
+            listOf("", "", "", "")
+        }
+        val hasBounds = bounds != null
+
+        return """
+            PKG="${'$'}1"
+
+            findTaskInfo() {
+              dumpsys activity activities 2>/dev/null | awk -v pkg="${'$'}1" '
+                /^[[:space:]]*\* Task\{/ {
+                  match(${'$'}0, /#[0-9]+/)
+                  cur_id = substr(${'$'}0, RSTART+1, RLENGTH-1)
+                  ff = (${'$'}0 ~ /mode=freeform/)
+                  vis = (${'$'}0 ~ /visible=true/)
+                  cur_bounds = ""
+                }
+                ff && vis && cur_bounds == "" && /^[[:space:]]+mBounds=Rect\(/ {
+                  match(${'$'}0, /Rect\([-0-9, ]+\)/)
+                  cur_bounds = substr(${'$'}0, RSTART, RLENGTH)
+                }
+                ff && vis && /Hist/ && cur_bounds != "" && index(${'$'}0, pkg "/") > 0 {
+                  print cur_id "|" cur_bounds
+                  exit
+                }
+              '
+            }
+
+            if [ -n "${'$'}PKG" ]; then
+              INFO=${'$'}(findTaskInfo "${'$'}PKG")
+            else
+              INFO=""
+            fi
+
+            if [ -n "${'$'}INFO" ]; then
+              TID=${'$'}(echo "${'$'}INFO" | cut -d'|' -f1)
+              OLDBOUNDS=${'$'}(echo "${'$'}INFO" | cut -d'|' -f2-)
+              ${if (hasBounds) """
+              TARGET="Rect($L, $T - $R, $B)"
+              if [ "${'$'}OLDBOUNDS" != "${'$'}TARGET" ]; then
+                am task resize "${'$'}TID" $L $T $R $B
+              fi
+              """ else ""}
+              am start -a android.intent.action.VIEW -d $quotedDeepLink $packageArg -f 0x10010000
+              echo "MODE=reuse TID=${'$'}TID OLDBOUNDS=${'$'}OLDBOUNDS"
+              exit 0
+            fi
+
+            am start --windowingMode 5 -a android.intent.action.VIEW -d $quotedDeepLink $packageArg -f 0x10010000
+            AM_EXIT=${'$'}?
+            ${if (hasBounds) """
+            # Race the resize against the first frame of the new freeform task.
+            # Polling+resizing inside the same shell call (one binder IPC) cuts
+            # the visible-flash window in half vs. handing off to Kotlin's
+            # scheduleResize, which spawns a thread and a fresh Shizuku process.
+            # Tight 10ms polling for the first 300ms covers the typical task
+            # appearance latency on this device.
+            if [ "${'$'}PKG" != "" ] && [ "${'$'}AM_EXIT" = "0" ]; then
+              i=0
+              while [ ${'$'}i -lt 30 ]; do
+                INFO=${'$'}(findTaskInfo "${'$'}PKG")
+                if [ -n "${'$'}INFO" ]; then
+                  TID=${'$'}(echo "${'$'}INFO" | cut -d'|' -f1)
+                  am task resize "${'$'}TID" $L $T $R $B
+                  echo "MODE=cold AM_EXIT=${'$'}AM_EXIT TID=${'$'}TID RESIZE_AT=${'$'}{i}x10ms"
+                  exit 0
+                fi
+                sleep 0.01
+                i=${'$'}((i+1))
+              done
+            fi
+            """ else ""}
+            echo "MODE=cold AM_EXIT=${'$'}AM_EXIT"
+            exit ${'$'}AM_EXIT
+        """.trimIndent()
     }
 
     /**

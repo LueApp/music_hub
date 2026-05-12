@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-11T11:07:46.207Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-12T10:00:55.242Z
 > Files: 703 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -783,7 +783,7 @@
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15287 tok)
 - `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~12766 tok)
 - `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6490 tok)
-- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~6579 tok)
+- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~8085 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 

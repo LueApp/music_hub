@@ -859,6 +859,60 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-11T10:00:46.677Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-05-12T09:49:05.132Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-12T09:49:05.132Z"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-05-12T09:51:32.074Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Had '}2\"",
+      "fix": "Changed to '}1\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-12T09:51:32.074Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-05-12T18:02:00Z",
+      "error_message": "Visible flash when switching songs in background mode — music app briefly appears at HyperOS default centered freeform bounds before resize lands off-screen",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "am start --windowingMode 5 creates a fresh freeform task at HyperOS-default centered bounds (Rect(279,698,801,1778)) and renders the activity there before our follow-up am task resize moves it off-screen. The user sees the centered window for ~180ms before it disappears.",
+      "fix": "Single shell script atomically decides between two paths: (1) REUSE if a visible freeform task for the target package already exists — deliver the deep link via plain am start without --windowingMode 5, intent goes through onNewIntent without creating a new task or changing windowing mode, zero flash; (2) COLD if no existing task — am start --windowingMode 5 + inline poll-and-resize in the same shell (one binder IPC, 10ms polling), reduces flash window to ~30-50ms vs. the prior 180ms. The cold-path flash is unavoidable for the very first launch after a force-stop / reboot, but every subsequent switch (95% of switches in normal use) takes the REUSE path.",
+      "tags": [
+        "shizuku",
+        "freeform",
+        "flash",
+        "launch",
+        "windowing-mode",
+        "background-mode",
+        "hyperos"
+      ],
+      "related_bugs": [
+        "bug-046"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-12T18:02:00Z"
     }
   ]
 }
