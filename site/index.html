@@ -156,7 +156,7 @@
           <p class="eyebrow" data-i18n="workflowEyebrow">工作方式</p>
           <h2 id="workflow-title" data-i18n="workflowTitle">从分享链接到跨平台连续播放。</h2>
           <p data-i18n="workflowCopy">
-            系统把复杂流程拆成四件事：识别歌曲、保存队列、委托播放、监听状态。用户看到的是一个统一歌单，底层仍然尊重各平台的播放边界。
+            我们把复杂流程拆成四件事：识别歌曲、保存队列、委托播放、监听状态。用户看到的是一份统一歌单，底层仍按各平台自己的播放规则运作。
           </p>
         </div>
         <div class="workflow-grid">
@@ -164,28 +164,28 @@
             <span class="step-index">01</span>
             <h3 data-i18n="workflowAddTitle">1. 歌曲入库</h3>
             <p data-i18n="workflowAddCopy">
-              从音乐 App 分享或粘贴链接后，LinkParser 解析短链接、平台 ID、标题和艺术家，并按平台处理器补齐元数据。
+              从音乐 App 分享链接或直接粘贴，LinkParser 会解析短链接、平台 ID、标题和艺术家，再由对应平台的处理器补齐元数据。
             </p>
           </article>
           <article>
             <span class="step-index">02</span>
             <h3 data-i18n="workflowQueueTitle">2. 统一队列</h3>
             <p data-i18n="workflowQueueCopy">
-              歌曲以“平台 + 平台歌曲 ID”去重写入本地 Room 数据库，可混合编入同一个播放列表。
+              歌曲以“平台 + 平台歌曲 ID”为唯一标识写入本地 Room 数据库，可以混排进同一个播放列表。
             </p>
           </article>
           <article>
             <span class="step-index">03</span>
             <h3 data-i18n="workflowDelegateTitle">3. 播放委托</h3>
             <p data-i18n="workflowDelegateCopy">
-              播放时生成网易云、QQ 音乐或 B 站的目标链接，启动官方 App 执行真实播放，保留会员权益。
+              播放时生成网易云、QQ 音乐、酷狗或 B 站的目标链接，唤起对应官方 App 完成实际播放，保留会员权益。
             </p>
           </article>
           <article>
             <span class="step-index">04</span>
             <h3 data-i18n="workflowMonitorTitle">4. 状态监听</h3>
             <p data-i18n="workflowMonitorCopy">
-              通过 Android MediaSession/通知访问读取播放状态和进度，在接近结尾时自动切到队列里的下一首。
+              通过 Android MediaSession 与通知访问权限读取播放状态和进度，在接近结尾时自动切到队列里的下一首。
             </p>
           </article>
         </div>
@@ -194,56 +194,56 @@
       <section class="section feature-section" id="features" aria-labelledby="features-title">
         <div class="section-heading compact">
           <p class="eyebrow" data-i18n="featuresEyebrow">功能特点</p>
-          <h2 id="features-title" data-i18n="featuresTitle">面向真实使用场景的能力。</h2>
+          <h2 id="features-title" data-i18n="featuresTitle">为日常听歌场景准备的实用能力。</h2>
         </div>
         <div class="feature-grid">
           <article>
             <h3 data-i18n="featureLibraryTitle">跨平台曲库</h3>
-            <p data-i18n="featureLibraryCopy">把网易云、QQ音乐、酷狗音乐和 B 站内容作为统一元数据管理，不把音频搬进应用。</p>
+            <p data-i18n="featureLibraryCopy">把网易云、QQ 音乐、酷狗音乐和 B 站的内容当作统一的元数据来管理，不会把音频文件搬进应用本身。</p>
           </article>
           <article>
             <h3 data-i18n="featurePlaylistTitle">歌单订阅与合并</h3>
-            <p data-i18n="featurePlaylistCopy">将远程歌单关联到本地歌单，按同步源增量更新，同时保留手动添加的歌曲。</p>
+            <p data-i18n="featurePlaylistCopy">把远程歌单关联到本地歌单，按同步源增量更新，同时保留手动添加的歌曲。</p>
           </article>
           <article>
             <h3 data-i18n="featureAdvanceTitle">智能自动切歌</h3>
-            <p data-i18n="featureAdvanceCopy">播放前检测可用性，失败时自动跳过；切换时处理旧平台继续播放和延迟启动问题。</p>
+            <p data-i18n="featureAdvanceCopy">播放前先检测可用性，失败时自动跳过；切歌时也会处理上一首平台没停掉、新一首启动较慢等情况。</p>
           </article>
           <article>
             <h3 data-i18n="featureFloatingTitle">跨 App 悬浮控制</h3>
-            <p data-i18n="featureFloatingCopy">在任意 App 上方查看当前歌曲、控制播放、拖动进度，并在完整窗和迷你浮球间切换。</p>
+            <p data-i18n="featureFloatingCopy">在任意 App 上方查看当前歌曲、控制播放、拖动进度，可以在完整窗口和迷你浮球之间随意切换。</p>
           </article>
           <article>
             <h3 data-i18n="featureShareTitle">发现与推荐聚合</h3>
-            <p data-i18n="featureShareCopy">聚合排行榜、分类歌单和已登录平台的每日推荐，支持一键加入跨平台队列。</p>
+            <p data-i18n="featureShareCopy">汇总排行榜、分类歌单和已登录平台的每日推荐，支持一键加入跨平台队列。</p>
           </article>
           <article>
             <h3 data-i18n="featureRemoteTitle">双设备远程控制</h3>
-            <p data-i18n="featureRemoteCopy">播放器设备开放本地 HTTP/WebSocket 控制接口，控制器设备实时同步状态并发送操作。</p>
+            <p data-i18n="featureRemoteCopy">播放端在本机开放 HTTP/WebSocket 控制接口，控制端实时同步状态并发送操作指令。</p>
           </article>
           <article>
             <h3 data-i18n="featureBackgroundTitle">后台播放模式</h3>
-            <p data-i18n="featureBackgroundCopy">通过 Shizuku freeform 把音乐 App 窗口固定在屏幕外侧，让 Music Hub 浮球继续显示在前台。</p>
+            <p data-i18n="featureBackgroundCopy">借助 Shizuku 把音乐 App 启动到 freeform 窗口里，并放到屏幕之外，让 Music Hub 的浮球持续显示在前台。</p>
           </article>
           <article>
             <h3 data-i18n="featureTimeoutTitle">单曲提前结束</h3>
-            <p data-i18n="featureTimeoutCopy">长按歌曲设置自定义 mm:ss 时长，避开冗长的开场或片尾，按预期切到下一首。</p>
+            <p data-i18n="featureTimeoutCopy">长按歌曲为它设置自定义的 mm:ss 时长，跳过冗长的开场或片尾，到点自动切到下一首。</p>
           </article>
           <article>
             <h3 data-i18n="featureBackupTitle">数据导入与导出</h3>
-            <p data-i18n="featureBackupCopy">把歌曲、歌单和同步源导出为 JSON 文件，跨设备迁移或备份后再原样恢复。</p>
+            <p data-i18n="featureBackupCopy">把歌曲、歌单和同步源导出为 JSON 文件，方便跨设备迁移，备份之后也可以一键还原。</p>
           </article>
           <article>
             <h3 data-i18n="featureSetupTitle">首次启动权限引导</h3>
-            <p data-i18n="featureSetupCopy">SetupFragment 在首次启动时依次引导悬浮窗、通知访问、无障碍等 6 项权限的授予。</p>
+            <p data-i18n="featureSetupCopy">首次启动时通过引导页面，带你依次完成悬浮窗、通知访问、无障碍等 6 项权限的授权。</p>
           </article>
           <article>
             <h3 data-i18n="featureLocalTitle">本地优先存储</h3>
-            <p data-i18n="featureLocalCopy">歌单数据保存在设备本地数据库，不需要账号服务器，也不会上传播放记录。</p>
+            <p data-i18n="featureLocalCopy">歌单数据保存在设备本地数据库里，不需要账号服务器，也不会把播放记录上传到任何地方。</p>
           </article>
           <article>
             <h3 data-i18n="featureShareIntakeTitle">分享链接入库</h3>
-            <p data-i18n="featureShareIntakeCopy">从音乐 App 分享面板把链接发送到 Music Hub，自动识别平台、歌曲 ID 与元数据。</p>
+            <p data-i18n="featureShareIntakeCopy">在音乐 App 的分享面板里把链接发送到 Music Hub，自动识别平台、歌曲 ID 和元数据。</p>
           </article>
         </div>
       </section>
@@ -286,9 +286,9 @@
       <section class="section details-section" aria-labelledby="details-title">
         <div class="section-heading compact">
           <p class="eyebrow" data-i18n="detailsEyebrow">安装前说明</p>
-          <h2 id="details-title" data-i18n="detailsTitle">透明说明权限和限制。</h2>
+          <h2 id="details-title" data-i18n="detailsTitle">把权限和限制讲清楚。</h2>
           <p data-i18n="detailsCopy">
-            Music Hub 把播放委托给官方 App，这套架构带来了真实的边界。下面把权限要求和我们目前没有完美解的问题都列出来，希望你在试用前就知道会遇到什么。
+            Music Hub 把播放委托给官方 App，这种架构本身就有边界。下面把需要的权限，以及目前还没有完美解决方案的问题都列了出来，希望你在试用之前心里有数。
           </p>
         </div>
         <div class="details-grid">
@@ -296,24 +296,24 @@
             <h3 data-i18n="permissionsTitle">需要的权限</h3>
             <ul>
               <li data-i18n="permissionOverlay">悬浮窗权限：在其他 App 上方显示播放控制。</li>
-              <li data-i18n="permissionNotification">通知使用权：读取系统媒体会话状态，用于检测进度和歌曲结束。</li>
+              <li data-i18n="permissionNotification">通知使用权：读取系统媒体会话状态，用于检测播放进度和歌曲结束。</li>
               <li data-i18n="permissionAccessibility">无障碍服务：帮助 QQ 音乐进入播放器页面，并处理部分错误弹窗。</li>
               <li data-i18n="permissionUsage">使用情况访问：浮球双击返回上一个 App 时需要查询最近任务列表。</li>
-              <li data-i18n="permissionWriteSettings">系统设置写入：临时切换系统旋转方向，绕开网易云横屏检测。</li>
-              <li data-i18n="permissionShizuku">Shizuku（可选）：启用后台模式时把音乐 App 启动到 freeform 窗口里。</li>
+              <li data-i18n="permissionWriteSettings">系统设置写入：临时切换系统旋转方向，用来绕开网易云的横屏检测。</li>
+              <li data-i18n="permissionShizuku">Shizuku（可选）：启用后台模式时用来把音乐 App 启动到 freeform 窗口里。</li>
               <li data-i18n="permissionPost">前台通知：显示后台服务的运行状态。</li>
             </ul>
           </article>
           <article>
             <h3 data-i18n="limitsTitle">已知限制</h3>
             <ul>
-              <li data-i18n="limitForeground">前台模式下切歌时官方 App 会切到前台；后台模式可以避开这个问题，但需要 Shizuku。</li>
-              <li data-i18n="limitMediaSession">MediaSession 的 playFromMediaId / playFromUri / playFromSearch 在网易云和 QQ 音乐上都不响应，只能用深度链接启动。</li>
-              <li data-i18n="limitNeteaseLandscape">网易云横屏需要先把系统旋转锁成竖屏再恢复，约 7–10 秒等待，是目前最稳定的方法。</li>
-              <li data-i18n="limitKugou">酷狗音乐的歌单接口对未登录请求返回空，目前依靠抓取 SSR 渲染的页面，少量歌曲可能无法导入。</li>
-              <li data-i18n="limitPlatform">会员歌曲仍然需要你拥有对应平台会员，Music Hub 不绕过任何鉴权。</li>
-              <li data-i18n="limitSync">歌单同步目前以网易云、QQ 音乐为主，B 站和酷狗内容支持单曲与歌单导入但同步路径还在打磨。</li>
-              <li data-i18n="limitPreview">当前发布为预览版，可能存在崩溃和边界 bug，欢迎在 GitHub 提交 Issue。</li>
+              <li data-i18n="limitForeground">前台模式下切歌时官方 App 会跳到前台；后台模式可以避开这一点，但需要 Shizuku。</li>
+              <li data-i18n="limitMediaSession">MediaSession 的 playFromMediaId / playFromUri / playFromSearch 在网易云和 QQ 音乐里都不会触发实际播放，只能依赖深度链接启动。</li>
+              <li data-i18n="limitNeteaseLandscape">网易云的横屏播放需要先把系统旋转锁成竖屏再恢复，大约要等 7–10 秒，这是我们目前找到的最稳定办法。</li>
+              <li data-i18n="limitKugou">酷狗音乐的歌单接口在未登录状态下不返回数据，目前只能抓取服务端渲染的页面，少量歌曲可能无法导入。</li>
+              <li data-i18n="limitPlatform">会员歌曲仍然需要你拥有对应平台的会员，Music Hub 不会绕过任何鉴权。</li>
+              <li data-i18n="limitSync">歌单自动同步目前主要支持网易云和 QQ 音乐；B 站和酷狗的内容可以导入单曲与歌单，但同步功能还在完善中。</li>
+              <li data-i18n="limitPreview">当前发布的是预览版，可能在边角场景下崩溃，欢迎在 GitHub 上提 Issue。</li>
             </ul>
           </article>
         </div>
@@ -321,10 +321,10 @@
 
       <section class="section contribute-section" id="contribute" aria-labelledby="contribute-title">
         <div class="section-heading">
-          <p class="eyebrow" data-i18n="contributeEyebrow">Help Wanted</p>
-          <h2 id="contribute-title" data-i18n="contributeTitle">我们需要更多人一起把这些限制变成历史。</h2>
+          <p class="eyebrow" data-i18n="contributeEyebrow">寻求帮助</p>
+          <h2 id="contribute-title" data-i18n="contributeTitle">我们希望和更多人一起把这些限制慢慢解掉。</h2>
           <p data-i18n="contributeCopy">
-            Music Hub 完全开源，由一个非 Android 背景的开发者维护。下面列出的每一项都不是设计选择，而是我们还没找到答案的真实问题。如果你在任何一项上有经验，欢迎在 GitHub 上提 Issue、发 PR，或者只是分享思路。
+            Music Hub 完全开源，目前由一位非 Android 出身的开发者在维护。下面列出的每一项都不是我们故意这么做，而是暂时还没找到解决方案的实际问题。如果你在其中任何一项上有经验，欢迎在 GitHub 上提 Issue、发 PR，或者只是分享一些思路。
           </p>
         </div>
         <div class="contribute-grid">
@@ -332,42 +332,42 @@
             <span class="contribute-tag" data-i18n="contributeTagAndroid">Android 系统层</span>
             <h3 data-i18n="contributeAndroidTitle">无 Shizuku 的后台播放</h3>
             <p data-i18n="contributeAndroidCopy">
-              <code>setLaunchWindowingMode</code> 只对持签名权限的 App 生效，目前只能借 Shizuku 的 <code>am start --windowingMode 5</code>。如果你了解任何能让普通 App 把音乐 App 放进后台或画中画窗口的途径，请告诉我们。
+              <code>setLaunchWindowingMode</code> 只对持有签名级权限的 App 生效，目前我们只能借助 Shizuku 调用 <code>am start --windowingMode 5</code>。如果你知道有什么办法能让一个普通 App 把音乐 App 放到后台或画中画窗口里，请告诉我们。
             </p>
           </article>
           <article>
             <span class="contribute-tag" data-i18n="contributeTagPlatform">平台 API</span>
             <h3 data-i18n="contributePlatformTitle">酷狗 / QQ / 网易官方接口</h3>
             <p data-i18n="contributePlatformCopy">
-              酷狗的 songlist 接口在未登录态下全部返回 4xx，我们目前只能抓服务端渲染的 HTML。如果你熟悉这几家平台的公开 API、登录签名或合作伙伴接入方式，能帮我们走出抓取路线。
+              酷狗的 songlist 接口在未登录状态下全部返回 4xx，我们目前只能抓取服务端渲染的 HTML。如果你熟悉这几家平台的公开 API、登录签名或合作伙伴接入方式，可以帮我们摆脱抓取页面的做法。
             </p>
           </article>
           <article>
             <span class="contribute-tag" data-i18n="contributeTagMediaSession">MediaSession</span>
-            <h3 data-i18n="contributeMediaSessionTitle">让官方 App 接受播放指令</h3>
+            <h3 data-i18n="contributeMediaSessionTitle">让官方 App 真正接受播放指令</h3>
             <p data-i18n="contributeMediaSessionCopy">
-              所有 <code>playFromMediaId</code> / <code>playFromUri</code> / <code>playFromSearch</code> 调用都被网易云和 QQ 音乐忽略，actions 字段虽然包含对应位但实际行为是 no-op。我们想知道是否有 MediaBrowserService 或厂商私有的指令可以触发它们真正切歌。
+              所有 <code>playFromMediaId</code> / <code>playFromUri</code> / <code>playFromSearch</code> 调用都会被网易云和 QQ 音乐忽略；actions 字段虽然声明了对应能力，实际却是空操作。我们想知道有没有 MediaBrowserService 或厂商私有指令可以真正触发切歌。
             </p>
           </article>
           <article>
             <span class="contribute-tag" data-i18n="contributeTagNewPlatform">新平台</span>
             <h3 data-i18n="contributeNewPlatformTitle">新增平台处理器</h3>
             <p data-i18n="contributeNewPlatformCopy">
-              我们想把酷我、咪咕、Apple Music 中国区等平台也接进来。只要实现 <code>PlatformHandler</code> 接口（链接解析、元数据获取、深度链接生成），就能加入跨平台队列。期待你的 PR。
+              我们希望把酷我、咪咕、Apple Music 中国区等平台也接入进来。只要实现 <code>PlatformHandler</code> 接口（链接解析、元数据获取、深度链接生成），就能加入跨平台队列。欢迎提 PR。
             </p>
           </article>
           <article>
             <span class="contribute-tag" data-i18n="contributeTagOEM">机型适配</span>
             <h3 data-i18n="contributeOEMTitle">HyperOS / MIUI / EMUI 适配</h3>
             <p data-i18n="contributeOEMCopy">
-              HyperOS 会在重装后悄悄解绑 NotificationListenerService，手势导航会把 freeform 窗口吸附回主屏。如果你在自家机型上看到 Music Hub 表现异常，欢迎附上 logcat 和复现步骤。
+              HyperOS 会在重装应用后悄悄解绑 NotificationListenerService，手势导航也会把 freeform 窗口吸附回主屏。如果你在自己的设备上发现 Music Hub 表现异常，欢迎附上 logcat 和复现步骤。
             </p>
           </article>
           <article>
             <span class="contribute-tag" data-i18n="contributeTagDocs">文档与翻译</span>
             <h3 data-i18n="contributeDocsTitle">使用文档与多语言</h3>
             <p data-i18n="contributeDocsCopy">
-              目前文档主要是中文 + 英文。如果你想帮忙翻译界面、撰写权限设置教程，或者把疑难解答整理成文章，请直接提 PR 到 <code>site/</code> 或 <code>README.md</code>。
+              目前文档主要支持中文和英文。如果你愿意帮忙翻译界面、撰写权限设置教程，或者把疑难解答整理成文章，欢迎直接向 <code>site/</code> 或 <code>README.md</code> 提 PR。
             </p>
           </article>
         </div>
