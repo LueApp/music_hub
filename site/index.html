@@ -191,64 +191,6 @@
         </div>
       </section>
 
-      <section class="section architecture-section" aria-labelledby="architecture-title">
-        <div class="section-heading">
-          <p class="eyebrow" data-i18n="architectureEyebrow">技术结构</p>
-          <h2 id="architecture-title" data-i18n="architectureTitle">关键模块各司其职。</h2>
-          <p data-i18n="architectureCopy">
-            系统架构可以概括为五个内部层次和一个外部播放层：界面负责组织，悬浮窗负责控制，服务层负责调度，平台层负责解析和启动，数据层负责持久化。
-          </p>
-        </div>
-        <div class="architecture-layout">
-          <div class="module-stack" aria-label="Music Hub module stack">
-            <article class="module-card module-ui">
-              <span>UI</span>
-              <div>
-                <h3 data-i18n="layerUiTitle">表现层</h3>
-                <p data-i18n="layerUiCopy">首页、曲库、歌单、发现、添加歌曲、同步源和设置页面统一承载日常操作。</p>
-              </div>
-            </article>
-            <article class="module-card module-overlay">
-              <span>Overlay</span>
-              <div>
-                <h3 data-i18n="layerOverlayTitle">悬浮控制层</h3>
-                <p data-i18n="layerOverlayCopy">完整控制窗和迷你浮球覆盖在其他 App 上方，提供播放、进度和队列入口。</p>
-              </div>
-            </article>
-            <article class="module-card module-service">
-              <span>Service</span>
-              <div>
-                <h3 data-i18n="layerServiceTitle">服务层</h3>
-                <p data-i18n="layerServiceCopy">播放服务、媒体监控、深度链接启动器、无障碍辅助和远程控制服务协同完成切歌。</p>
-              </div>
-            </article>
-            <article class="module-card module-platform">
-              <span>Platform</span>
-              <div>
-                <h3 data-i18n="layerPlatformTitle">平台处理层</h3>
-                <p data-i18n="layerPlatformCopy">NetEase、QQ Music、Bilibili 处理器负责链接识别、元数据获取、可用性检测和播放入口生成。</p>
-              </div>
-            </article>
-            <article class="module-card module-data">
-              <span>Data</span>
-              <div>
-                <h3 data-i18n="layerDataTitle">数据层</h3>
-                <p data-i18n="layerDataCopy">Room + SQLite 保存歌曲、歌单、队列顺序和同步源，使用 Kotlin Flow 更新界面。</p>
-              </div>
-            </article>
-          </div>
-          <aside class="official-app-panel">
-            <h3 data-i18n="layerOfficialTitle">官方 App</h3>
-            <p data-i18n="layerOfficialCopy">音频解码、流媒体传输和 DRM 验证仍由各平台官方客户端完成。</p>
-            <div class="official-app-list">
-              <span data-i18n="platformNetease">网易云音乐</span>
-              <span data-i18n="platformQq">QQ音乐</span>
-              <span data-i18n="platformBili">哔哩哔哩</span>
-            </div>
-          </aside>
-        </div>
-      </section>
-
       <section class="section feature-section" id="features" aria-labelledby="features-title">
         <div class="section-heading compact">
           <p class="eyebrow" data-i18n="featuresEyebrow">功能特点</p>

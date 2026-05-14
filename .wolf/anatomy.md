@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-14T12:12:44.730Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-14T12:26:12.172Z
 > Files: 706 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -867,9 +867,9 @@
 
 ## site/
 
-- `index.html` — Music Hub | 音乐中心 (~5995 tok)
+- `index.html` — Music Hub | 音乐中心 (~5310 tok)
 
 ## site/src/
 
-- `main.js` — Declares FALLBACK_VERSION (~5913 tok)
-- `styles.css` — Styles: 114 rules, 14 vars (~5330 tok)
+- `main.js` — Declares FALLBACK_VERSION (~5304 tok)
+- `styles.css` — Styles: 109 rules, 14 vars (~4727 tok)

@@ -961,6 +961,38 @@
       "related_bugs": [],
       "occurrences": 3,
       "last_seen": "2026-05-14T12:12:28.096Z"
+    },
+    {
+      "id": "bug-060",
+      "timestamp": "2026-05-14T12:24:11.522Z",
+      "error_message": "Significant refactor of ",
+      "file": "site/src/main.js",
+      "root_cause": "15 lines replaced/restructured",
+      "fix": "Rewrote 18→3 lines (15 removed) | Also: architectureEyebrow: 'Architecture',; architectureTitle: 'The main modules have clear re",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-14T12:24:25.717Z"
+    },
+    {
+      "id": "bug-061",
+      "timestamp": "2026-05-14T12:25:53.731Z",
+      "error_message": "CSS fix: grid-template-columns",
+      "file": "site/src/styles.css",
+      "root_cause": "grid-template-columns: 1fr → repeat(2, minmax(0, 1fr))",
+      "fix": "Changed grid-template-columns: 1fr → repeat(2, minmax(0, 1fr))",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-14T12:26:12.183Z"
     }
   ]
 }

@@ -586,116 +586,6 @@ article p {
   margin-bottom: 0;
 }
 
-.architecture-section {
-  padding-top: 34px;
-}
-
-.architecture-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.42fr);
-  gap: 22px;
-  align-items: stretch;
-}
-
-.module-stack {
-  display: grid;
-  gap: 12px;
-}
-
-.module-card,
-.official-app-panel {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 14px 36px rgba(43, 31, 69, 0.06);
-}
-
-.module-card {
-  display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
-  gap: 18px;
-  align-items: center;
-  padding: 18px 20px;
-}
-
-.module-card > span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 38px;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 0.76rem;
-  font-weight: 900;
-}
-
-.module-card h3,
-.official-app-panel h3 {
-  margin-bottom: 6px;
-}
-
-.module-card p,
-.official-app-panel p {
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.62;
-}
-
-.module-ui > span {
-  background: #1b7f3a;
-}
-
-.module-overlay > span {
-  background: var(--orange);
-}
-
-.module-service > span {
-  background: var(--blue);
-}
-
-.module-platform > span {
-  background: #8b2ac5;
-}
-
-.module-data > span {
-  background: #d93d4a;
-}
-
-.official-app-panel {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 26px;
-  background:
-    linear-gradient(180deg, rgba(33, 27, 46, 0.94), rgba(33, 27, 46, 0.9)),
-    #211b2e;
-  color: #fff;
-}
-
-.official-app-panel h3 {
-  color: #fff;
-}
-
-.official-app-panel p {
-  color: rgba(255, 255, 255, 0.74);
-}
-
-.official-app-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 24px;
-}
-
-.official-app-list span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 42px;
-  padding: 0 14px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  font-weight: 900;
-}
-
 .platform-band {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -970,10 +860,6 @@ article p {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .architecture-layout {
-    grid-template-columns: 1fr;
-  }
-
   .download-section {
     padding: 30px 22px;
   }
@@ -1077,9 +963,7 @@ article p {
   .workflow-grid,
   .feature-grid,
   .details-grid,
-  .contribute-grid,
-  .architecture-layout,
-  .module-stack {
+  .contribute-grid {
     width: 100%;
     min-width: 0;
   }
@@ -1095,19 +979,6 @@ article p {
   .contribute-grid article {
     padding: 20px;
     min-width: 0;
-  }
-
-  .module-card {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    min-width: 0;
-  }
-
-  .module-card > span {
-    justify-content: flex-start;
-    width: fit-content;
-    min-width: 88px;
-    padding: 0 12px;
   }
 
   .site-footer {
