@@ -913,6 +913,54 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-05-12T18:02:00Z"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-05-14T12:06:35.592Z",
+      "error_message": "Significant refactor of ",
+      "file": "site/index.html",
+      "root_cause": "13 lines replaced/restructured",
+      "fix": "Rewrote 32→56 lines (13 removed) | Also: <li data-i18n=\"permissionNotification\">通知使用权：检测歌曲播; <li data-i18n=\"permissionAccessibility\">无障碍服务：帮助 Q",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-14T12:07:59.937Z"
+    },
+    {
+      "id": "bug-058",
+      "timestamp": "2026-05-14T12:09:30.424Z",
+      "error_message": "Significant refactor of ",
+      "file": "site/src/main.js",
+      "root_cause": "13 lines replaced/restructured",
+      "fix": "Rewrote 85→129 lines (13 removed) | Also: heroCopy: 'Put NetEase Cloud Music, QQ Music, and ; workflowDelegateCopy: 'When playback starts, Music",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-14T12:10:42.191Z"
+    },
+    {
+      "id": "bug-059",
+      "timestamp": "2026-05-14T12:11:02.890Z",
+      "error_message": "CSS fix: grid-template-columns",
+      "file": "site/src/styles.css",
+      "root_cause": "grid-template-columns: repeat(3, minmax(0, 1fr)) → repeat(4, minmax(0, 1fr))",
+      "fix": "Changed grid-template-columns: repeat(3, minmax(0, 1fr)) → repeat(4, minmax(0, 1fr))",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-14T12:12:28.096Z"
     }
   ]
 }

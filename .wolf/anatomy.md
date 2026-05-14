@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-12T10:00:55.242Z
-> Files: 703 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-14T12:12:44.730Z
+> Files: 706 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
 
@@ -864,3 +864,12 @@
 ## openspec/specs/kugou-platform/
 
 - `spec.md` — Purpose (~3481 tok)
+
+## site/
+
+- `index.html` — Music Hub | 音乐中心 (~5995 tok)
+
+## site/src/
+
+- `main.js` — Declares FALLBACK_VERSION (~5913 tok)
+- `styles.css` — Styles: 114 rules, 14 vars (~5330 tok)
