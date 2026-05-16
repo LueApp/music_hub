@@ -1064,6 +1064,43 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-16T03:35:00Z"
+    },
+    {
+      "id": "bug-066",
+      "timestamp": "2026-05-16T04:50:04.518Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 10→19 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-16T04:50:04.518Z"
+    },
+    {
+      "id": "bug-068",
+      "timestamp": "2026-05-16T13:30:00Z",
+      "error_message": "Consecutive NetEase songs no longer enter PlayerLandscapeActivity in foreground mode when phone is held landscape — song 1 works, song 2+ load portrait PlayerActivity.",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "Commit 6cef8fe added a 'pause storm' (6 scheduled pauses at 500-1500ms) + armSamePlatformNetEasePause() to suppress NetEase's auto-advanced 'third song' on same-platform NetEase switches. The new block was added WITHOUT the !isLandscapeForDoubleSend gate that the original beeb116 re-send block has. In landscape mode for song 2+: armSamePlatformNetEasePause opens a 2500ms reactive-pause window in MediaMonitorService. When CLEAR_TASK destroys NetEase and the fresh PlayerActivity reports the target song's first STATE_PLAYING at position ~0 within that window, the reactive-pause branch in onPlaybackStateChanged fires pause+stop and `return`s early — skipping the firePendingPlaybackCallback block that would call restoreAutoRotation. Device stays in portrait (ACCELEROMETER_ROTATION=0, USER_ROTATION=0), NetEase loads PlayerActivity (portrait), never opens PlayerLandscapeActivity. The 15s LANDSCAPE_ROTATION_TIMEOUT_MS fallback eventually fires but by then the user has been staring at a portrait screen. Song 1 works because isSamePlatformNetEase requires lastLaunchedPlatform==NETEASE which is only true from song 2 onward.",
+      "fix": "Gated the pause-storm block on `!isLandscapeForDoubleSend`, matching the re-send block (which was already correctly gated). Rationale (echoing beeb116's comment, still in the file at the re-send block): CLEAR_TASK destroys NetEase's queue, so there's no auto-advance to suppress in landscape — the pause storm is redundant there and only hurts the rotation callback.",
+      "tags": [
+        "netease",
+        "landscape",
+        "rotation-workaround",
+        "playback-callback",
+        "reactive-pause",
+        "regression",
+        "consecutive-songs",
+        "foreground-mode"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-16T13:30:00Z"
     }
   ]
 }

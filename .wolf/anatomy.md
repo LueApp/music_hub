@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-16T03:09:37.778Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-16T05:28:01.449Z
 > Files: 706 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -780,9 +780,9 @@
 
 - `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~7859 tok)
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17830 tok)
-- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15287 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~12766 tok)
-- `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6490 tok)
+- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15720 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13372 tok)
+- `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6684 tok)
 - `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~8085 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
@@ -838,7 +838,7 @@
 
 ## android-app/app/src/main/res/xml/
 
-- `accessibility_service_config.xml` (~159 tok)
+- `accessibility_service_config.xml` (~191 tok)
 - `preferences.xml` (~1451 tok)
 
 ## openspec/changes/add-kugou-platform/

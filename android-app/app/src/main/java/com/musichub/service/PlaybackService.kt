@@ -771,21 +771,25 @@ class PlaybackService : Service() {
             // This re-enables auto-advance detection after a delay
             MediaMonitorService.getInstance()?.onNewSongStarted()
 
-            // Same-platform NetEase: pause the auto-advanced "third song" that
-            // NetEase plays ~1s after the deep link is sent. Send frequent pauses
-            // from 500ms-1500ms to catch the auto-advance as soon as it starts.
-            // The target song loaded via deep link takes 3-6s to start playback,
-            // so these pauses won't affect it. Applied in BOTH portrait and landscape.
-            if (isSamePlatformNetEase) {
-                val orientationLabel = if (isLandscapeForDoubleSend) "landscape" else "portrait"
-                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression ($orientationLabel mode)")
+            // Same-platform NetEase (portrait only): pause the auto-advanced
+            // "third song" that NetEase plays ~1s after the deep link is sent.
+            // Send frequent pauses from 500ms-1500ms to catch the auto-advance.
+            // Skip in landscape: CLEAR_TASK already destroys NetEase's queue, so
+            // there's no auto-advance to suppress. Worse, the reactive-pause window
+            // armed here can fire on the target song's first STATE_PLAYING (position
+            // ~0) and short-circuit MediaMonitorService.onPlaybackStateChanged before
+            // it fires the pending playback callback that triggers restoreAutoRotation
+            // — that would leave the device in portrait and prevent NetEase from
+            // entering PlayerLandscapeActivity.
+            if (isSamePlatformNetEase && !isLandscapeForDoubleSend) {
+                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression (portrait)")
                 // Arm reactive pause in MediaMonitorService — instantly pauses any
                 // new playback (position ~0) from NetEase within a 2500ms window
                 MediaMonitorService.getInstance()?.armSamePlatformNetEasePause()
                 val pauseDelays = listOf(500L, 700L, 900L, 1100L, 1300L, 1500L)
                 pauseDelays.forEach { delay ->
                     mainHandler.postDelayed({
-                        Log.d(TAG, "Pausing NetEase auto-advance at ${delay}ms ($orientationLabel)")
+                        Log.d(TAG, "Pausing NetEase auto-advance at ${delay}ms (portrait)")
                         MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
                     }, delay)
                 }
