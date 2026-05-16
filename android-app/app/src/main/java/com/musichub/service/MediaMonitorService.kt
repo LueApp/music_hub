@@ -607,6 +607,26 @@ class MediaMonitorService : NotificationListenerService() {
                             return@forEach
                         }
 
+                        // Bilibili auto-loop detection: Bilibili's video player loops the video
+                        // at end-of-content without transitioning state (stays PLAYING) and without
+                        // changing metadata (same video). The position jumps from near-duration back
+                        // to ~0. None of the standard detection paths fire in this scenario, so we
+                        // explicitly catch the position-reset-while-PLAYING signal here.
+                        // Guard with maxPositionReached >= 95% of duration to avoid false-triggering
+                        // on user-initiated seeks-to-start; only a real loop has both played
+                        // most of the content AND reset to the beginning.
+                        if (isBilibiliPackage(pkg) &&
+                            lastMetadataDuration > 0 &&
+                            !songEndTriggered &&
+                            !manualControlActive &&
+                            maxPositionReached >= lastMetadataDuration * 0.95 &&
+                            estimatedPosition < lastMetadataDuration * 0.10) {
+                            Log.d(TAG, "Bilibili loop detected: maxPos=$maxPositionReached (${"%.1f".format(maxPositionReached.toDouble() / lastMetadataDuration * 100)}%) → currentPos=$estimatedPosition (${"%.1f".format(estimatedPosition.toDouble() / lastMetadataDuration * 100)}%), duration=$lastMetadataDuration")
+                            songEndTriggered = true
+                            sendSongFinishedBroadcast()
+                            return@forEach
+                        }
+
                         // Early song end detection: trigger close to end to beat the original app's auto-advance
                         // But not too early to avoid cutting off the song
                         if (lastMetadataDuration > 0 && !songEndTriggered) {

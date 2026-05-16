@@ -1030,6 +1030,40 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-16T03:15:00Z"
+    },
+    {
+      "id": "bug-064",
+      "timestamp": "2026-05-16T03:31:08.465Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-16T03:31:08.465Z"
+    },
+    {
+      "id": "bug-065",
+      "timestamp": "2026-05-16T03:35:00Z",
+      "error_message": "Bilibili videos (BV/av) often fail to advance to the next song when finished — Bilibili keeps playing the same content (auto-loop).",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Bilibili's video player auto-loops the video at end-of-content. The MediaSession stays in STATE_PLAYING (no state transition) and the metadata stays the same (no duration change), so neither isSongFinished (state-transition path) nor onMetadataChanged (metadata-change path) fires. The pollCurrentPosition early-end path needs the strict isBilibiliNearEnd (percentPlayed >= 99.8% AND remaining <= 3000ms) to be hit within a 1-second poll window — easy to miss for typical-length videos. Net result: no song-end detection → Music Hub never advances → eventually falls through to the timeout-skip path or never advances.",
+      "fix": "Added an explicit Bilibili-loop detection branch to pollCurrentPosition: if maxPositionReached >= 95% of duration AND estimatedPosition < 10% of duration AND state is still PLAYING AND not in manual control, treat as song-end. The 95% max-position guard prevents false-triggering on user-initiated seek-to-start (would require watching 95% then seeking to start). This catches the loop signal that none of the three standard paths can see.",
+      "tags": [
+        "bilibili",
+        "auto-advance",
+        "mediasession",
+        "song-end-detection",
+        "video"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-16T03:35:00Z"
     }
   ]
 }
