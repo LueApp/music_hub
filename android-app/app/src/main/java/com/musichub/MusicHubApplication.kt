@@ -2,6 +2,7 @@ package com.musichub
 
 import android.app.Application
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 import android.util.Log
 import com.musichub.data.local.MusicHubDatabase
@@ -45,15 +46,20 @@ class MusicHubApplication : Application() {
      * leaves the user's allowed NotificationListenerService unbound. The
      * permission still shows as granted in Settings, but the system isn't
      * actually connected to MediaMonitorService, so MediaSession callbacks
-     * never reach us and auto-advance falls through to the timeout-skip path.
+     * never reach us — getPlaybackInfo() returns null and the floating
+     * window's progress bar stays at 0% even though the song is playing.
      *
      * Two-tier rebind:
      *   1. If Shizuku is granted, run a shell-side `cmd notification
      *      disallow_listener / allow_listener` toggle. This always works
      *      (verified manually) but requires shell UID via Shizuku.
-     *   2. Otherwise fall back to `NotificationListenerService.requestRebind`
-     *      (API 24+), which is the public API but appears unreliable on
-     *      HyperOS — included so non-Shizuku users still get *some* attempt.
+     *   2. Otherwise toggle the service component's enabled state via
+     *      PackageManager (disable then re-enable with DONT_KILL_APP),
+     *      then call requestRebind. The component toggle forces the
+     *      system to drop the stale binding and re-establish it on
+     *      re-enable — this is the standard non-Shizuku workaround for
+     *      HyperOS leaving listeners unbound. requestRebind alone is
+     *      unreliable.
      */
     private fun rebindMediaMonitorIfNeeded() {
         if (!MediaMonitorService.isEnabled(this)) return
@@ -64,10 +70,21 @@ class MusicHubApplication : Application() {
             return
         }
         try {
+            val pm = packageManager
+            pm.setComponentEnabledSetting(
+                component,
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+            )
+            pm.setComponentEnabledSetting(
+                component,
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP
+            )
             NotificationListenerService.requestRebind(component)
-            Log.d(TAG, "Requested rebind of MediaMonitorService (Java fallback)")
+            Log.d(TAG, "Toggled component state and requested rebind (Java fallback)")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to request listener rebind: ${e.message}")
+            Log.w(TAG, "Failed to toggle component / request rebind: ${e.message}")
         }
     }
 

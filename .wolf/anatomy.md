@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-14T13:45:46.871Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-16T03:09:37.778Z
 > Files: 706 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -751,7 +751,7 @@
 
 ## android-app/app/src/main/java/com/musichub/
 
-- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~917 tok)
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~1149 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 

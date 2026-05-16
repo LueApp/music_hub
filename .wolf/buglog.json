@@ -993,6 +993,43 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-05-14T12:26:12.183Z"
+    },
+    {
+      "id": "bug-062",
+      "timestamp": "2026-05-16T03:09:37.785Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 31→47 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-16T03:09:37.785Z"
+    },
+    {
+      "id": "bug-063",
+      "timestamp": "2026-05-16T03:15:00Z",
+      "error_message": "Floating-window progress percent stuck at 0% (mini-ball ring + expanded seekbar) without Shizuku; song title still shows correctly. Intermittent — sometimes self-recovers.",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "Commit 159c7f9 (background mode + Shizuku) added rebindMediaMonitorIfNeeded() because HyperOS leaves the NotificationListenerService unbound after APK reinstall / process kill, even though the permission still shows granted. The Shizuku path (`cmd notification disallow_listener/allow_listener`) is reliable. The Java fallback was just `NotificationListenerService.requestRebind()`, which the commit itself flagged as unreliable on HyperOS. When the rebind silently failed, MediaMonitorService had no activeControllers → getPlaybackInfo() returned null → floating-window progress stuck at 0%. Song title is unaffected because it's populated from the Music Hub song record, not from MediaSession metadata.",
+      "fix": "Before calling requestRebind in the Java fallback, toggle the MediaMonitorService component's enabled state via PackageManager.setComponentEnabledSetting(DISABLED, DONT_KILL_APP) then (ENABLED, DONT_KILL_APP). The disable+enable forces the system to drop the stale binding and re-establish it, which is the standard non-Shizuku workaround for notification listeners failing to rebind on MIUI/HyperOS. Verified on device: force-stop → relaunch → logcat shows 'Toggled component state and requested rebind' immediately followed by 'NotificationListener connected' + controllers added for all 4 platforms within ~1s.",
+      "tags": [
+        "notification-listener",
+        "mediasession",
+        "hyperos",
+        "shizuku",
+        "rebind",
+        "floating-window",
+        "progress",
+        "regression"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-16T03:15:00Z"
     }
   ]
 }
