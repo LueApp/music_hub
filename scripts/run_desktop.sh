@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run Music Hub on desktop for development
+# Run Tutti on desktop for development
 
 set -e
 

@@ -1058,7 +1058,7 @@ class FloatingWindowService : Service() {
     private fun updateFloatingWindow() {
         floatingView?.apply {
             findViewById<TextView>(R.id.tvSongTitle)?.text =
-                if (currentSongTitle.isNotEmpty()) currentSongTitle else "Music Hub"
+                if (currentSongTitle.isNotEmpty()) currentSongTitle else getString(R.string.app_name)
             findViewById<TextView>(R.id.tvArtist)?.text =
                 if (currentArtist.isNotEmpty()) currentArtist else "暂无播放"
 
@@ -1453,7 +1453,7 @@ class FloatingWindowService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Music Hub")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText("播放控制已启动")
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentIntent(pendingIntent)
@@ -1561,7 +1561,7 @@ class FloatingWindowService : Service() {
 
     private fun handleDoubleClick() {
         // In CONTROLLER mode, playback happens on the remote phone, so launching
-        // the local platform app would be meaningless. Open Music Hub instead.
+        // the local platform app would be meaningless. Open Tutti instead.
         if (RemoteMode.isController()) {
             launchMusicHub()
             return
@@ -1595,7 +1595,7 @@ class FloatingWindowService : Service() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         startActivity(intent)
-        Log.d(TAG, "Launched Music Hub")
+        Log.d(TAG, "Launched Tutti")
     }
 
     private fun launchPlatformApp(platform: String?) {

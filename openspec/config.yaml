@@ -1,7 +1,7 @@
 schema: spec-driven
 
 context: |
-  ## Project: Music Hub (音乐枢纽)
+  ## Project: Tutti (管乐)
   Cross-platform music playlist manager and launcher for Chinese music platforms.
   Does NOT stream or download music — organizes songs into unified playlists and
   deep-links into the correct app (NetEase Cloud Music, QQ Music, Bilibili) for playback.

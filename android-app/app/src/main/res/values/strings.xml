@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Music Hub</string>
-    <string name="app_name_cn">音乐中心</string>
+    <string name="app_name">Tutti</string>
+    <string name="app_name_cn">管乐</string>
 
     <!-- Navigation -->
     <string name="nav_home">Home</string>
@@ -191,7 +191,7 @@
     <string name="error_unknown_cn">未知错误</string>
 
     <!-- Floating Window -->
-    <string name="floating_window_title">Music Hub</string>
+    <string name="floating_window_title">Tutti</string>
     <string name="close">Close</string>
     <string name="play_state">播放状态</string>
     <string name="locate_current_song">定位当前歌曲</string>

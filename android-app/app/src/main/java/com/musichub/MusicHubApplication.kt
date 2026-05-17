@@ -41,7 +41,7 @@ class MusicHubApplication : Application() {
     }
 
     /**
-     * After an APK reinstall — and after HyperOS kills Music Hub's process
+     * After an APK reinstall — and after HyperOS kills Tutti's process
      * (which it does aggressively between playback sessions) — the system
      * leaves the user's allowed NotificationListenerService unbound. The
      * permission still shows as granted in Settings, but the system isn't

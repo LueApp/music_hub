@@ -3,8 +3,8 @@
 ### Requirement: Detect foreground app package name
 The system SHALL detect which app is currently in the foreground.
 
-#### Scenario: Music Hub is in the foreground
-- **WHEN** system queries the foreground app while Music Hub is active
+#### Scenario: Tutti is in the foreground
+- **WHEN** system queries the foreground app while Tutti is active
 - **THEN** system returns "com.musichub" as the foreground package name
 
 #### Scenario: Platform app is in the foreground

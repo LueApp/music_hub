@@ -13,7 +13,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="欢迎使用音乐枢纽"
+            android:text="欢迎使用管乐"
             android:textAppearance="?attr/textAppearanceHeadlineSmall"
             android:layout_marginBottom="6dp" />
 

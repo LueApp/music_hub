@@ -35,7 +35,7 @@ class MediaMonitorService : NotificationListenerService() {
     private var lastMetadataDuration: Long = 0
     private val handler = Handler(Looper.getMainLooper())
 
-    // The package name of the platform currently playing via Music Hub.
+    // The package name of the platform currently playing via Tutti.
     // Only song-end events from this package trigger auto-advance.
     private var currentPlatformPackage: String? = null
 
@@ -49,7 +49,7 @@ class MediaMonitorService : NotificationListenerService() {
     private var isPolling = false
     private var songEndTriggered = false  // Prevent duplicate triggers
 
-    // Manual control mode - when Music Hub initiates song switch, suppress auto-advance
+    // Manual control mode - when Tutti initiates song switch, suppress auto-advance
     private var manualControlActive = false
     private var manualControlTimestamp: Long = 0
     private val MANUAL_CONTROL_TIMEOUT_MS = 5000L  // 5 second timeout for manual control mode
@@ -521,7 +521,7 @@ class MediaMonitorService : NotificationListenerService() {
 
         // The broader rule is intentionally kept for music apps. NetEase in
         // particular can change metadata after internally advancing its queue,
-        // and Music Hub needs to catch that handoff.
+        // and Tutti needs to catch that handoff.
         return remainingTime <= 45000L || percentPlayed >= 85.0
     }
 
@@ -683,7 +683,7 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     private fun sendSongFinishedBroadcast() {
-        // Check if we're in manual control mode (Music Hub initiated song switch)
+        // Check if we're in manual control mode (Tutti initiated song switch)
         if (manualControlActive) {
             val elapsed = System.currentTimeMillis() - manualControlTimestamp
             if (elapsed < MANUAL_CONTROL_TIMEOUT_MS) {
@@ -855,7 +855,7 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     /**
-     * Set which platform package is currently playing via Music Hub.
+     * Set which platform package is currently playing via Tutti.
      * Only events from this package will trigger song-end detection.
      * This prevents false auto-advance from stale controllers of other platforms.
      */
@@ -916,7 +916,7 @@ class MediaMonitorService : NotificationListenerService() {
 
     /**
      * Arm manual control mode immediately, without pausing anything.
-     * Called at the very start of a Music Hub-initiated song transition so that
+     * Called at the very start of a Tutti-initiated song transition so that
      * any auto-advance detection (early song-end, metadata change, etc.) that fires
      * during the async availability check is suppressed. Without this, pressing
      * Previous could race with a song-finished broadcast that immediately calls
@@ -929,7 +929,7 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     /**
-     * Called when a new song starts playing via Music Hub.
+     * Called when a new song starts playing via Tutti.
      * This disables manual control mode after a delay to re-enable auto-advance detection.
      */
     fun onNewSongStarted() {
@@ -1026,7 +1026,7 @@ class MediaMonitorService : NotificationListenerService() {
             activeControllers.values.toList()
         }
 
-        // Prefer the platform Music Hub last launched so a stale paused controller
+        // Prefer the platform Tutti last launched so a stale paused controller
         // from another app can't shadow the song the user actually expects to see.
         val target = currentPlatformPackage
         val orderedControllers = if (target != null) {
@@ -1100,7 +1100,7 @@ class MediaMonitorService : NotificationListenerService() {
             activeControllers.values.toList()
         }
 
-        // Prefer the platform Music Hub last launched so resume can't accidentally
+        // Prefer the platform Tutti last launched so resume can't accidentally
         // start a stale paused song in a different music app the user touched manually.
         val target = currentPlatformPackage
         val orderedControllers = if (target != null) {

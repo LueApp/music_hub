@@ -211,7 +211,7 @@ object DeepLinkLauncher {
 
     /**
      * Background-mode launch. Sends the deep link to the music app in a freeform
-     * (small floating window) so Music Hub stays visible behind it. Deliberately
+     * (small floating window) so Tutti stays visible behind it. Deliberately
      * skips the foreground-mode workarounds (NetEase rotation hack, QQ Music
      * accessibility tap, CLEAR_TASK) — those exist to recover from the disruption
      * of a full app switch, which background mode is trying to avoid in the first place.
@@ -394,7 +394,7 @@ object DeepLinkLauncher {
 
     /**
      * Build an ActivityOptions bundle that asks the system to launch the target
-     * activity in freeform windowing mode at a tiny corner rect, so Music Hub
+     * activity in freeform windowing mode at a tiny corner rect, so Tutti
      * remains visible behind a small floating music-app window instead of being
      * fully replaced. Returns null if the device doesn't support freeform or
      * the call fails — caller should then start the activity normally.

@@ -287,7 +287,7 @@ class PlaybackService : Service() {
                 "Playback Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Music Hub playback controls"
+                description = "Tutti playback controls"
                 setShowBadge(false)
             }
             val notificationManager = getSystemService(NotificationManager::class.java)
@@ -302,7 +302,7 @@ class PlaybackService : Service() {
 
     private fun buildNotification(): Notification {
         val currentSong = getCurrentSong()
-        val title = currentSong?.title ?: "Music Hub"
+        val title = currentSong?.title ?: getString(R.string.app_name)
         val artist = currentSong?.artist ?: "Ready to play"
 
         // Intent to open the app

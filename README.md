@@ -1,4 +1,4 @@
-# Music Hub 音乐枢纽
+# Tutti 管乐
 
 跨平台音乐播放列表管理器和启动器，支持网易云音乐、QQ音乐和哔哩哔哩。
 
@@ -6,11 +6,11 @@ A cross-platform music playlist manager and launcher for Chinese music platforms
 
 ## 这不是一个音乐播放器 This Is NOT a Music Player
 
-Music Hub 不播放、不下载、不缓存任何音乐。它是一个**跨平台播放列表管理器**，通过深度链接调起官方App播放。
+Tutti 不播放、不下载、不缓存任何音乐。它是一个**跨平台播放列表管理器**，通过深度链接调起官方App播放。
 
 ### 与其他音乐App的区别
 
-| | 平台App<br>(网易云/QQ音乐) | 聚合播放器<br>(Listen 1等) | Music Hub |
+| | 平台App<br>(网易云/QQ音乐) | 聚合播放器<br>(Listen 1等) | Tutti |
 |---|---|---|---|
 | **播放方式** | 自己播放 | 自己播放（爬取API） | 调起官方App播放 |
 | **技术实现** | 官方客户端 | 逆向API、爬虫 | 深度链接 + 非官方元数据API |
@@ -26,7 +26,7 @@ Music Hub 不播放、不下载、不缓存任何音乐。它是一个**跨平�
 **核心定位：**
 - **平台App** = 围墙花园，各自为政
 - **聚合播放器** = 盗版播放器，绕过平台限制
-- **Music Hub** = 跨平台遥控器，组织歌曲让官方App播放
+- **Tutti** = 跨平台遥控器，组织歌曲让官方App播放
 
 ---
 
@@ -54,7 +54,7 @@ Music Hub 不播放、不下载、不缓存任何音乐。它是一个**跨平�
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd music-hub
+cd tutti
 
 # 安装 pixi (如果没有)
 curl -fsSL https://pixi.sh/install.sh | bash
@@ -134,7 +134,7 @@ npm run preview
 ## 项目结构 Project Structure
 
 ```
-music-hub/
+tutti/
 ├── CLAUDE.md                 # AI 助手说明
 ├── pixi.toml                 # Pixi 环境和任务
 ├── android-app/              # === 原生 Kotlin Android 应用 ===
@@ -231,7 +231,7 @@ music-hub/
 ### 添加歌曲
 
 1. **手动添加**: 在"添加歌曲"页面粘贴歌曲链接
-2. **分享添加**: 从网易云/QQ音乐/哔哩哔哩App分享歌曲到 Music Hub
+2. **分享添加**: 从网易云/QQ音乐/哔哩哔哩App分享歌曲到 Tutti
 
 ### 播放歌曲
 
@@ -278,12 +278,12 @@ This app uses **unofficial, undocumented API endpoints** from NetEase Cloud Musi
 
 **非隶属关系与商标声明 / Non-Affiliation and Trademark Notice**
 
-- Music Hub 是独立的非官方项目，与网易云音乐、腾讯/QQ 音乐、哔哩哔哩及其关联公司没有隶属、赞助、认可或合作关系
+- Tutti 是独立的非官方项目，与网易云音乐、腾讯/QQ 音乐、哔哩哔哩及其关联公司没有隶属、赞助、认可或合作关系
 - 文档和界面中出现的第三方平台名称、商标、Logo、服务名称和应用包名仅用于说明兼容性、链接解析和播放委托关系，其权利归各自所有者所有
 - 本仓库的 MIT 许可证仅适用于本项目作者拥有版权的源代码和文档，不授予任何第三方平台内容、接口、商标、Logo、音乐作品或用户数据的使用权
 - 使用者应自行确认其使用方式符合所在地法律法规、第三方平台服务条款和版权要求
 
-- Music Hub is an independent, unofficial project and is not affiliated with, sponsored by, endorsed by, or partnered with NetEase Cloud Music, Tencent/QQ Music, Bilibili, or their affiliates
+- Tutti is an independent, unofficial project and is not affiliated with, sponsored by, endorsed by, or partnered with NetEase Cloud Music, Tencent/QQ Music, Bilibili, or their affiliates
 - Third-party platform names, trademarks, logos, service names, and package names appear only to identify compatibility, link parsing, and playback delegation behavior; all rights remain with their respective owners
 - The MIT License in this repository applies only to source code and documentation owned by this project author; it does not grant rights to any third-party platform content, APIs, trademarks, logos, musical works, or user data
 - Users are responsible for ensuring their own use complies with applicable laws, third-party platform terms, and copyright requirements

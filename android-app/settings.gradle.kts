@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MusicHub"
+rootProject.name = "Tutti"
 include(":app")

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build Music Hub APK for Android
+# Build Tutti APK for Android
 
 set -e
 

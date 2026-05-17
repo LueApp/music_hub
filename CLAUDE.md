@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Music Hub** (音乐枢纽) is a cross-platform music playlist manager and launcher for Chinese music platforms. It does NOT stream or download music — it organizes songs into unified playlists and deep-links into the correct app for playback.
+**Tutti** (管乐) is a cross-platform music playlist manager and launcher for Chinese music platforms. It does NOT stream or download music — it organizes songs into unified playlists and deep-links into the correct app for playback.
 
 ### Supported Platforms
 - **NetEase Cloud Music** (网易云音乐) - `com.netease.cloudmusic`
@@ -141,7 +141,7 @@ pixi run deploy
 ## Project Structure
 
 ```
-music-hub/
+tutti/
 ├── CLAUDE.md                 # AI assistant instructions
 ├── pixi.toml                 # Pixi environment and tasks
 ├── scripts/
@@ -296,7 +296,7 @@ Song switching always brings the target music app to the foreground. Android's `
 - **Transparent Activity curtain**: `startActivity()` pushes the curtain behind the target app
 - **SYSTEM_ALERT_WINDOW overlay**: Overlay stays on top but can't hide the underlying task switch; causes visible black/transparent flash
 - **AccessibilityService GLOBAL_ACTION_BACK**: Navigates within the music app's stack rather than returning to the previous app
-- **Return-to-previous-app via UsageStatsManager**: Floating window taps register Music Hub as the most recently used app, breaking detection
+- **Return-to-previous-app via UsageStatsManager**: Floating window taps register Tutti as the most recently used app, breaking detection
 - **MediaSession playFromMediaId**: NetEase doesn't support it (actions=822); QQ Music advertises support (actions=1911) but was not reliably testable
 
 **Conclusion**: There is no reliable way on Android to send a deep link to a third-party app without bringing it to the foreground. The app uses foreground-only playback mode.

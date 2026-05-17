@@ -147,13 +147,13 @@ When `DeepLinkLauncher` launches a deep link that begins with `kugou://` or cont
 `MediaMonitorService` SHALL include `com.kugou.android` in its watched-package list so that Kugou playback state changes (play, pause, position updates, song-end) trigger the same auto-advance logic that NetEase and QQ Music use today.
 
 #### Scenario: Kugou MediaSession is observed
-- **WHEN** the Kugou app starts playing a song after being launched by Music Hub
+- **WHEN** the Kugou app starts playing a song after being launched by Tutti
 - **THEN** `MediaMonitorService` SHALL register a `MediaController.Callback` for the `com.kugou.android` controller
 - **AND** subsequent playback-state changes from Kugou SHALL be visible in `MediaMonitorService` logs
 
 #### Scenario: Kugou song end triggers auto-advance
 - **WHEN** Kugou playback reaches the end of the current song (position within the standard `SONG_END_THRESHOLD_MS` window of duration)
-- **AND** Music Hub's current song is the matching Kugou song
+- **AND** Tutti's current song is the matching Kugou song
 - **THEN** `MediaMonitorService` SHALL signal song-finished
 - **AND** `PlaybackService` SHALL advance to the next queued song
 
@@ -184,10 +184,10 @@ The system SHALL display a Kugou icon and brand-coloured badge for any `Song` wh
 - **THEN** the row SHALL display the Kugou badge in the platform-icon position
 
 ### Requirement: Importing the user's example Kugou songlist succeeds end-to-end
-When the user shares the songlist URL `https://m.kugou.com/songlist/gcid_3zljhp4bz2z02f/?src_cid=3zljhp4bz2z02f&uid=1132230901&chl=message&...` into Music Hub via the share intent, the system SHALL recognise it as a Kugou playlist, fetch its tracks, and offer to import them into a playlist — without manual platform selection.
+When the user shares the songlist URL `https://m.kugou.com/songlist/gcid_3zljhp4bz2z02f/?src_cid=3zljhp4bz2z02f&uid=1132230901&chl=message&...` into Tutti via the share intent, the system SHALL recognise it as a Kugou playlist, fetch its tracks, and offer to import them into a playlist — without manual platform selection.
 
 #### Scenario: Sharing the songlist URL triggers playlist import flow
-- **WHEN** the user shares the example songlist URL into Music Hub
+- **WHEN** the user shares the example songlist URL into Tutti
 - **THEN** `LinkParser.isPlaylistUrl(...)` SHALL return true
 - **AND** `LinkParser.parsePlaylistUrl(...)` SHALL return a non-null `ParsedPlaylist` with `platform = "kugou"`
 - **AND** the `ParsedPlaylist.songs` list SHALL contain the playlist's tracks ready for import
@@ -196,7 +196,7 @@ When the user shares the songlist URL `https://m.kugou.com/songlist/gcid_3zljhp4
 When `launch_mode=background` is active and a Kugou song is launched, the system SHALL open the song in `com.kugou.android` (the Kugou Music app) — not in a browser, not in a disambiguation dialog, and not in any other HTTPS handler. This holds whether the Kugou deep link uses the `https://m.kugou.com/mixsong/<id>.html` form (per-song share URL captured from a songlist's `_song_url`) or the `https://m.kugou.com/song/?hash=<hash>` form (legacy generator output for bare-hash entries).
 
 #### Scenario: Kugou song with mixsong deep link launches Kugou via Shizuku
-- **GIVEN** Shizuku is installed, running, and granted to Music Hub
+- **GIVEN** Shizuku is installed, running, and granted to Tutti
 - **AND** `launch_mode` preference is `background`
 - **AND** the screen is unlocked
 - **WHEN** `DeepLinkLauncher.launch(context, "https://m.kugou.com/mixsong/abc123.html", fallbackUrl)` is called

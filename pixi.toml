@@ -1,5 +1,5 @@
 [workspace]
-name = "music-hub"
+name = "tutti"
 version = "0.1.0"
 description = "Cross-platform music playlist manager and launcher for Chinese music platforms"
 channels = ["conda-forge"]

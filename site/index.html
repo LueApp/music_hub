@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Music Hub is a cross-platform music queue manager that delegates playback to official NetEase Cloud Music, QQ Music, and Bilibili apps."
+      content="Tutti is a cross-platform music queue manager that delegates playback to official NetEase Cloud Music, QQ Music, Kugou, and Bilibili apps."
     />
-    <title>Music Hub | 音乐中心</title>
+    <title>Tutti | 管乐</title>
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
     <header class="site-header">
-      <a class="brand" href="#top" aria-label="Music Hub">
+      <a class="brand" href="#top" aria-label="Tutti">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 64 64" role="img">
             <rect width="64" height="64" rx="14" fill="#6200ee" />
@@ -22,7 +22,7 @@
             />
           </svg>
         </span>
-        <span>Music Hub</span>
+        <span>Tutti</span>
       </a>
       <nav class="header-actions" aria-label="Primary">
         <a href="#features" data-i18n="navFeatures">功能</a>
@@ -46,7 +46,7 @@
 
         <div class="hero-content">
           <p class="eyebrow" data-i18n="eyebrow">跨平台音乐遥控器</p>
-          <h1 id="hero-title" data-i18n="heroTitle">音乐中心</h1>
+          <h1 id="hero-title" data-i18n="heroTitle">管乐</h1>
           <p class="hero-copy" data-i18n="heroCopy">
             把网易云音乐、QQ音乐和哔哩哔哩的歌曲放进同一个曲库，用官方 App 播放，用本应用管理队列和切歌。
           </p>
@@ -61,7 +61,7 @@
           </div>
         </div>
 
-        <div class="hero-visual" aria-label="Music Hub app preview">
+        <div class="hero-visual" aria-label="Tutti app preview">
           <div class="phone-shell">
             <div class="phone-status"></div>
             <div class="app-topbar">
@@ -118,12 +118,28 @@
         </div>
       </section>
 
+      <section class="section name-section" id="name" aria-labelledby="name-title">
+        <div class="section-heading">
+          <p class="eyebrow" data-i18n="nameEyebrow">关于名字</p>
+          <h2 id="name-title" data-i18n="nameTitle">管乐 · Tutti</h2>
+          <p data-i18n="nameCopy1">
+            "管乐" 是中文里对吹奏乐器（长笛、单簧管、小号等）的统称——它们音色各异，却能在同一份曲谱下合奏。"Tutti" 是意大利语乐谱中的术语，意为"全员齐奏"，指挥示意所有乐手一起演奏的那一瞬间。
+          </p>
+          <p data-i18n="nameCopy2">
+            把网易云、QQ 音乐、酷狗、哔哩哔哩看作不同的乐器，按同一份"曲谱"——你的播放队列——依次合奏，就是这个应用想做的事。我们不替换任何乐器，只递交曲谱、切换节拍。
+          </p>
+          <p class="name-aside" data-i18n="nameAside">
+            另：管字本身也带有"管理"之意，是工程层面的一个小小双关。
+          </p>
+        </div>
+      </section>
+
       <section class="section positioning-section" id="positioning" aria-labelledby="positioning-title">
         <div class="section-heading">
           <p class="eyebrow" data-i18n="positionEyebrow">核心定位</p>
           <h2 id="positioning-title" data-i18n="positionTitle">它不是播放器，而是跨平台遥控器。</h2>
           <p data-i18n="positionCopy">
-            Music Hub 不播放、不下载、不缓存任何音乐。它通过深度链接打开官方 App，让你继续使用原平台会员和曲库。
+            Tutti 不播放、不下载、不缓存任何音乐。它通过深度链接打开官方 App，让你继续使用原平台会员和曲库。
           </p>
         </div>
         <div class="comparison-grid">
@@ -145,7 +161,7 @@
             <span class="comparison-icon primary">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v10.5A4 4 0 1 1 10 10V7h8V3h-6Z" /></svg>
             </span>
-            <h3 data-i18n="cardHubTitle">Music Hub</h3>
+            <h3 data-i18n="cardHubTitle">管乐</h3>
             <p data-i18n="cardHubCopy">统一管理跨平台歌单，播放时调起官方 App，自动衔接下一首。</p>
           </article>
         </div>
@@ -162,28 +178,28 @@
         <div class="workflow-grid">
           <article>
             <span class="step-index">01</span>
-            <h3 data-i18n="workflowAddTitle">1. 歌曲入库</h3>
+            <h3 data-i18n="workflowAddTitle">歌曲入库</h3>
             <p data-i18n="workflowAddCopy">
               从音乐 App 分享链接或直接粘贴，LinkParser 会解析短链接、平台 ID、标题和艺术家，再由对应平台的处理器补齐元数据。
             </p>
           </article>
           <article>
             <span class="step-index">02</span>
-            <h3 data-i18n="workflowQueueTitle">2. 统一队列</h3>
+            <h3 data-i18n="workflowQueueTitle">统一队列</h3>
             <p data-i18n="workflowQueueCopy">
               歌曲以“平台 + 平台歌曲 ID”为唯一标识写入本地 Room 数据库，可以混排进同一个播放列表。
             </p>
           </article>
           <article>
             <span class="step-index">03</span>
-            <h3 data-i18n="workflowDelegateTitle">3. 播放委托</h3>
+            <h3 data-i18n="workflowDelegateTitle">播放委托</h3>
             <p data-i18n="workflowDelegateCopy">
               播放时生成网易云、QQ 音乐、酷狗或 B 站的目标链接，唤起对应官方 App 完成实际播放，保留会员权益。
             </p>
           </article>
           <article>
             <span class="step-index">04</span>
-            <h3 data-i18n="workflowMonitorTitle">4. 状态监听</h3>
+            <h3 data-i18n="workflowMonitorTitle">状态监听</h3>
             <p data-i18n="workflowMonitorCopy">
               通过 Android MediaSession 与通知访问权限读取播放状态和进度，在接近结尾时自动切到队列里的下一首。
             </p>
@@ -223,7 +239,7 @@
           </article>
           <article>
             <h3 data-i18n="featureBackgroundTitle">后台播放模式</h3>
-            <p data-i18n="featureBackgroundCopy">借助 Shizuku 把音乐 App 启动到 freeform 窗口里，并放到屏幕之外，让 Music Hub 的浮球持续显示在前台。</p>
+            <p data-i18n="featureBackgroundCopy">借助 Shizuku 把音乐 App 启动到 freeform 窗口里，并放到屏幕之外，让 Tutti 的浮球持续显示在前台。</p>
           </article>
           <article>
             <h3 data-i18n="featureTimeoutTitle">单曲提前结束</h3>
@@ -243,7 +259,7 @@
           </article>
           <article>
             <h3 data-i18n="featureShareIntakeTitle">分享链接入库</h3>
-            <p data-i18n="featureShareIntakeCopy">在音乐 App 的分享面板里把链接发送到 Music Hub，自动识别平台、歌曲 ID 和元数据。</p>
+            <p data-i18n="featureShareIntakeCopy">在音乐 App 的分享面板里把链接发送到 Tutti，自动识别平台、歌曲 ID 和元数据。</p>
           </article>
         </div>
       </section>
@@ -288,20 +304,45 @@
           <p class="eyebrow" data-i18n="detailsEyebrow">安装前说明</p>
           <h2 id="details-title" data-i18n="detailsTitle">把权限和限制讲清楚。</h2>
           <p data-i18n="detailsCopy">
-            Music Hub 把播放委托给官方 App，这种架构本身就有边界。下面把需要的权限，以及目前还没有完美解决方案的问题都列了出来，希望你在试用之前心里有数。
+            Tutti 把播放委托给官方 App，这种架构本身就有边界。下面把需要的权限，以及目前还没有完美解决方案的问题都列了出来，希望你在试用之前心里有数。
           </p>
         </div>
         <div class="details-grid">
           <article>
             <h3 data-i18n="permissionsTitle">需要的权限</h3>
             <ul>
-              <li data-i18n="permissionOverlay">悬浮窗权限：在其他 App 上方显示播放控制。</li>
-              <li data-i18n="permissionNotification">通知使用权：读取系统媒体会话状态，用于检测播放进度和歌曲结束。</li>
-              <li data-i18n="permissionAccessibility">无障碍服务：帮助 QQ 音乐进入播放器页面，并处理部分错误弹窗。</li>
-              <li data-i18n="permissionUsage">使用情况访问：浮球双击返回上一个 App 时需要查询最近任务列表。</li>
-              <li data-i18n="permissionWriteSettings">系统设置写入：临时切换系统旋转方向，用来绕开网易云的横屏检测。</li>
-              <li data-i18n="permissionShizuku">Shizuku（可选）：启用后台模式时用来把音乐 App 启动到 freeform 窗口里。</li>
-              <li data-i18n="permissionPost">前台通知：显示后台服务的运行状态。</li>
+              <li>
+                <span class="perm-tag required" data-i18n="permTagRequired">必需</span>
+                <span data-i18n="permissionOverlay">悬浮窗权限：在其他 App 上方显示播放控制，并在切歌时直接拉起音乐 App，绕开"是否打开外部应用"弹窗。</span>
+              </li>
+              <li>
+                <span class="perm-tag required" data-i18n="permTagRequired">必需</span>
+                <span data-i18n="permissionPost">通知权限：用于显示前台服务通知（Android 13 及以上），系统据此判断后台服务是否合法运行。</span>
+              </li>
+              <li>
+                <span class="perm-tag recommended" data-i18n="permTagRecommended">推荐</span>
+                <span data-i18n="permissionNotification">通知使用权：读取系统媒体会话状态，监听进度与歌曲结束事件，实现自动切到下一首。不授权则无法自动切歌。</span>
+              </li>
+              <li>
+                <span class="perm-tag recommended" data-i18n="permTagRecommended">推荐</span>
+                <span data-i18n="permissionAccessibility">无障碍服务（QQ 音乐）：QQ 音乐的深度链接只会跳到首页或迷你卡片，不能直接打开播放页；这个服务在 QQ 音乐前台时模拟点击迷你播放器，把页面切到完整播放/歌词页。网易云、酷狗、B 站的深度链接已经能直达播放页，所以不需要它。</span>
+              </li>
+              <li>
+                <span class="perm-tag recommended" data-i18n="permTagRecommended">推荐</span>
+                <span data-i18n="permissionWriteSettings">系统设置写入：网易云的横屏播放页（PlayerLandscapeActivity）是一个独立的 Activity，只在 PlayerActivity 检测到方向变化时才会启动；所以前台模式下播放网易云且设备已经处于横屏时，需要先把系统旋转锁成竖屏，等 PlayerActivity 启动后再恢复原设置，凑出一次"竖→横"转变（约 7–10 秒）。其他平台的播放页通过标准的方向变更回调在同一个 Activity 里切换横竖屏布局，不需要这个绕路。</span>
+              </li>
+              <li>
+                <span class="perm-tag recommended" data-i18n="permTagRecommended">推荐</span>
+                <span data-i18n="permissionUsage">使用情况访问：浮球双击返回上一个 App 时需要查询最近任务列表。</span>
+              </li>
+              <li>
+                <span class="perm-tag optional" data-i18n="permTagOptional">可选</span>
+                <span data-i18n="permissionFreeformResize">无障碍服务（后台启动）：后台模式下，HyperOS 的手势导航偶尔会把音乐 App 的 freeform 窗口"吸"回主屏；这个服务侦测窗口位置变化，被拉回后立即再次推到屏幕外。注意：它不能消除切歌瞬间 freeform 窗口创建到 resize 之间的短暂闪现——那是 Android 先按默认尺寸创建任务、然后才能 resize 的固有时序，目前没有完美解决办法。</span>
+              </li>
+              <li>
+                <span class="perm-tag optional" data-i18n="permTagOptional">可选</span>
+                <span data-i18n="permissionShizuku">Shizuku：启用后台启动模式需要它来调用 <code>am start --windowingMode 5</code>。不安装则只能使用前台模式（切歌时官方 App 会跳到前台）。</span>
+              </li>
             </ul>
           </article>
           <article>
@@ -309,10 +350,10 @@
             <ul>
               <li data-i18n="limitForeground">前台模式下切歌时官方 App 会跳到前台；后台模式可以避开这一点，但需要 Shizuku。</li>
               <li data-i18n="limitMediaSession">MediaSession 的 playFromMediaId / playFromUri / playFromSearch 在网易云和 QQ 音乐里都不会触发实际播放，只能依赖深度链接启动。</li>
-              <li data-i18n="limitNeteaseLandscape">网易云的横屏播放需要先把系统旋转锁成竖屏再恢复，大约要等 7–10 秒，这是我们目前找到的最稳定办法。</li>
-              <li data-i18n="limitKugou">酷狗音乐的歌单接口在未登录状态下不返回数据，目前只能抓取服务端渲染的页面，少量歌曲可能无法导入。</li>
-              <li data-i18n="limitPlatform">会员歌曲仍然需要你拥有对应平台的会员，Music Hub 不会绕过任何鉴权。</li>
-              <li data-i18n="limitSync">歌单自动同步目前主要支持网易云和 QQ 音乐；B 站和酷狗的内容可以导入单曲与歌单，但同步功能还在完善中。</li>
+              <li data-i18n="limitNeteaseLandscape">前台模式下播放网易云时，如果设备已经处于横屏，需要先把系统旋转方向锁成竖屏再恢复，约 7–10 秒——网易云的横屏播放页是独立的 PlayerLandscapeActivity，只在 PlayerActivity 检测到方向变化时才会启动，所以必须制造一次"竖→横"转变。后台模式下 freeform 窗口规避了这个问题。</li>
+              <li data-i18n="limitQQPlayer">QQ 音乐没有提供能直接打开播放页的深度链接。前台模式下我们用无障碍服务模拟点击迷你播放器条进入完整播放页，从启动到切入大约 1–8 秒，偶尔会因为页面层级变化而失败、回退到 QQ 音乐首页。后台模式下没有可见的页面切换，这个延迟和失败都看不到。</li>
+              <li data-i18n="limitKugou">四家平台都没有对外开放过官方文档化的歌单 API——我们用的都是各家 Web/App 自己在调的内部接口。差别在于：网易云、QQ 音乐、B 站的这类接口不要求登录就能拿到公开歌单的数据；只有酷狗会在未登录时统一返回 4xx。所以酷狗歌单通过解析分享页里服务端渲染的歌曲数据来读取，个别字段缺失的歌曲可能无法导入。</li>
+              <li data-i18n="limitPlatform">会员歌曲仍然需要你拥有对应平台的会员，管乐 不会绕过任何鉴权。</li>
               <li data-i18n="limitPreview">当前发布的是预览版，可能在边角场景下崩溃，欢迎在 GitHub 上提 Issue。</li>
             </ul>
           </article>
@@ -324,7 +365,7 @@
           <p class="eyebrow" data-i18n="contributeEyebrow">寻求帮助</p>
           <h2 id="contribute-title" data-i18n="contributeTitle">我们希望和更多人一起把这些限制慢慢解掉。</h2>
           <p data-i18n="contributeCopy">
-            Music Hub 完全开源，目前由一位非 Android 出身的开发者在维护。下面列出的每一项都不是我们故意这么做，而是暂时还没找到解决方案的实际问题。如果你在其中任何一项上有经验，欢迎在 GitHub 上提 Issue、发 PR，或者只是分享一些思路。
+            Tutti 完全开源，目前由一位非 Android 出身的开发者在维护。下面列出的每一项都不是我们故意这么做，而是暂时还没找到解决方案的实际问题。如果你在其中任何一项上有经验，欢迎在 GitHub 上提 Issue、发 PR，或者只是分享一些思路。
           </p>
         </div>
         <div class="contribute-grid">
@@ -360,7 +401,7 @@
             <span class="contribute-tag" data-i18n="contributeTagOEM">机型适配</span>
             <h3 data-i18n="contributeOEMTitle">HyperOS / MIUI / EMUI 适配</h3>
             <p data-i18n="contributeOEMCopy">
-              HyperOS 会在重装应用后悄悄解绑 NotificationListenerService，手势导航也会把 freeform 窗口吸附回主屏。如果你在自己的设备上发现 Music Hub 表现异常，欢迎附上 logcat 和复现步骤。
+              HyperOS 会在重装应用后悄悄解绑 NotificationListenerService，手势导航也会把 freeform 窗口吸附回主屏。如果你在自己的设备上发现 Tutti 表现异常，欢迎附上 logcat 和复现步骤。
             </p>
           </article>
           <article>
@@ -385,7 +426,7 @@
       <section class="download-section" id="download" aria-labelledby="download-title">
         <div>
           <p class="eyebrow" data-i18n="downloadEyebrow">Android 下载</p>
-          <h2 id="download-title" data-i18n="downloadTitle">获取 Music Hub 预览版</h2>
+          <h2 id="download-title" data-i18n="downloadTitle">获取 Tutti 预览版</h2>
           <p data-i18n="downloadCopy">
             下载 APK 后在 Android 8.0 及以上设备安装。首次使用需要按提示授予悬浮窗、通知和无障碍相关权限。
           </p>
@@ -404,7 +445,7 @@
     </main>
 
     <footer class="site-footer">
-      <span>Music Hub</span>
+      <span>Tutti</span>
       <span data-i18n="footerText">跨平台音乐播放列表管理器和启动器。</span>
     </footer>
 
