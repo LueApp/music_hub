@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-17T07:14:16.858Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-17T15:57:40.751Z
 > Files: 708 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -825,7 +825,7 @@
 - `fragment_import_from_library.xml` (~1712 tok)
 - `fragment_library.xml` (~1965 tok)
 - `fragment_playlist_detail.xml` (~3704 tok)
-- `fragment_setup.xml` (~4284 tok)
+- `fragment_setup.xml` (~4283 tok)
 
 ## android-app/app/src/main/res/navigation/
 
@@ -835,7 +835,7 @@
 
 - `arrays.xml` (~170 tok)
 - `colors.xml` (~588 tok)
-- `strings.xml` (~3709 tok)
+- `strings.xml` (~3706 tok)
 
 ## android-app/app/src/main/res/xml/
 
@@ -869,9 +869,9 @@
 
 ## site/
 
-- `index.html` — Music Hub | 音乐中心 (~5341 tok)
+- `index.html` — Tutti | 管乐 (~6045 tok)
 
 ## site/src/
 
-- `main.js` — Declares FALLBACK_VERSION (~5340 tok)
-- `styles.css` — Styles: 109 rules, 14 vars (~4727 tok)
+- `main.js` — Declares FALLBACK_VERSION (~6630 tok)
+- `styles.css` — Styles: 109 rules, 14 vars (~4881 tok)

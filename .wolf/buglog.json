@@ -1124,6 +1124,246 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-17T07:15:00Z"
+    },
+    {
+      "id": "bug-069",
+      "timestamp": "2026-05-17T13:58:54.385Z",
+      "error_message": "CSS fix: overflow-wrap",
+      "file": "site/src/styles.css",
+      "root_cause": "overflow-wrap: anywhere → break-word",
+      "fix": "Changed overflow-wrap: anywhere → break-word",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 6,
+      "last_seen": "2026-05-17T14:01:23.217Z"
+    },
+    {
+      "id": "bug-070",
+      "timestamp": "2026-05-17T14:18:36.194Z",
+      "error_message": "Incorrect value in code",
+      "file": "site/src/main.js",
+      "root_cause": "Had '音乐中心'",
+      "fix": "Changed to '音乐枢纽'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T14:18:36.194Z"
+    },
+    {
+      "id": "bug-071",
+      "timestamp": "2026-05-17T15:08:25.879Z",
+      "error_message": "Incorrect value in code",
+      "file": "site/index.html",
+      "root_cause": "Had \"Music Hub app preview\"",
+      "fix": "Changed to \"Tutti app preview\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:08:25.879Z"
+    },
+    {
+      "id": "bug-072",
+      "timestamp": "2026-05-17T15:08:58.470Z",
+      "error_message": "Wrong reference: Music should be h3",
+      "file": "site/index.html",
+      "root_cause": "Used \"Music\" instead of \"h3\"",
+      "fix": "Changed Music → h3",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:08:58.470Z"
+    },
+    {
+      "id": "bug-073",
+      "timestamp": "2026-05-17T15:10:03.705Z",
+      "error_message": "Incorrect value in code",
+      "file": "site/src/main.js",
+      "root_cause": "Had '音乐枢纽'",
+      "fix": "Changed to '管乐'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 21,
+      "last_seen": "2026-05-17T15:11:02.721Z"
+    },
+    {
+      "id": "bug-074",
+      "timestamp": "2026-05-17T15:13:27.672Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/res/layout/fragment_setup.xml",
+      "root_cause": "Had \"欢迎使用音乐枢纽\"",
+      "fix": "Changed to \"欢迎使用管乐\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:13:27.672Z"
+    },
+    {
+      "id": "bug-075",
+      "timestamp": "2026-05-17T15:31:33.495Z",
+      "error_message": "CSS fix: display",
+      "file": "site/src/styles.css",
+      "root_cause": "display: grid → inline-block",
+      "fix": "Changed display: grid → inline-block",
+      "tags": [
+        "auto-detected",
+        "style-fix",
+        "css"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:31:33.495Z"
+    },
+    {
+      "id": "bug-076",
+      "timestamp": "2026-05-17T15:32:14.178Z",
+      "error_message": "Significant refactor of ",
+      "file": "site/index.html",
+      "root_cause": "11 lines replaced/restructured",
+      "fix": "Rewrote 24→48 lines (11 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:32:14.178Z"
+    },
+    {
+      "id": "bug-077",
+      "timestamp": "2026-05-17T15:32:58.482Z",
+      "error_message": "Significant refactor of ",
+      "file": "site/src/main.js",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 16→19 lines (9 removed) | Also: permissionOverlay: 'Overlay: show playback control; permissionNotification: 'Notification access: read",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-17T15:33:22.587Z"
+    },
+    {
+      "id": "bug-078",
+      "timestamp": "2026-05-17T15:47:29.174Z",
+      "error_message": "Significant refactor of ",
+      "file": "site/src/main.js",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 19→20 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:47:29.174Z"
+    },
+    {
+      "id": "bug-079",
+      "timestamp": "2026-05-17T15:47:54.377Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "site/src/main.js",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:47:54.377Z"
+    },
+    {
+      "id": "bug-080",
+      "timestamp": "2026-05-17T15:48:07.146Z",
+      "error_message": "Significant refactor of ",
+      "file": "site/index.html",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 8→8 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:48:07.146Z"
+    },
+    {
+      "id": "bug-081",
+      "timestamp": "2026-05-17T15:48:08.556Z",
+      "error_message": "Incorrect value in code",
+      "file": "site/index.html",
+      "root_cause": "Had \"limitKugou\"",
+      "fix": "Changed to \"limitQQPlayer\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "html"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:48:08.556Z"
+    },
+    {
+      "id": "bug-082",
+      "timestamp": "2026-05-17T15:57:13.259Z",
+      "error_message": "Incorrect value in code",
+      "file": "site/src/main.js",
+      "root_cause": "Had '系统设置写入：网易云的横屏播放页（PlayerLandscapeActivity）只在 Playe",
+      "fix": "Changed to '系统设置写入：网易云的横屏播放页（PlayerLandscapeActivity）是一个独立的 A",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-17T15:57:27.916Z"
+    },
+    {
+      "id": "bug-083",
+      "timestamp": "2026-05-17T15:57:26.641Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "site/src/main.js",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-17T15:57:26.641Z"
     }
   ]
 }
