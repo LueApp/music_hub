@@ -56,51 +56,27 @@ class PlayerAccessibilityService : AccessibilityService() {
             registerReceiver(clickRequestReceiver, filter)
         }
 
+        // Narrow runtime serviceInfo to match accessibility_service_config.xml.
+        // HyperOS / com.lbe.security.miui audits sideloaded accessibility services
+        // and silently disables ones whose declared scope looks too broad. Scoping
+        // to QQ Music only — with the minimum events needed for the mini-player
+        // click flow — keeps this service narrowly "for QQ Music" so the audit
+        // is much less likely to flag it. Freeform-resize on the other 3 music
+        // apps lives in a separate service (FreeformResizeAccessibilityService)
+        // with no content-retrieval or gesture capabilities.
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
-                    AccessibilityEvent.TYPE_VIEW_CLICKED
+                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             packageNames = arrayOf(QQMUSIC_PACKAGE)
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            notificationTimeout = 200
-            flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            notificationTimeout = 100
+            flags = 0
         }
         serviceInfo = info
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
-
-        // Window-bounds-changed events fire when HyperOS pulls a freeform task
-        // back on-screen during a home-gesture/recents transition. Re-fire the
-        // resize immediately so the music-app stays off-screen / sized down.
-        // This replaces the high-rate dumpsys watchdog with an event-driven
-        // path that has near-zero idle cost.
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
-            val pkg = event.packageName?.toString()
-            if (pkg != null && pkg in ShizukuLauncher.musicAppPackages()) {
-                ShizukuLauncher.triggerResize(pkg)
-            }
-        }
-
-        // Log all click events to help identify which node opens the player page
-        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            val source = event.source
-            if (source != null && event.packageName == QQMUSIC_PACKAGE) {
-                val rect = android.graphics.Rect()
-                source.getBoundsInScreen(rect)
-                Log.i(TAG, "CLICK DETECTED - ID: ${source.viewIdResourceName}, Class: ${source.className}, Bounds: $rect, Clickable: ${source.isClickable}, ChildCount: ${source.childCount}")
-
-                // Log children info
-                for (i in 0 until source.childCount.coerceAtMost(5)) {
-                    val child = source.getChild(i)
-                    if (child != null) {
-                        Log.i(TAG, "  Child[$i] - ID: ${child.viewIdResourceName}, Class: ${child.className}, Clickable: ${child.isClickable}")
-                    }
-                }
-                source.recycle()
-            }
-        }
 
         if (!pendingClick) return
 

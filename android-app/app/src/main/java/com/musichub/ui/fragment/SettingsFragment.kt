@@ -23,6 +23,7 @@ import com.musichub.remote.RemoteClient
 import com.musichub.remote.RemoteMode
 import com.musichub.remote.RemoteServerService
 import com.musichub.service.FloatingWindowService
+import com.musichub.service.FreeformResizeAccessibilityService
 import com.musichub.service.MediaMonitorService
 import com.musichub.service.PlayerAccessibilityService
 import com.musichub.service.ShizukuLauncher
@@ -154,6 +155,17 @@ class SettingsFragment : PreferenceFragmentCompat() {
             setOnPreferenceClickListener {
                 if (!PlayerAccessibilityService.isEnabled(requireContext())) {
                     PlayerAccessibilityService.openSettings(requireContext())
+                }
+                true
+            }
+        }
+
+        // Freeform-resize accessibility service preference (separate so its
+        // narrow capability profile keeps it off HyperOS's auto-disable list)
+        findPreference<Preference>("freeform_resize_access")?.apply {
+            setOnPreferenceClickListener {
+                if (!FreeformResizeAccessibilityService.isEnabled(requireContext())) {
+                    FreeformResizeAccessibilityService.openSettings(requireContext())
                 }
                 true
             }
@@ -423,6 +435,17 @@ class SettingsFragment : PreferenceFragmentCompat() {
                 a11yEnabled && a11yRunning -> "已授权且运行中"
                 a11yEnabled && !a11yRunning -> "已授权但未运行 - 请点击重新启用"
                 else -> "未授权 - 点击授权（QQ音乐需要）"
+            }
+        }
+
+        // Update freeform-resize service status
+        val freeformEnabled = FreeformResizeAccessibilityService.isEnabled(requireContext())
+        val freeformRunning = FreeformResizeAccessibilityService.getInstance() != null
+        findPreference<Preference>("freeform_resize_access")?.apply {
+            summary = when {
+                freeformEnabled && freeformRunning -> "已授权且运行中"
+                freeformEnabled && !freeformRunning -> "已授权但未运行 - 请点击重新启用"
+                else -> "未授权 - 点击授权（后台启动模式需要）"
             }
         }
 

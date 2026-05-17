@@ -79,6 +79,12 @@
             app:iconSpaceReserved="false" />
 
         <Preference
+            android:key="freeform_resize_access"
+            android:title="@string/freeform_resize_access_cn"
+            android:summary="@string/freeform_resize_service_desc_cn"
+            app:iconSpaceReserved="false" />
+
+        <Preference
             android:key="write_settings_access"
             android:title="@string/write_settings_cn"
             android:summary="@string/write_settings_desc_cn"

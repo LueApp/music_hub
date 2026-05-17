@@ -19,6 +19,7 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.musichub.databinding.FragmentSetupBinding
+import com.musichub.service.FreeformResizeAccessibilityService
 import com.musichub.service.MediaMonitorService
 import com.musichub.service.PlayerAccessibilityService
 
@@ -77,6 +78,10 @@ class SetupFragment : Fragment() {
             PlayerAccessibilityService.openSettings(requireContext())
         }
 
+        binding.btnGrantFreeformResize.setOnClickListener {
+            FreeformResizeAccessibilityService.openSettings(requireContext())
+        }
+
         binding.btnDone.setOnClickListener {
             requireContext().getSharedPreferences("musichub_prefs", 0)
                 .edit().putBoolean("setup_complete", true).apply()
@@ -105,6 +110,8 @@ class SetupFragment : Fragment() {
         setGranted(binding.btnGrantUsageStats, hasUsageStatsPermission(ctx))
 
         setGranted(binding.btnGrantAccessibility, PlayerAccessibilityService.isEnabled(ctx))
+
+        setGranted(binding.btnGrantFreeformResize, FreeformResizeAccessibilityService.isEnabled(ctx))
     }
 
     private fun hasUsageStatsPermission(ctx: Context): Boolean {

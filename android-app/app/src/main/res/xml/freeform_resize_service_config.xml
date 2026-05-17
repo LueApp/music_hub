@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowsChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="false"
+    android:canPerformGestures="false"
+    android:notificationTimeout="200"
+    android:packageNames="com.tencent.qqmusic,com.netease.cloudmusic,tv.danmaku.bili,com.kugou.android"
+    android:description="@string/freeform_resize_service_desc_cn"
+    android:settingsActivity="com.musichub.ui.MainActivity" />

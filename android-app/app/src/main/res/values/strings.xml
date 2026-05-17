@@ -127,7 +127,8 @@
     <!-- Settings - Permissions -->
     <string name="overlay_access_cn">悬浮窗权限</string>
     <string name="overlay_access_desc_cn">在其他应用上方显示浮窗控制栏</string>
-    <string name="accessibility_access_cn">无障碍服务权限</string>
+    <string name="accessibility_access_cn">无障碍服务权限 (QQ音乐)</string>
+    <string name="freeform_resize_access_cn">无障碍服务权限 (后台启动)</string>
     <string name="write_settings_cn">修改系统设置权限</string>
     <string name="write_settings_desc_cn">用于横屏时自动修复网易云音乐方向检测</string>
     <string name="usage_stats_cn">应用使用情况权限</string>
@@ -213,6 +214,7 @@
 
     <!-- Accessibility Service -->
     <string name="accessibility_service_desc_cn">用于在前台模式下自动打开QQ音乐播放器页面（歌词页面）</string>
+    <string name="freeform_resize_service_desc_cn">用于后台启动模式：当系统将音乐应用窗口拉回屏幕时，立即将其调整回后台位置（仅监听窗口位置变化，不读取内容、不模拟点击）</string>
     <string name="qqmusic_auto_open_player_cn">自动进入QQ音乐播放页</string>
     <string name="qqmusic_auto_open_player_desc_cn">跳转QQ音乐后自动点击歌曲卡片或迷你播放栏进入播放页（需要无障碍服务权限）</string>
 
