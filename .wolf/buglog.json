@@ -1105,21 +1105,20 @@
     {
       "id": "bug-067",
       "timestamp": "2026-05-17T07:15:00Z",
-      "error_message": "无障碍服务权限 frequently auto-disabled by HyperOS — only this permission is affected, the other special permissions (SYSTEM_ALERT_WINDOW, NotificationListener, Shizuku, USAGE_STATS, WRITE_SETTINGS) stay granted. Recurs after device reboot, APK reinstall, switching Remote Mode (Standalone↔Player↔Controller), and intermittently during normal use.",
-      "file": "android-app/app/src/main/res/xml/accessibility_service_config.xml, android-app/app/src/main/res/xml/freeform_resize_service_config.xml (new), android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt, android-app/app/src/main/java/com/musichub/service/FreeformResizeAccessibilityService.kt (new), android-app/app/src/main/AndroidManifest.xml",
-      "root_cause": "HyperOS's accessibility security audit (com.lbe.security.miui / com.miui.securitycenter, surfaced in Settings.Secure as `notified_non_accessibility_category_services`) periodically scans accessibility services from sideloaded apps (`installerPackageName=null`). It flags services whose declared capability profile reads as 'powerful + broadly scoped': the combination of `canRetrieveWindowContent=true` + `canPerformGestures=true` + `flagRetrieveInteractiveWindows` + chatty event types + low `notificationTimeout` + a `packageNames=` list covering multiple unrelated apps. Once flagged the service is silently disabled — permission still appears 'granted' to the user but the runtime serviceInfo is gone. Two-phase history: (a) commit 159c7f9 dropped `packageNames` entirely from accessibility_service_config.xml when adding the TYPE_WINDOWS_CHANGED freeform-resize trigger, which broadened the manifest-declared scope from 'QQ Music only' to 'every package on the device' and made auto-disable nearly immediate; (b) tightening packageNames to the 4 music apps Music Hub targets moved the needle but didn't fully fix it — 4 unrelated apps + the full capability set is still enough for the audit to fire intermittently. The audit examines the *manifest* XML, not the runtime `serviceInfo` override. Other permissions don't have this 'manifest-declared scope' audit, which is why only accessibility flips off.",
-      "fix": "Split the single accessibility service into two with separate manifest declarations and independent user toggles. (1) PlayerAccessibilityService keeps canRetrieveWindowContent + canPerformGestures (needed for the QQ Music mini-player click) but is scoped to `packageNames=[com.tencent.qqmusic]` only; event types narrowed to `typeWindowStateChanged|typeWindowContentChanged` (dropped `typeWindowsChanged` and `typeViewClicked`); `flagRetrieveInteractiveWindows` removed; runtime `serviceInfo` mirrors the manifest. (2) New FreeformResizeAccessibilityService handles only `TYPE_WINDOWS_CHANGED` across the 4 music apps with `canRetrieveWindowContent=false` + `canPerformGestures=false` — it only needs to observe window-bounds changes, then call ShizukuLauncher.triggerResize. Its capability profile is clean enough to survive the audit even though it lists 4 packages. Setup screen and Settings > 权限 each gained a second toggle. Splitting also limits blast radius: if HyperOS disables one, the other (QQ Music auto-navigation vs background-mode freeform resize) still works independently.",
+      "error_message": "无障碍服务权限 silently disabled — user finds it ungranted after every app 'restart'. Originally suspected to be HyperOS-specific (notified_non_accessibility_category_services audit, or PACKAGE_CHANGED audit). Final reproducible cause: `am force-stop` (or any equivalent — HyperOS Clear-all, Recents swipe-up close, background-task killer, manual force-stop from App info) sets the package to `stopped=true`, after which AccessibilityManagerService excludes the package's services from the next service-enumeration sweep and removes them from `Settings.Secure.enabled_accessibility_services` within ~50-200 ms.",
+      "file": "android-app/app/src/main/res/xml/accessibility_service_config.xml, android-app/app/src/main/res/xml/freeform_resize_service_config.xml, android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt, android-app/app/src/main/java/com/musichub/service/FreeformResizeAccessibilityService.kt, android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt, android-app/app/src/main/java/com/musichub/MusicHubApplication.kt, android-app/app/src/main/AndroidManifest.xml",
+      "root_cause": "Standard AOSP behavior in `AccessibilityManagerService.onSomePackagesChanged()`: services whose owning package is `stopped=true` are filtered out of `installedServices`, then any matching component is dropped from `enabled_accessibility_services`. Re-launching the app clears the stopped flag but does NOT restore the setting. Verified empirically: (1) every app on the device experiences this — `am force-stop com.mutangtech.qianji` (Xiaomi-market-installed app) removed its SelectToSpeak service exactly the same way; (2) the pre-background-mode Music Hub `v0.0.0-14-gfcf40b2` (single QQ-Music-only accessibility config, before 159c7f9) also loses accessibility on force-stop, so the regression theory was wrong — it never worked across force-stop. The earlier hypotheses (HyperOS PACKAGE_CHANGED audit from setComponentEnabledSetting; notified_non_accessibility_category_services category audit) are real but separate, much rarer mechanisms — the everyday cause is plain force-stop. Triggers that do NOT disable: `am kill`, backgrounding via Home, APK reinstall, idle for 30+ s. Triggers that DO disable: `am force-stop`, HyperOS 'Clear all' in Recents, HyperOS background-task killer, Recents swipe-up close on HyperOS, manual force-stop from App info.",
+      "fix": "Two parts. (1) Defense-in-depth split of the single accessibility service into PlayerAccessibilityService (QQ Music only; canRetrieveWindowContent + canPerformGestures; narrow event types) and FreeformResizeAccessibilityService (4 music apps; canRetrieveWindowContent=false + canPerformGestures=false; only TYPE_WINDOWS_CHANGED) — reduces audit profile and blast radius if the category audit ever does fire. (2) Auto-restore via Shizuku: track per-service grant in SharedPreferences ('musichub_a11y') whenever we observe the service enabled; on subsequent app launches, if a tracked service is missing from enabled_accessibility_services, call ShizukuLauncher.restoreAccessibilityServices() which reads the current setting, appends our missing services (preserving any third-party entries), and writes the merged list back via shell (`settings put secure enabled_accessibility_services ...` + `accessibility_enabled 1`). Writing the setting needs WRITE_SECURE_SETTINGS — granted to shell UID and accessible via Shizuku. Users without Shizuku still need manual re-enable. The previously-explored 'avoid setComponentEnabledSetting toggle to suppress PACKAGE_CHANGED' fix was based on a wrong hypothesis and was reverted; the toggle is still useful for the NotificationListener rebind and isn't the trigger for accessibility loss.",
       "tags": [
         "accessibility",
+        "aosp",
         "hyperos",
-        "miui",
-        "permission-reset",
-        "sideloaded",
-        "security-audit",
-        "lbe.security.miui",
-        "notified_non_accessibility_category_services",
-        "split-service",
-        "freeform"
+        "force-stop",
+        "stopped-state",
+        "AccessibilityManagerService",
+        "shizuku",
+        "WRITE_SECURE_SETTINGS",
+        "auto-restore"
       ],
       "related_bugs": [],
       "occurrences": 1,
@@ -1364,6 +1363,182 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-17T15:57:26.641Z"
+    },
+    {
+      "id": "bug-084",
+      "timestamp": "2026-05-18T06:21:11.885Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "No early return/throw for edge case: !MediaMonitorService.isEnabled(this",
+      "fix": "Added guard clause: if (!MediaMonitorService.isEnabled(this)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:21:11.885Z"
+    },
+    {
+      "id": "bug-085",
+      "timestamp": "2026-05-18T06:34:34.028Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:34:34.028Z"
+    },
+    {
+      "id": "bug-086",
+      "timestamp": "2026-05-18T06:35:12.357Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/AndroidManifest.xml",
+      "root_cause": "6 lines replaced/restructured",
+      "fix": "Rewrote 30→14 lines (6 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:35:12.357Z"
+    },
+    {
+      "id": "bug-087",
+      "timestamp": "2026-05-18T06:39:17.520Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/res/layout/fragment_setup.xml",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 97→48 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:39:17.520Z"
+    },
+    {
+      "id": "bug-088",
+      "timestamp": "2026-05-18T06:39:56.157Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/SetupFragment.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 9→5 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:39:56.157Z"
+    },
+    {
+      "id": "bug-089",
+      "timestamp": "2026-05-18T06:41:08.795Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/res/xml/preferences.xml",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 15→9 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:41:08.795Z"
+    },
+    {
+      "id": "bug-090",
+      "timestamp": "2026-05-18T06:41:50.576Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/ui/fragment/SettingsFragment.kt",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 15→4 lines (7 removed) | Also: // Update freeform-resize service status; val freeformEnabled = FreeformResizeAccessibilityS",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-18T06:42:11.197Z"
+    },
+    {
+      "id": "bug-091",
+      "timestamp": "2026-05-18T06:45:51.539Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/res/values/strings.xml",
+      "root_cause": "Had \"freeform_resize_access_cn\"",
+      "fix": "Changed to \"write_settings_cn\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:45:51.539Z"
+    },
+    {
+      "id": "bug-092",
+      "timestamp": "2026-05-18T06:46:10.036Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/res/values/strings.xml",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→3 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:46:10.036Z"
+    },
+    {
+      "id": "bug-093",
+      "timestamp": "2026-05-18T06:46:48.023Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "20 lines replaced/restructured",
+      "fix": "Rewrote 32→20 lines (20 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:46:48.023Z"
+    },
+    {
+      "id": "bug-094",
+      "timestamp": "2026-05-18T06:53:30.060Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "No early return/throw for edge case: enabled",
+      "fix": "Added guard clause: if (enabled)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T06:53:30.060Z"
     }
   ]
 }

@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-17T15:57:40.751Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T06:53:30.053Z
 > Files: 708 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -17,7 +17,7 @@
 
 - `.gitignore` — Git ignore rules (~280 tok)
 - `.release-env` (~47 tok)
-- `CLAUDE.md` — OpenWolf (~3422 tok)
+- `CLAUDE.md` — OpenWolf (~4001 tok)
 - `LICENSE` — Project license (~283 tok)
 - `package-lock.json` — npm lock file (~13821 tok)
 - `package.json` — Node.js package manifest (~100 tok)
@@ -747,11 +747,11 @@
 
 ## android-app/app/src/main/
 
-- `AndroidManifest.xml` (~1698 tok)
+- `AndroidManifest.xml` (~1471 tok)
 
 ## android-app/app/src/main/java/com/musichub/
 
-- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~1149 tok)
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~1861 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
@@ -783,8 +783,8 @@
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15720 tok)
 - `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13372 tok)
-- `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6191 tok)
-- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~8085 tok)
+- `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6380 tok)
+- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~9736 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 
@@ -806,8 +806,8 @@
 - `ImportFromLibraryFragment.kt` — ImportFromLibraryFragment: onCreateView, onViewCreated, setupAdapter, setupSearchAndFilter (~2562 tok)
 - `LibraryFragment.kt` — Scroll to the currently playing song in the list. (~1544 tok)
 - `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4923 tok)
-- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences (~7754 tok)
-- `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1340 tok)
+- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences (~7458 tok)
+- `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1256 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
 
@@ -825,7 +825,7 @@
 - `fragment_import_from_library.xml` (~1712 tok)
 - `fragment_library.xml` (~1965 tok)
 - `fragment_playlist_detail.xml` (~3704 tok)
-- `fragment_setup.xml` (~4283 tok)
+- `fragment_setup.xml` (~3711 tok)
 
 ## android-app/app/src/main/res/navigation/
 
@@ -835,13 +835,13 @@
 
 - `arrays.xml` (~170 tok)
 - `colors.xml` (~588 tok)
-- `strings.xml` (~3706 tok)
+- `strings.xml` (~3656 tok)
 
 ## android-app/app/src/main/res/xml/
 
-- `accessibility_service_config.xml` (~149 tok)
+- `accessibility_service_config.xml` (~186 tok)
 - `freeform_resize_service_config.xml` (~175 tok)
-- `preferences.xml` (~1581 tok)
+- `preferences.xml` (~1515 tok)
 
 ## openspec/changes/add-kugou-platform/
 

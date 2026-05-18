@@ -212,7 +212,7 @@
     <string name="import_empty_no_results">没有找到匹配的歌曲</string>
 
     <!-- Accessibility Service -->
-    <string name="accessibility_service_desc_cn">用于在前台模式下自动打开QQ音乐播放器页面（歌词页面）</string>
+    <string name="accessibility_service_desc_cn">用于QQ音乐播放页自动跳转，以及后台启动模式下保持音乐应用窗口在屏幕外</string>
     <string name="qqmusic_auto_open_player_cn">自动进入QQ音乐播放页</string>
     <string name="qqmusic_auto_open_player_desc_cn">跳转QQ音乐后自动点击歌曲卡片或迷你播放栏进入播放页（需要无障碍服务权限）</string>
 

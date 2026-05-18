@@ -56,13 +56,23 @@ class PlayerAccessibilityService : AccessibilityService() {
             registerReceiver(clickRequestReceiver, filter)
         }
 
+        // Runtime serviceInfo mirrors accessibility_service_config.xml. This
+        // service handles two unrelated jobs across all four music apps:
+        //   - QQ Music: receive TYPE_WINDOW_STATE/CONTENT_CHANGED, then use
+        //     canRetrieveWindowContent + canPerformGestures to tap the
+        //     mini-player bar and open the lyrics page.
+        //   - All four apps in background-launch mode: receive
+        //     TYPE_WINDOWS_CHANGED so we can re-fire ShizukuLauncher.triggerResize
+        //     when HyperOS pulls our freeform task back on-screen.
+        // FLAG_RETRIEVE_INTERACTIVE_WINDOWS is required for TYPE_WINDOWS_CHANGED
+        // event delivery.
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
-                    AccessibilityEvent.TYPE_VIEW_CLICKED
-            packageNames = arrayOf(QQMUSIC_PACKAGE)
+                    AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            packageNames = ShizukuLauncher.musicAppPackages().toTypedArray()
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            notificationTimeout = 200
+            notificationTimeout = 100
             flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         }
         serviceInfo = info
@@ -73,32 +83,11 @@ class PlayerAccessibilityService : AccessibilityService() {
 
         // Window-bounds-changed events fire when HyperOS pulls a freeform task
         // back on-screen during a home-gesture/recents transition. Re-fire the
-        // resize immediately so the music-app stays off-screen / sized down.
-        // This replaces the high-rate dumpsys watchdog with an event-driven
-        // path that has near-zero idle cost.
+        // resize immediately so the music-app stays sized down off-screen.
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             val pkg = event.packageName?.toString()
             if (pkg != null && pkg in ShizukuLauncher.musicAppPackages()) {
                 ShizukuLauncher.triggerResize(pkg)
-            }
-        }
-
-        // Log all click events to help identify which node opens the player page
-        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            val source = event.source
-            if (source != null && event.packageName == QQMUSIC_PACKAGE) {
-                val rect = android.graphics.Rect()
-                source.getBoundsInScreen(rect)
-                Log.i(TAG, "CLICK DETECTED - ID: ${source.viewIdResourceName}, Class: ${source.className}, Bounds: $rect, Clickable: ${source.isClickable}, ChildCount: ${source.childCount}")
-
-                // Log children info
-                for (i in 0 until source.childCount.coerceAtMost(5)) {
-                    val child = source.getChild(i)
-                    if (child != null) {
-                        Log.i(TAG, "  Child[$i] - ID: ${child.viewIdResourceName}, Class: ${child.className}, Clickable: ${child.isClickable}")
-                    }
-                }
-                source.recycle()
             }
         }
 

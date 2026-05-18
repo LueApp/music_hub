@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.net.Uri
+import android.provider.Settings
 import android.util.Log
 import java.util.concurrent.atomic.AtomicLong
 import rikka.shizuku.Shizuku
@@ -707,6 +708,51 @@ object ShizukuLauncher {
             exit == 0
         } catch (e: Throwable) {
             Log.w(TAG, "Shizuku rebindNotificationListener failed: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Re-enable our accessibility services in Settings.Secure when AOSP's
+     * `am force-stop` handler has silently revoked them. This is *the* fix
+     * for HyperOS users (and stock Android users on aggressive task killers)
+     * who repeatedly find 无障碍服务权限 missing — when a package is force-
+     * stopped it goes into `stopped=true` state, and AccessibilityManager
+     * excludes services from stopped packages on its next sweep, which
+     * removes them from `enabled_accessibility_services`. Re-launching the
+     * app clears the stopped flag but the system does NOT auto-restore the
+     * setting. The only way back without user intervention is to re-write
+     * the setting, which requires WRITE_SECURE_SETTINGS — granted to shell
+     * UID, accessible to us via Shizuku.
+     *
+     * Preserves any third-party services already in the list; appends only
+     * the components in [desired] that are missing.
+     */
+    fun restoreAccessibilityServices(context: Context, desired: Set<String>): Boolean {
+        if (status(context) != Status.READY) {
+            Log.d(TAG, "Shizuku not ready, can't restore accessibility services")
+            return false
+        }
+        if (desired.isEmpty()) return true
+
+        val current = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ).orEmpty()
+        val existing = current.split(':').filter { it.isNotBlank() }.toMutableSet()
+        val missing = desired - existing
+        if (missing.isEmpty()) return true
+
+        val merged = (existing + desired).joinToString(":")
+        val script =
+            "settings put secure enabled_accessibility_services '$merged' && settings put secure accessibility_enabled 1"
+        return try {
+            val proc = newShizukuProcess(arrayOf("sh", "-c", script)) ?: return false
+            val exit = proc.waitFor()
+            Log.i(TAG, "Shizuku restoreAccessibilityServices missing=$missing exit=$exit")
+            exit == 0
+        } catch (e: Throwable) {
+            Log.w(TAG, "Shizuku restoreAccessibilityServices failed: ${e.message}")
             false
         }
     }

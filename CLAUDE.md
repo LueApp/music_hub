@@ -317,6 +317,18 @@ NetEase Cloud Music has a separate `PlayerLandscapeActivity` that is only trigge
 - Brief "third song" audio during NetEase-to-NetEase transitions (double-send is skipped in landscape to avoid breaking `PlayerLandscapeActivity`)
 - Requires `WRITE_SETTINGS` permission (already granted)
 
+### Accessibility services revoked on force-stop (Shizuku auto-restore)
+
+Any time the package is force-stopped — `am force-stop`, HyperOS "Clear all" in Recents, HyperOS background-task killer, Recents swipe-up close, manual force-stop from App info — Android's `AccessibilityManagerService` removes our accessibility services from `Settings.Secure.enabled_accessibility_services` within ~50–200 ms. Re-launching clears the `stopped=true` package state but does NOT restore the setting. This is **standard AOSP behavior, not HyperOS-specific** — verified empirically on official-store apps like 钱迹 and on Music Hub `v0.0.0-14-gfcf40b2` (pre-background-mode, narrowest-possible accessibility config). No accessibility-service configuration can avoid it.
+
+**Mitigation** (`MusicHubApplication.restoreAccessibilityIfRevoked` + `ShizukuLauncher.restoreAccessibilityServices`):
+- Track grant in SharedPreferences (`musichub_a11y`) any time we observe the service enabled at app launch.
+- On subsequent launches, if the tracked service is missing from the setting, use Shizuku to run `settings put secure enabled_accessibility_services '<merged list>'` — preserves third-party services already in the list and only appends what's missing.
+- Writing that setting needs `WRITE_SECURE_SETTINGS` (signature-protected), so Shizuku is required. Users without Shizuku still have to manually re-enable in HyperOS Settings → Accessibility.
+- Once granted, the SharedPreference stays set until the user clears app data. There is no in-app opt-out switch — if a user wants to permanently disable accessibility, they need to clear Music Hub's app data first.
+
+**Don't split the accessibility service into two.** An earlier attempt did this (`PlayerAccessibilityService` for QQ Music + `FreeformResizeAccessibilityService` for window-bounds events on all four music apps) on the wrong theory that the unrelated `notified_non_accessibility_category_services` category audit was the cause. The split traded marginal defense-in-depth against a rare audit for permanently doubling the manual-grant friction every time force-stop revokes the permission. The single `PlayerAccessibilityService` handles both jobs — QQ Music mini-player click + freeform-resize trigger — and the auto-restore path covers the actual everyday failure mode.
+
 ---
 
 ## Debugging Workflow
