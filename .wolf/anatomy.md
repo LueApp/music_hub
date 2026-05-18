@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T06:53:30.053Z
-> Files: 708 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T15:01:07.107Z
+> Files: 709 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
 
@@ -11,13 +11,14 @@
 ## ../../.claude/projects/-home-lue-boring-music-hub/memory/
 
 - `feedback_deploy_command.md` (~189 tok)
-- `MEMORY.md` (~58 tok)
+- `feedback_versioning_rule.md` (~334 tok)
+- `MEMORY.md` (~88 tok)
 
 ## ./
 
 - `.gitignore` — Git ignore rules (~280 tok)
 - `.release-env` (~47 tok)
-- `CLAUDE.md` — OpenWolf (~4001 tok)
+- `CLAUDE.md` — OpenWolf (~4260 tok)
 - `LICENSE` — Project license (~283 tok)
 - `package-lock.json` — npm lock file (~13821 tok)
 - `package.json` — Node.js package manifest (~100 tok)
@@ -782,7 +783,7 @@
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17830 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15720 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13372 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13460 tok)
 - `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6380 tok)
 - `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~9736 tok)
 

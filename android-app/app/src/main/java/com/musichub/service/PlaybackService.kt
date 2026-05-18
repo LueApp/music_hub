@@ -771,28 +771,36 @@ class PlaybackService : Service() {
             // This re-enables auto-advance detection after a delay
             MediaMonitorService.getInstance()?.onNewSongStarted()
 
-            // Same-platform NetEase (portrait only): pause the auto-advanced
-            // "third song" that NetEase plays ~1s after the deep link is sent.
-            // Send frequent pauses from 500ms-1500ms to catch the auto-advance.
-            // Skip in landscape: CLEAR_TASK already destroys NetEase's queue, so
-            // there's no auto-advance to suppress. Worse, the reactive-pause window
-            // armed here can fire on the target song's first STATE_PLAYING (position
-            // ~0) and short-circuit MediaMonitorService.onPlaybackStateChanged before
-            // it fires the pending playback callback that triggers restoreAutoRotation
-            // — that would leave the device in portrait and prevent NetEase from
-            // entering PlayerLandscapeActivity.
-            if (isSamePlatformNetEase && !isLandscapeForDoubleSend) {
-                Log.d(TAG, "Scheduling pause for NetEase auto-advance suppression (portrait)")
-                // Arm reactive pause in MediaMonitorService — instantly pauses any
-                // new playback (position ~0) from NetEase within a 2500ms window
-                MediaMonitorService.getInstance()?.armSamePlatformNetEasePause()
+            // Same-platform NetEase: pause the auto-advanced "third song" that
+            // NetEase's fresh PlayerActivity audibly plays for ~44ms before
+            // processing the deep link's onNewIntent. Empirically the leak
+            // persists in landscape too — CLEAR_TASK destroys the activity but
+            // NOT NetEase's persisted internal queue (the new PlayerActivity
+            // reads it on creation). The scheduled pausePackage() calls are
+            // direct pause+stop on NetEase's MediaSession; they don't touch
+            // samePlatformNetEasePauseUntil or pendingPlaybackCallback, so they
+            // can't short-circuit restoreAutoRotation. Safe to run in both
+            // portrait and landscape.
+            if (isSamePlatformNetEase) {
                 val pauseDelays = listOf(500L, 700L, 900L, 1100L, 1300L, 1500L)
                 pauseDelays.forEach { delay ->
                     mainHandler.postDelayed({
-                        Log.d(TAG, "Pausing NetEase auto-advance at ${delay}ms (portrait)")
+                        Log.d(TAG, "Pausing NetEase auto-advance at ${delay}ms (landscape=$isLandscapeForDoubleSend)")
                         MediaMonitorService.getInstance()?.pausePackage("com.netease.cloudmusic")
                     }, delay)
                 }
+            }
+
+            // Reactive pause window — portrait only.
+            // In landscape the 2500ms window can match the target song's first
+            // STATE_PLAYING (position ~0) and the early `return` in
+            // MediaMonitorService.onPlaybackStateChanged skips
+            // firePendingPlaybackCallback → restoreAutoRotation, leaving the
+            // device locked in portrait and NetEase loading PlayerActivity
+            // instead of PlayerLandscapeActivity.
+            if (isSamePlatformNetEase && !isLandscapeForDoubleSend) {
+                Log.d(TAG, "Arming reactive pause for NetEase same-platform switch (portrait)")
+                MediaMonitorService.getInstance()?.armSamePlatformNetEasePause()
             }
 
             // Portrait only: re-send deep link after 2s to override NetEase's

@@ -57,6 +57,30 @@ Commit message guidelines:
 
 ---
 
+## Versioning & Release Tags
+
+**Every time `dev` is merged into `master`, bump the version tag and push it.** Apply this autonomously — the user does not want to be asked each time.
+
+| Bump | When |
+|------|------|
+| **PATCH** (`v0.0.x → v0.0.x+1`) | Bug fixes, log/spec clarifications, copy tweaks |
+| **MINOR** (`v0.x.y → v0.(x+1).0`) | New platform, new launch mode, new permission tier, new user-visible feature |
+| **MAJOR** (`v(x).y.z → v(x+1).0.0`) | Reserved for `v1.0.0` (first stable release) and beyond |
+
+After a `dev` → `master` merge:
+
+```bash
+# 1. Decide the bump level from the merged commits (patch / minor / major)
+# 2. Tag master HEAD with the new version
+git tag v<new-version>
+# 3. Push master + tag together (triggers Cloudflare deploy via .github/workflows/deploy-cloudflare.yml)
+git push origin master --follow-tags
+```
+
+The Android `versionName` (`git describe --tags --always --dirty`) and `versionCode` (`git rev-list --count HEAD`) auto-update from the tag — no manual edits to `build.gradle.kts` needed.
+
+---
+
 ## Commands (via Pixi)
 
 All commands should be run from the project root directory.
