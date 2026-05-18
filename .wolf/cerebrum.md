@@ -8,6 +8,8 @@
 
 <!-- How the user likes things done. Code style, tools, patterns, communication. -->
 
+- **Version-tag bump on every dev→master merge.** User does not want to be asked each time — apply autonomously. See the Decision Log entry dated 2026-05-18 for the semver scheme.
+
 ## Key Learnings
 
 - **Project:** music-hub
@@ -92,3 +94,5 @@
 ## Decision Log
 
 <!-- Significant technical decisions with rationale. Why X was chosen over Y. -->
+
+[2026-05-18] **Versioning rule established: bump the version tag on every `dev` → `master` merge.** Semver under pre-1.0: PATCH (`v0.0.x → v0.0.x+1`) for bug fixes, log/spec clarifications, copy tweaks; MINOR (`v0.x.y → v0.(x+1).0`) for new platforms, launch modes, permission tiers, user-visible features; MAJOR reserved for `v1.0.0` and beyond. Push with `git push origin master --follow-tags` so the tag goes out with the commit — that triggers `.github/workflows/deploy-cloudflare.yml`'s Cloudflare deploy. The Android `versionName` (`git describe --tags --always --dirty`) and `versionCode` (`git rev-list --count HEAD`) auto-update; no manual edits to `build.gradle.kts`. Documented in CLAUDE.md "Versioning & Release Tags" so the agent applies this without being asked. First applied tag under this rule: `v0.0.1` (the landscape third-song-leak fix at `f0d1827`, plus the rule documentation itself).

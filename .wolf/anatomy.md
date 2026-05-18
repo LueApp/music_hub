@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T09:27:54.532Z
-> Files: 708 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T15:01:07.107Z
+> Files: 709 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
 
@@ -11,13 +11,14 @@
 ## ../../.claude/projects/-home-lue-boring-music-hub/memory/
 
 - `feedback_deploy_command.md` (~189 tok)
-- `MEMORY.md` (~58 tok)
+- `feedback_versioning_rule.md` (~334 tok)
+- `MEMORY.md` (~88 tok)
 
 ## ./
 
 - `.gitignore` — Git ignore rules (~280 tok)
 - `.release-env` (~47 tok)
-- `CLAUDE.md` — OpenWolf (~4001 tok)
+- `CLAUDE.md` — OpenWolf (~4260 tok)
 - `LICENSE` — Project license (~283 tok)
 - `package-lock.json` — npm lock file (~13821 tok)
 - `package.json` — Node.js package manifest (~100 tok)
