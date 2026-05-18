@@ -1539,6 +1539,25 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-18T06:53:30.060Z"
+    },
+    {
+      "id": "bug-095",
+      "timestamp": "2026-05-18T17:30:00Z",
+      "error_message": "Brief 'third song' audio leak (~44 ms of NetEase's queued next track) during NetEase→NetEase landscape transitions",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "doLaunchSong gated both armSamePlatformNetEasePause() and the 6 scheduled pausePackage() calls behind !isLandscapeForDoubleSend. The 2026-05-16 do-not-repeat assumed CLEAR_TASK destroyed NetEase's queue so the pause storm was redundant in landscape — empirically wrong. CLEAR_TASK destroys the activity but not NetEase's persisted internal queue; the fresh PlayerActivity reads it on creation and audibly plays the queue's next item for ~44 ms before processing the deep link's onNewIntent.",
+      "fix": "Split the gated block. The 6 scheduled pauses (500/700/900/1100/1300/1500 ms post-deep-link) now run in both portrait and landscape — they're direct pause+stop on NetEase's MediaSession via pausePackage() and don't touch samePlatformNetEasePauseUntil or pendingPlaybackCallback, so they can't short-circuit firePendingPlaybackCallback → restoreAutoRotation. armSamePlatformNetEasePause() stays portrait-only because its early `return` in onPlaybackStateChanged would block restoreAutoRotation if the target song's STATE_PLAYING falls inside its 2500 ms window.",
+      "tags": [
+        "netease",
+        "landscape",
+        "third-song-leak",
+        "pause-storm",
+        "doLaunchSong",
+        "CLEAR_TASK"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-18T17:30:00Z"
     }
   ]
 }

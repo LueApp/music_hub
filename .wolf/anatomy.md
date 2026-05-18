@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T06:53:30.053Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T09:27:54.532Z
 > Files: 708 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../.claude/plans/
@@ -782,7 +782,7 @@
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17830 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15720 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13372 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13460 tok)
 - `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6380 tok)
 - `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~9736 tok)
 
