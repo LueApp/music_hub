@@ -9,10 +9,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.database.ContentObserver
+import android.net.Uri
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.PowerManager
+import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.musichub.MusicHubApplication
@@ -69,6 +74,30 @@ class PlaybackService : Service() {
     // Screen wake lock to keep screen on during playback
     @Suppress("DEPRECATION")
     private var screenWakeLock: PowerManager.WakeLock? = null
+
+    // Debounce gate for the accessibility-services ContentObserver — bursts
+    // of system change notifications (especially during accessibility-service
+    // toggles) can fire several times per second, so the observer only acts
+    // on at most one event per second.
+    @Volatile private var lastA11yObserverFire = 0L
+
+    private val accessibilityObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: Uri?) {
+            val now = System.currentTimeMillis()
+            if (now - lastA11yObserverFire < 1000L) return
+            lastA11yObserverFire = now
+
+            // Skip if the service is already enabled — could be our own write
+            // landing, or a user re-enable. The application-level restore is
+            // idempotent and would no-op, but the early return avoids spinning
+            // up a coroutine for nothing.
+            if (PlayerAccessibilityService.isEnabled(this@PlaybackService)) return
+            if (!AccessibilityGrantStore.wasGranted(this@PlaybackService)) return
+
+            (application as? MusicHubApplication)
+                ?.restoreAccessibilityIfNeeded("ContentObserver")
+        }
+    }
 
     // Playback modes
     enum class RepeatMode {
@@ -132,6 +161,22 @@ class PlaybackService : Service() {
 
         androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
             .registerOnSharedPreferenceChangeListener(launchModePrefListener)
+
+        // Live revocation monitor: AccessibilityManagerService can drop our
+        // service from `enabled_accessibility_services` while our process is
+        // alive (e.g., after a sibling force-stop or a HyperOS background
+        // sweep). Application.onCreate runs at most once per process, so we
+        // need this observer to catch live revocations. Tied to PlaybackService
+        // lifetime because it's the canonical long-lived foreground service.
+        try {
+            contentResolver.registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+                false,
+                accessibilityObserver
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to register accessibility ContentObserver: ${e.message}")
+        }
     }
 
     // Display / config rotation re-applies HyperOS's default freeform bounds
@@ -235,6 +280,9 @@ class PlaybackService : Service() {
         releaseWakeLock()
         releaseScreenWakeLock()
         unregisterDisplayListener()
+        try {
+            contentResolver.unregisterContentObserver(accessibilityObserver)
+        } catch (_: Exception) { }
         try {
             androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
                 .unregisterOnSharedPreferenceChangeListener(launchModePrefListener)
@@ -655,6 +703,15 @@ class PlaybackService : Service() {
         // Skip when in player mode — phones on local hotspot typically have no internet,
         // and the 10s+10s HTTP timeout would block song advancement for up to 20 seconds
         serviceScope.launch {
+            // Wait for any in-flight Shizuku auto-grant to finish before the
+            // cross-app launch. SYSTEM_ALERT_WINDOW being granted is what
+            // suppresses HyperOS's "想要打开 网易云音乐 / Bilibili" dialog;
+            // racing playback against the binder-received grant would let the
+            // dialog appear on first launch after a fresh install / reboot.
+            // Capped at 2s so non-Shizuku users (where the grant job never runs)
+            // pay no penalty.
+            (application as? MusicHubApplication)?.awaitAutoGrantIfRunning()
+
             val availability = if (RemoteMode.isPlayer()) {
                 null // Skip availability check in player mode
             } else {

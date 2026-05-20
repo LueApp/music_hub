@@ -658,6 +658,16 @@ article p {
   margin: 0;
 }
 
+.perm-note {
+  margin: 0 0 16px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(108, 78, 232, 0.08);
+  border-left: 3px solid var(--purple-500, #6c4ee8);
+  font-size: 0.92em;
+  line-height: 1.55;
+}
+
 .perm-tag {
   display: inline-block;
   margin-right: 8px;

@@ -216,6 +216,47 @@
     <string name="qqmusic_auto_open_player_cn">自动进入QQ音乐播放页</string>
     <string name="qqmusic_auto_open_player_desc_cn">跳转QQ音乐后自动点击歌曲卡片或迷你播放栏进入播放页（需要无障碍服务权限）</string>
 
+    <!-- Bulk permission restore (Shizuku-mediated recovery on demand) -->
+    <string name="restore_all_perms_now_cn">立即恢复所有权限</string>
+    <string name="restore_all_perms_now_desc_cn">通过 Shizuku 重新检查并授予所有所需权限（无障碍、悬浮窗、通知监听等）</string>
+
+    <!-- Shizuku bulk auto-grant -->
+    <string name="auto_grant_via_shizuku_cn">通过 Shizuku 自动授予所需权限</string>
+    <string name="auto_grant_via_shizuku_desc_cn">启动或 Shizuku 就绪后自动批量授予无障碍、悬浮窗、通知监听等权限</string>
+    <string name="auto_grant_result_new_cn">已新增 %d 项授权</string>
+    <string name="auto_grant_no_change_cn">无新授权（已全部授予）</string>
+    <string name="auto_grant_shizuku_not_ready_cn">Shizuku 未就绪</string>
+    <string name="auto_grant_pref_disabled_cn">已关闭自动授权</string>
+    <string name="auto_grant_notification_channel_cn">权限提示</string>
+    <string name="auto_grant_notification_channel_desc_cn">Shizuku 自动授权完成时通知用户</string>
+    <string name="auto_grant_notification_title_cn">已通过 Shizuku 自动授予权限</string>
+    <string name="auto_grant_notification_short_cn">%1$d 项：%2$s</string>
+    <string name="auto_grant_notification_long_cn">已自动授予以下权限：\n%s</string>
+
+    <!-- HyperOS wake-path (应用关联启动) auto-confirm -->
+    <string name="wake_path_access_cn">应用关联启动</string>
+    <string name="wake_path_access_desc_cn">HyperOS 限制 App 启动其他 App，每个目标 App 首次启动时弹窗，点击「始终允许」即可永久免确认。点击前往 HyperOS 设置批量预先授权。</string>
+    <string name="wake_path_access_ready_cn">已通过无障碍服务自动确认</string>
+    <string name="wake_path_access_blocked_cn">无障碍服务未运行 - 无法自动确认</string>
+    <string name="wake_path_access_unsupported_cn">非 HyperOS 设备，无需处理</string>
+    <string name="wake_path_access_manual_cn">手动模式 - 每个目标 App 首次弹窗时点击「始终允许」</string>
+    <string name="auto_confirm_wakepath_cn">自动确认应用关联启动（无障碍辅助）</string>
+    <string name="auto_confirm_wakepath_desc_cn">开启后 Tutti 利用无障碍服务自动点击 HyperOS 弹窗的「始终允许」按钮。这是规避 HyperOS 签名权限限制的取巧方案，默认关闭；不开启时由用户手动确认（每 App 仅一次）。</string>
+    <string name="wakepath_guide_title_cn">如何开启链式启动</string>
+    <string name="wakepath_guide_image_desc_cn">演示如何在 HyperOS 系统设置中开启「链式启动」权限</string>
+    <string name="wakepath_guide_go_settings_cn">前往设置</string>
+    <string name="wakepath_guide_cancel_cn">稍后再说</string>
+    <string name="overlay_guide_title_cn">如何开启悬浮窗</string>
+    <string name="overlay_guide_image_desc_cn">演示如何开启「悬浮窗」权限</string>
+    <string name="notification_listener_guide_title_cn">如何开启通知监听</string>
+    <string name="notification_listener_guide_image_desc_cn">演示如何开启「通知监听」权限</string>
+    <string name="accessibility_guide_title_cn">如何开启无障碍服务</string>
+    <string name="accessibility_guide_image_desc_cn">演示如何开启 Tutti 的无障碍服务</string>
+    <string name="write_settings_guide_title_cn">如何开启修改系统设置</string>
+    <string name="write_settings_guide_image_desc_cn">演示如何开启「修改系统设置」权限</string>
+    <string name="usage_stats_guide_title_cn">如何开启应用使用情况</string>
+    <string name="usage_stats_guide_image_desc_cn">演示如何开启「应用使用情况」权限</string>
+
     <!-- Sync -->
     <string name="sync_last_sync">上次同��: %s</string>
     <string name="sync_never">从未同步</string>
