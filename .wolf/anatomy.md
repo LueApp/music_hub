@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-21T06:19:26.146Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-21T06:58:06.312Z
 > Files: 726 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
@@ -758,7 +758,7 @@
 
 ## android-app/app/src/main/java/com/musichub/
 
-- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Tutti's process (~4006 tok)
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Tutti's process (~4224 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
@@ -786,9 +786,9 @@
 ## android-app/app/src/main/java/com/musichub/service/
 
 - `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~7859 tok)
-- `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17981 tok)
+- `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~18213 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
-- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15918 tok)
+- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~16125 tok)
 - `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14235 tok)
 - `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~8022 tok)
 - `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~14062 tok)
@@ -876,7 +876,7 @@
 
 - `design.md` — Context (~2550 tok)
 - `proposal.md` — Why (~1392 tok)
-- `tasks.md` — 1. Bug 1 — Album cover rotation (~1559 tok)
+- `tasks.md` — 1. Bug 1 — Album cover rotation (~1722 tok)
 
 ## openspec/changes/fix-floating-ball-and-freeform-bugs/specs/ball-cover-rotation/
 

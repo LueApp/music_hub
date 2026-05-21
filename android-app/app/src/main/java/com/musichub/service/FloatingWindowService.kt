@@ -1,7 +1,5 @@
 package com.musichub.service
 
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.app.ActivityManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -15,6 +13,7 @@ import android.graphics.PixelFormat
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.ContextThemeWrapper
@@ -24,7 +23,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.LinearInterpolator
 import android.os.Handler
 import android.os.Looper
 import android.widget.ImageButton
@@ -91,9 +89,29 @@ class FloatingWindowService : Service() {
     private var fullModeParams: WindowManager.LayoutParams? = null
     private var miniModeParams: WindowManager.LayoutParams? = null
 
-    // Mini ball rotation animation
-    private var coverRotationAnimator: ObjectAnimator? = null
+    // Mini ball rotation animation.
+    // SPEC: ball-cover-rotation
+    // We drive rotation manually via a Handler tick instead of ObjectAnimator
+    // because users with `animator_duration_scale = 0` (a common developer-
+    // settings tweak — and Tutti targets Shizuku power users) get
+    // `ObjectAnimator.start()` that finishes instantly, jumping the property
+    // to end-value and leaving the cover visibly static.
     private var currentRotatingView: View? = null
+    private var isRotating = false
+    private var rotationStartUptimeMs = 0L
+    private var rotationBaseAngle = 0f
+    private val rotationPeriodMs = 10_000L
+    private val rotationTickMs = 33L  // ~30 fps; smooth enough for a small cover
+    private val rotationTickRunnable = object : Runnable {
+        override fun run() {
+            if (!isRotating) return
+            val view = currentRotatingView ?: return
+            val elapsed = SystemClock.uptimeMillis() - rotationStartUptimeMs
+            val sweep = (elapsed * 360f) / rotationPeriodMs
+            view.rotation = ((rotationBaseAngle + sweep) % 360f + 360f) % 360f
+            progressHandler.postDelayed(this, rotationTickMs)
+        }
+    }
 
     // Coroutine scope for remote operations
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -1364,48 +1382,43 @@ class FloatingWindowService : Service() {
     }
 
     // SPEC: ball-cover-rotation
-    // Rebuild the rotation animator on every PLAYING tick instead of pause/resume.
-    // ObjectAnimator.resume() is a silent no-op after cancel(), and HyperOS has been
-    // observed to leave a paused animator in a stuck state across configuration
-    // changes — always rebuilding from the live view.rotation is simpler and gives
-    // zero visible angle jump across pause→play cycles.
+    // Manual rotation via Handler ticks (see field comments for why we don't
+    // use ObjectAnimator). Idempotent: a second call with the same view while
+    // already rotating is a no-op, so updateProgress's 500 ms cadence won't
+    // restart the spin on every tick.
     private fun startCoverRotation(view: View?) {
         if (view == null) {
             Log.d(TAG, "startCoverRotation: view is null")
             return
         }
-
-        val existing = coverRotationAnimator
-        if (existing != null && existing.isRunning && currentRotatingView === view) {
+        if (isRotating && currentRotatingView === view) {
             return
         }
 
+        // Carry over the live angle so pause→play and view-swap transitions
+        // have zero visible jump. If we were already rotating (e.g. cover
+        // changed but stays rotating), the running tick has just written
+        // view.rotation, so reading it back picks up the latest frame.
         val fromAngle = view.rotation
-        existing?.cancel()
+        progressHandler.removeCallbacks(rotationTickRunnable)
 
         currentRotatingView = view
-        coverRotationAnimator = ObjectAnimator.ofFloat(view, View.ROTATION, fromAngle, fromAngle + 360f).apply {
-            duration = 10_000L
-            repeatCount = ValueAnimator.INFINITE
-            repeatMode = ValueAnimator.RESTART
-            interpolator = LinearInterpolator()
-            start()
-        }
-        Log.d(TAG, "startCoverRotation: built new animator from angle=%.1f°".format(fromAngle))
+        rotationBaseAngle = ((fromAngle % 360f) + 360f) % 360f
+        rotationStartUptimeMs = SystemClock.uptimeMillis()
+        isRotating = true
+        progressHandler.postDelayed(rotationTickRunnable, rotationTickMs)
+        Log.d(TAG, "startCoverRotation: built new animator from angle=%.1f°".format(rotationBaseAngle))
     }
 
     /**
-     * Stop the cover rotation animation, persisting the current angle on the view
-     * so the next start can carry it forward without a visible jump.
+     * Stop the cover rotation. The last tick has already written
+     * view.rotation, so the cover freezes in place and the next start can
+     * carry that angle forward without a visible jump.
      */
     private fun stopCoverRotation() {
-        val animator = coverRotationAnimator ?: return
-        val view = currentRotatingView
-        if (animator.isRunning && view != null) {
-            (animator.animatedValue as? Float)?.let { view.rotation = it }
-        }
-        animator.cancel()
-        coverRotationAnimator = null
+        if (!isRotating) return
+        isRotating = false
+        progressHandler.removeCallbacks(rotationTickRunnable)
         currentRotatingView = null
     }
 

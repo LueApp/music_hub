@@ -90,6 +90,19 @@ class MusicHubApplication : Application() {
      */
     private fun rebindMediaMonitorIfNeeded() {
         if (!MediaMonitorService.isEnabled(this)) return
+        // SPEC: current-platform-playback-isolation
+        // Skip the rebind when the service is already bound (instance != null
+        // means onListenerConnected ran). The Shizuku toggle below tears down
+        // the service and bounces its in-memory state — including
+        // currentPlatformPackage — every time. With MainActivity.onResume
+        // calling us on every UI return, that wipes the platform binding
+        // every 5-10s during normal use, making the strict-filter
+        // getPlaybackInfo return null and the timeout watchdog spuriously
+        // skip QQ Music / Bilibili songs whose metadata takes >5s to load.
+        if (MediaMonitorService.getInstance() != null) {
+            Log.d(TAG, "rebindMediaMonitorIfNeeded: already bound, skipping toggle")
+            return
+        }
         val component = ComponentName(this, MediaMonitorService::class.java)
         val componentString = component.flattenToString()
         if (ShizukuLauncher.rebindNotificationListener(this, componentString)) {

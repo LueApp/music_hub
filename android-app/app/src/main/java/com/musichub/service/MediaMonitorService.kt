@@ -1062,11 +1062,10 @@ class MediaMonitorService : NotificationListenerService() {
         if (controller != null) {
             try {
                 val state = controller.playbackState
-                val metadata = controller.metadata
-                val duration = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-                val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
-
-                if (state != null && duration > 0) {
+                if (state != null) {
+                    val metadata = controller.metadata
+                    val duration = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                    val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
                     val isPlaying = state.state == PlaybackState.STATE_PLAYING
                     val rawPosition = state.position
                     val position = if (isPlaying) {
@@ -1076,10 +1075,21 @@ class MediaMonitorService : NotificationListenerService() {
                         rawPosition
                     }
 
-                    lastKnownPositionByPackage[pkg] = position
-                    lastKnownDurationByPackage[pkg] = duration
-                    if (title != null) lastKnownTitleByPackage[pkg] = title
+                    // Persist a snapshot only when metadata is real; the
+                    // duration=0 / metadata-not-yet-loaded window during a
+                    // platform switch must not poison the fallback.
+                    if (duration > 0) {
+                        lastKnownPositionByPackage[pkg] = position
+                        lastKnownDurationByPackage[pkg] = duration
+                        if (title != null) lastKnownTitleByPackage[pkg] = title
+                    }
 
+                    // Return live info even when duration is still 0 — QQ Music
+                    // takes ~6s to populate metadata after the deep-link launch,
+                    // and during that window PlaybackService.schedulePlaybackTimeout
+                    // (5s) and the floating-ball play/pause icon both need at
+                    // least an `isPlaying` signal. Duration-guarded UI like the
+                    // progress ring skips on duration==0 of its own accord.
                     return PlaybackInfo(
                         isPlaying = isPlaying,
                         position = position,

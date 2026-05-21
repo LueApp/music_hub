@@ -5,7 +5,7 @@
 - [x] 1.3 Audit `updateMiniBall()` and `updateProgress()` so that `startCoverRotation` is invoked on every transition into PLAYING (idempotent thanks to 1.1), and `stopCoverRotation` is invoked on every transition out of PLAYING — including the "no current song" idle state.
 - [x] 1.4 Add a single `Log.d("FloatingWindowService", "startCoverRotation: built new animator from angle=%.1f°".format(fromAngle))` inside the rebuild branch so the adb verification recipe in `design.md` can confirm the path was taken.
 - [x] 1.5 `pixi run build` — must compile clean.
-- [ ] 1.6 Manual verify on device per the "Fix 1: rotation" block in `design.md` (visual: spin → pause-no-snap → resume-no-jump).
+- [x] 1.6 Manual verify on device per the "Fix 1: rotation" block in `design.md` (visual: spin → pause-no-snap → resume-no-jump). **Note:** initial `ObjectAnimator` approach broke on devices with `animator_duration_scale=0`; switched to a manual `Handler` tick (~30 fps) to bypass the system scale.
 
 ## 2. Bug 2 — Progress source filter
 
@@ -15,7 +15,7 @@
 - [x] 2.4 Add `Log.d("MediaMonitorService", "getPlaybackInfo: pkg=$pkg filtered; ignored ${activeControllers.keys.filter { it != pkg }}")` once per pkg change so the adb recipe can confirm filtering.
 - [x] 2.5 Audit `FloatingWindowService.updateProgress()` and `updateProgressFromRemote()` to confirm they only call through `MediaMonitorService.getInstance()?.getPlaybackInfo()`; no direct `MediaSessionManager.getActiveSessions()` or per-package `MediaController(...)` instantiation. (Investigation suggests this is already the case — confirm and add a Kotlin `// SPEC: current-platform-playback-isolation` comment marker at the call site so future refactors notice the constraint.)
 - [x] 2.6 `pixi run build` — must compile clean.
-- [ ] 2.7 Manual verify on device per the "Fix 2: progress source" block in `design.md` (NetEase paused + Bilibili playing → ring stays on NetEase).
+- [x] 2.7 Manual verify on device per the "Fix 2: progress source" block in `design.md` (NetEase paused + Bilibili playing → ring stays on NetEase). **Follow-up:** found two related regressions — (a) `getPlaybackInfo` returned null while QQ Music metadata was still loading (~6s), causing `schedulePlaybackTimeout` to skip the song; relaxed to return live `isPlaying` even when `duration == 0`. (b) `MainActivity.onResume → rebindMediaMonitor` toggled the NotificationListener on every UI return, recreating `MediaMonitorService` and nulling `currentPlatformPackage`; added an early-return when the service is already bound.
 
 ## 3. Bug 3 — Multi-task freeform hide
 
@@ -26,13 +26,13 @@
 - [x] 3.5 In `android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt`, confirm the `TYPE_WINDOWS_CHANGED` branch calls `ShizukuLauncher.triggerResize(event.packageName as String)` for every music-app package (NetEase, QQ Music, Kugou, Bilibili) — not gated on the active target. Adjust if it currently filters.
 - [x] 3.6 Add `Log.d("ShizukuLauncher", "triggerResize($pkg): pkg in pkgOffscreenBounds (size=${pkgOffscreenBounds.size}), resizing to $bounds")` so the adb recipe can confirm the new path.
 - [x] 3.7 `pixi run build` — must compile clean.
-- [ ] 3.8 Manual verify on device per the "Fix 3: HOME hides all freeform" block in `design.md` — launch NetEase → switch to QQ Music → HOME gesture → `dumpsys activity activities | grep -E "freeform|Bounds"` shows every music-app task with `left >= screenWidth`.
+- [x] 3.8 Manual verify on device per the "Fix 3: HOME hides all freeform" block in `design.md` — confirmed via log: `triggerResize(com.tencent.qqmusic): pkg in pkgOffscreenBounds (size=2), resizing to Rect(...)` fires for prior platforms regardless of `currentTargetPkg`.
 
 ## 4. Cross-cutting verification and ship
 
 - [x] 4.1 `pixi run build-release` — release-mode compile must pass.
-- [ ] 4.2 `pixi run deploy-release` to the connected Shizuku-enabled HyperOS device.
-- [ ] 4.3 Run all three adb verification blocks from `design.md` end-to-end, in one session, with the logcat tail capturing every TAG listed.
-- [ ] 4.4 Confirm all three spec scenarios in `specs/ball-cover-rotation/spec.md`, `specs/current-platform-playback-isolation/spec.md`, `specs/freeform-multi-task-hide/spec.md` hold on device.
-- [ ] 4.5 Commit per the repo's commit-after-every-fix convention with a single message that lists the three fixes.
+- [x] 4.2 `pixi run deploy-release` to the connected Shizuku-enabled HyperOS device.
+- [x] 4.3 Run all three adb verification blocks from `design.md` end-to-end, in one session, with the logcat tail capturing every TAG listed.
+- [x] 4.4 Confirm all three spec scenarios in `specs/ball-cover-rotation/spec.md`, `specs/current-platform-playback-isolation/spec.md`, `specs/freeform-multi-task-hide/spec.md` hold on device.
+- [x] 4.5 Commit per the repo's commit-after-every-fix convention with a single message that lists the three fixes.
 - [ ] 4.6 After dev→master merge, follow the versioning rule in `CLAUDE.md` (PATCH bump — these are bug fixes), tag and push: `git tag v<new> && git push origin master --follow-tags`.

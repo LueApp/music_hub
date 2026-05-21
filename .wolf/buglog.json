@@ -2102,6 +2102,54 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-21T06:16:29.040Z"
+    },
+    {
+      "id": "bug-130",
+      "timestamp": "2026-05-21T06:37:09.204Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "No early return/throw for edge case: !isRotating",
+      "fix": "Added guard clause: if (!isRotating)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-21T06:37:24.751Z"
+    },
+    {
+      "id": "bug-131",
+      "timestamp": "2026-05-21T06:51:27.507Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:51:27.507Z"
+    },
+    {
+      "id": "bug-132",
+      "timestamp": "2026-05-21T06:58:00.455Z",
+      "error_message": "Incorrect value in code",
+      "file": "openspec/changes/fix-floating-ball-and-freeform-bugs/tasks.md",
+      "root_cause": "Had `dumpsys activity activities | grep -E \"",
+      "fix": "Changed to `triggerResize(com.tencent.qqmusic): pkg in pkgOff",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:58:00.455Z"
     }
   ]
 }
