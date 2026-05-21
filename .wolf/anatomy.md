@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-21T07:31:35.544Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-21T08:12:06.518Z
 > Files: 726 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
@@ -29,7 +29,7 @@
 - `package-lock.json` — npm lock file (~13821 tok)
 - `package.json` — Node.js package manifest (~100 tok)
 - `pixi.toml` (~679 tok)
-- `README.md` — Project documentation (~2118 tok)
+- `README.md` — Project documentation (~924 tok)
 - `release.jks` (~681 tok)
 - `release.jks.b64` (~950 tok)
 - `wrangler.jsonc` (~70 tok)
