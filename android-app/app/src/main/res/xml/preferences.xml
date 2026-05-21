@@ -21,6 +21,13 @@
             android:summary="后台小窗启动需要 Shizuku 提供 shell 权限"
             app:iconSpaceReserved="false" />
 
+        <SwitchPreferenceCompat
+            android:key="auto_grant_via_shizuku"
+            android:title="@string/auto_grant_via_shizuku_cn"
+            android:summary="@string/auto_grant_via_shizuku_desc_cn"
+            android:defaultValue="true"
+            app:iconSpaceReserved="false" />
+
         <Preference
             android:key="launch_mode_health"
             android:title="@string/launch_mode_health_title"
@@ -76,6 +83,25 @@
             android:key="accessibility_access"
             android:title="@string/accessibility_access_cn"
             android:summary="@string/accessibility_service_desc_cn"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="restore_a11y_now"
+            android:title="@string/restore_all_perms_now_cn"
+            android:summary="@string/restore_all_perms_now_desc_cn"
+            app:iconSpaceReserved="false" />
+
+        <Preference
+            android:key="wake_path_access"
+            android:title="@string/wake_path_access_cn"
+            android:summary="@string/wake_path_access_desc_cn"
+            app:iconSpaceReserved="false" />
+
+        <SwitchPreferenceCompat
+            android:key="auto_confirm_wakepath"
+            android:title="@string/auto_confirm_wakepath_cn"
+            android:summary="@string/auto_confirm_wakepath_desc_cn"
+            android:defaultValue="false"
             app:iconSpaceReserved="false" />
 
         <Preference

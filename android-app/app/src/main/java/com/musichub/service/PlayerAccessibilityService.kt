@@ -15,6 +15,27 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
 /**
+ * Persistent record of whether the user has ever granted PlayerAccessibilityService.
+ * AOSP's `am force-stop` handler silently revokes the grant on the next
+ * AccessibilityManagerService sweep, so we need a separate memory of "the user
+ * said yes once" to know whether to attempt Shizuku-mediated restoration later.
+ * Cleared only when the user clears app data.
+ */
+object AccessibilityGrantStore {
+    internal const val A11Y_PREFS = "musichub_a11y"
+    internal const val PREF_GRANTED = "accessibility_granted"
+
+    fun setGranted(context: Context) {
+        context.getSharedPreferences(A11Y_PREFS, Context.MODE_PRIVATE)
+            .edit().putBoolean(PREF_GRANTED, true).apply()
+    }
+
+    fun wasGranted(context: Context): Boolean =
+        context.getSharedPreferences(A11Y_PREFS, Context.MODE_PRIVATE)
+            .getBoolean(PREF_GRANTED, false)
+}
+
+/**
  * Accessibility service that can click the mini player bar in QQ Music
  * to navigate to the full player/lyrics page.
  *
@@ -45,6 +66,12 @@ class PlayerAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        // Record the grant the instant the system binds us. Closes the gap where
+        // the user enables the service while the app process is alive — in that
+        // flow Application.onCreate never re-fires to observe the grant, so the
+        // pref would otherwise stay false and the post-force-stop restore path
+        // would never run.
+        AccessibilityGrantStore.setGranted(applicationContext)
         instance = this
         Log.d(TAG, "PlayerAccessibilityService connected")
 
@@ -57,20 +84,25 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
 
         // Runtime serviceInfo mirrors accessibility_service_config.xml. This
-        // service handles two unrelated jobs across all four music apps:
+        // service handles three unrelated jobs across the music apps + the
+        // HyperOS Security Center:
         //   - QQ Music: receive TYPE_WINDOW_STATE/CONTENT_CHANGED, then use
         //     canRetrieveWindowContent + canPerformGestures to tap the
         //     mini-player bar and open the lyrics page.
         //   - All four apps in background-launch mode: receive
         //     TYPE_WINDOWS_CHANGED so we can re-fire ShizukuLauncher.triggerResize
         //     when HyperOS pulls our freeform task back on-screen.
+        //   - HyperOS Security Center wake-path dialog (`ConfirmStartActivity`):
+        //     auto-tap "始终允许" so the per-(Tutti, target) confirmation only
+        //     interrupts the user once and never again. This handles the
+        //     "应用关联启动" permission via Shizuku-restored accessibility.
         // FLAG_RETRIEVE_INTERACTIVE_WINDOWS is required for TYPE_WINDOWS_CHANGED
         // event delivery.
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
                     AccessibilityEvent.TYPE_WINDOWS_CHANGED
-            packageNames = ShizukuLauncher.musicAppPackages().toTypedArray()
+            packageNames = ShizukuLauncher.accessibilityListenPackages().toTypedArray()
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             notificationTimeout = 100
             flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
@@ -88,6 +120,26 @@ class PlayerAccessibilityService : AccessibilityService() {
             val pkg = event.packageName?.toString()
             if (pkg != null && pkg in ShizukuLauncher.musicAppPackages()) {
                 ShizukuLauncher.triggerResize(pkg)
+            }
+        }
+
+        // HyperOS Security Center wake-path dialog. Tutti's startActivity
+        // call into a music app triggers `com.miui.wakepath.ui.ConfirmStartActivity`
+        // — a per-(source, target) confirmation. The proper HyperOS allowlist
+        // sits behind `miui.permission.READ_AND_WIRTE_PERMISSION_MANAGER`
+        // (signature-only), so neither Shizuku nor anything short of root can
+        // pre-allow programmatically. The dialog is the user's intended grant
+        // surface; they tap "始终允许" once per target and HyperOS remembers.
+        //
+        // Opt-in workaround: when the user explicitly enables the
+        // `auto_confirm_wakepath` preference, this service taps "始终允许"
+        // for them. Default is OFF — leaving manual confirmation as the
+        // honest UX.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            && event.packageName == ShizukuLauncher.MIUI_SECURITY_CENTER_PACKAGE) {
+            val cls = event.className?.toString().orEmpty()
+            if (cls.contains("ConfirmStartActivity") && isAutoConfirmWakePathEnabled()) {
+                handler.postDelayed({ autoConfirmWakePath() }, 250)
             }
         }
 
@@ -118,6 +170,76 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
         Log.d(TAG, "PlayerAccessibilityService destroyed")
     }
+
+    /**
+     * Auto-tap "始终允许" on HyperOS's wake-path confirmation dialog. The
+     * dialog is launched as `com.miui.wakepath.ui.ConfirmStartActivity` and
+     * has three buttons: 本次允许 / 始终允许 / 拒绝. We click 始终允许 so
+     * HyperOS records the (Tutti, target) pair in its allowlist and the
+     * dialog stops firing for that pair on subsequent launches.
+     *
+     * Safety: only fires when the dialog text actually references Tutti
+     * (the dialog body reads "Tutti 想要打开 XXX"). This guards against
+     * accidentally clicking "always allow" on some other system dialog that
+     * happens to surface in the Security Center package.
+     */
+    private fun autoConfirmWakePath() {
+        val rootNode = rootInActiveWindow ?: run {
+            Log.d(TAG, "Wake-path auto-confirm: rootInActiveWindow null")
+            return
+        }
+        try {
+            // Verify the dialog actually belongs to Tutti's launch by
+            // looking for "Tutti" or the package name in the body text.
+            val containsTuttiLabel = nodeTextContainsAny(
+                rootNode,
+                listOf("Tutti", "管乐", "Music Hub", packageName)
+            )
+            if (!containsTuttiLabel) {
+                Log.d(TAG, "Wake-path dialog present but no Tutti reference; skipping auto-tap")
+                return
+            }
+            val allowAlwaysNodes = rootNode.findAccessibilityNodeInfosByText("始终允许")
+            val button = allowAlwaysNodes.firstOrNull { node ->
+                node.className?.toString()?.contains("Button") == true || node.isClickable
+            } ?: allowAlwaysNodes.firstOrNull()
+            if (button == null) {
+                Log.w(TAG, "Wake-path dialog: '始终允许' button not found")
+                return
+            }
+            val rect = android.graphics.Rect()
+            button.getBoundsInScreen(rect)
+            val x = rect.exactCenterX()
+            val y = rect.exactCenterY()
+            if (performGestureClick(x, y)) {
+                Log.i(TAG, "Auto-tapped 始终允许 on HyperOS wake-path dialog at ($x, $y)")
+            } else if (button.isClickable) {
+                button.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                Log.i(TAG, "Auto-clicked 始终允许 via ACTION_CLICK (gesture rejected)")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "autoConfirmWakePath failed: ${e.message}")
+        } finally {
+            @Suppress("DEPRECATION")
+            rootNode.recycle()
+        }
+    }
+
+    private fun nodeTextContainsAny(node: AccessibilityNodeInfo, needles: List<String>): Boolean {
+        val text = node.text?.toString().orEmpty()
+        if (needles.any { text.contains(it, ignoreCase = true) }) return true
+        val desc = node.contentDescription?.toString().orEmpty()
+        if (needles.any { desc.contains(it, ignoreCase = true) }) return true
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            if (nodeTextContainsAny(child, needles)) return true
+        }
+        return false
+    }
+
+    private fun isAutoConfirmWakePathEnabled(): Boolean =
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            .getBoolean(PREF_AUTO_CONFIRM_WAKEPATH, false)
 
     /**
      * Request clicking the QQ Music mini player bar.
@@ -519,6 +641,7 @@ class PlayerAccessibilityService : AccessibilityService() {
         private const val MAX_RETRIES = 16  // 16 * 500ms = 8 seconds
         private const val MAX_TIMEOUT_MS = 8000L
         const val ACTION_REQUEST_CLICK = "com.musichub.action.REQUEST_CLICK_MINIPLAYER"
+        const val PREF_AUTO_CONFIRM_WAKEPATH = "auto_confirm_wakepath"
 
         // QQ Music obfuscated resource IDs — update these when QQ Music changes them
         private const val ID_MUSIC_CARD = "cxy"

@@ -1,21 +1,36 @@
 package com.musichub
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.preference.PreferenceManager
 import com.musichub.data.local.MusicHubDatabase
 import com.musichub.data.repository.MusicRepository
+import com.musichub.service.AccessibilityGrantStore
+import com.musichub.service.AutoGrantResult
 import com.musichub.service.DeepLinkLauncher
 import com.musichub.service.MediaMonitorService
 import com.musichub.service.PlayerAccessibilityService
 import com.musichub.service.ShizukuLauncher
 import com.musichub.sync.SyncScheduler
+import com.musichub.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import rikka.shizuku.Shizuku
 
 class MusicHubApplication : Application() {
 
@@ -27,10 +42,16 @@ class MusicHubApplication : Application() {
         MusicRepository(database)
     }
 
+    // Background scope for restore retries triggered from the main thread (e.g.,
+    // Shizuku binder-received listener) — we always dispatch to IO before
+    // touching SharedPreferences / Settings.Secure / Shizuku binder IPC.
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     companion object {
         private const val TAG = "MusicHubApplication"
-        private const val A11Y_PREFS = "musichub_a11y"
-        private const val PREF_GRANTED = "accessibility_granted"
+        const val PREF_AUTO_GRANT = "auto_grant_via_shizuku"
+        private const val PERMISSIONS_CHANNEL = "permissions_channel"
+        private const val NOTIFICATION_ID_AUTO_GRANT = 1102
         private lateinit var instance: MusicHubApplication
 
         fun getInstance(): MusicHubApplication = instance
@@ -41,7 +62,8 @@ class MusicHubApplication : Application() {
         instance = this
         initSyncScheduler()
         rebindMediaMonitorIfNeeded()
-        restoreAccessibilityIfRevoked()
+        runRestoreCheck("onCreate")
+        registerShizukuBinderListener()
         DeepLinkLauncher.recoverOrphanedRotationSnapshot(this)
     }
 
@@ -102,6 +124,82 @@ class MusicHubApplication : Application() {
     fun rebindMediaMonitor() = rebindMediaMonitorIfNeeded()
 
     /**
+     * Public, idempotent restore-check entry point. Callers fire this from
+     * MainActivity.onResume, the PlaybackService ContentObserver, the
+     * Settings diagnostic action, and the Shizuku binder-received listener.
+     * Always dispatches to a background dispatcher because the restore path
+     * touches Shizuku binder IPC.
+     */
+    fun restoreAccessibilityIfNeeded(reason: String) {
+        appScope.launch {
+            runRestoreCheck(reason)
+        }
+    }
+
+    /**
+     * Public, idempotent bulk-grant entry point. Reads the
+     * [PREF_AUTO_GRANT] preference (default `true`); when enabled and
+     * Shizuku is `READY`, attempts to grant every special permission Tutti
+     * needs and posts a one-shot notification listing what was newly
+     * granted. Called from the Shizuku binder-received listener at app
+     * startup and from the Settings diagnostic action.
+     *
+     * @return the [AutoGrantResult] (empty/no-op when the pref is OFF or
+     *   Shizuku is not READY).
+     */
+    fun runAutoGrantIfEnabled(reason: String): AutoGrantResult {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        if (!prefs.getBoolean(PREF_AUTO_GRANT, true)) {
+            Log.d(TAG, "autoGrant skipped: pref disabled (reason=$reason)")
+            return AutoGrantResult(emptyList(), ShizukuLauncher.status(this))
+        }
+        val result = ShizukuLauncher.autoGrantAllPermissions(this)
+        Log.i(
+            TAG,
+            "runAutoGrantIfEnabled reason=$reason status=${result.shizukuStatus} " +
+                "newly=${result.newlyGranted.map { it.key }} failed=${result.failed.map { it.key }}"
+        )
+        if (result.newlyGranted.isNotEmpty()) {
+            showAutoGrantNotification(result.newlyGranted)
+        }
+        return result
+    }
+
+    /**
+     * Same as [runAutoGrantIfEnabled] but dispatched to a background
+     * coroutine. Use this from main-thread callers (e.g., the Shizuku
+     * binder-received listener) that should not block on Shizuku IPC.
+     *
+     * The returned Job is stashed as [lastAutoGrantJob] so playback code can
+     * `awaitAutoGrantIfRunning` before launching a deep link — that prevents
+     * the HyperOS "想要打开 网易云音乐" dialog from appearing when the user
+     * taps play before the asynchronous grant finishes.
+     */
+    fun runAutoGrantInBackground(reason: String): Job {
+        val job = appScope.launch {
+            runAutoGrantIfEnabled(reason)
+        }
+        lastAutoGrantJob = job
+        return job
+    }
+
+    /**
+     * Suspend until any in-flight `runAutoGrantInBackground` job completes,
+     * up to [timeoutMs] milliseconds. Safe to call when no job is running
+     * (returns immediately). Used by `PlaybackService.launchCurrentSong` to
+     * ensure SYSTEM_ALERT_WINDOW / WRITE_SETTINGS / accessibility / listener
+     * grants are in place before the cross-app launch fires.
+     */
+    suspend fun awaitAutoGrantIfRunning(timeoutMs: Long = 2000L) {
+        val job = lastAutoGrantJob ?: return
+        if (job.isCompleted) return
+        withTimeoutOrNull(timeoutMs) { job.join() }
+    }
+
+    @Volatile
+    private var lastAutoGrantJob: Job? = null
+
+    /**
      * AOSP's `am force-stop` handler puts the package into `stopped=true`
      * state. AccessibilityManagerService excludes services from stopped
      * packages on its next sweep, which removes them from the
@@ -116,35 +214,121 @@ class MusicHubApplication : Application() {
      * stop from App info. The user can't realistically avoid all of
      * these.
      *
-     * Mitigation: on every app launch, if the user previously granted one
-     * of our accessibility services (tracked in SharedPreferences any
-     * time we observe them enabled) but the service is now missing, ask
-     * Shizuku to re-write the setting. Writing
+     * Mitigation: on every reasonable trigger (process start, Shizuku
+     * binder connected, MainActivity.onResume, accessibility settings
+     * ContentObserver, diagnostic action), if the user previously granted
+     * the service (tracked in [AccessibilityGrantStore]) but it is now
+     * missing from the setting, ask Shizuku to re-write it. Writing
      * `enabled_accessibility_services` needs WRITE_SECURE_SETTINGS, which
-     * is granted to shell UID — exactly what Shizuku provides. Users
-     * without Shizuku see no restore but get the same broken-old
-     * behavior; users with Shizuku get silent recovery.
+     * is granted to shell UID — exactly what Shizuku provides.
      */
-    private fun restoreAccessibilityIfRevoked() {
-        val prefs = getSharedPreferences(A11Y_PREFS, Context.MODE_PRIVATE)
+    private fun runRestoreCheck(reason: String) {
         val enabled = PlayerAccessibilityService.isEnabled(this)
-        val previouslyGranted = prefs.getBoolean(PREF_GRANTED, false)
-        Log.d(TAG, "restoreAccessibilityIfRevoked enabled=$enabled previouslyGranted=$previouslyGranted")
+        val previouslyGranted = AccessibilityGrantStore.wasGranted(this)
+        Log.d(
+            TAG,
+            "restoreAccessibilityIfNeeded reason=$reason enabled=$enabled previouslyGranted=$previouslyGranted"
+        )
 
-        // Remember once we've ever observed the service as enabled. Stays
-        // remembered until the user clears app data.
+        // Idempotent short-circuit: when the service is already enabled, refresh
+        // the pref and return without contacting Shizuku. Lets every trigger
+        // point call this freely without redundant work.
         if (enabled) {
-            prefs.edit().putBoolean(PREF_GRANTED, true).apply()
+            AccessibilityGrantStore.setGranted(this)
             return
         }
 
         if (!previouslyGranted) return
 
         val component = "$packageName/${PlayerAccessibilityService::class.java.canonicalName}"
+        val status = ShizukuLauncher.status(this)
         if (ShizukuLauncher.restoreAccessibilityServices(this, setOf(component))) {
-            Log.i(TAG, "Restored revoked accessibility service via Shizuku: $component")
+            Log.i(
+                TAG,
+                "Restored revoked accessibility service via Shizuku: $component (reason=$reason)"
+            )
         } else {
-            Log.d(TAG, "Accessibility service revoked but couldn't restore (Shizuku unavailable or denied): $component")
+            Log.w(
+                TAG,
+                "Accessibility service revoked but Shizuku restore failed: $component (status=$status, reason=$reason)"
+            )
+        }
+    }
+
+    /**
+     * Shizuku's binder connects asynchronously through `ShizukuProvider`. If
+     * the binder isn't bound yet when [onCreate] runs, the synchronous restore
+     * attempt at process start cannot reach shell UID and silently fails. The
+     * sticky listener fires immediately if the binder is already bound, and
+     * otherwise fires on the next bind — covering the timing race without
+     * polling. Wrapped in try/catch so a missing-symbol or transient-throwable
+     * scenario can't block app startup.
+     */
+    private fun registerShizukuBinderListener() {
+        try {
+            Shizuku.addBinderReceivedListenerSticky {
+                // Both the targeted accessibility restore and the broader bulk
+                // auto-grant run from this single trigger. Dispatch each to IO
+                // to keep the binder-receive callback (main thread) snappy.
+                restoreAccessibilityIfNeeded("shizuku-binder-received")
+                runAutoGrantInBackground("shizuku-binder-received")
+            }
+        } catch (e: Throwable) {
+            Log.w(
+                TAG,
+                "Failed to register Shizuku binder listener: ${e.javaClass.simpleName}: ${e.message}"
+            )
+        }
+    }
+
+    /**
+     * Lazily create the "permissions" notification channel and post the
+     * auto-grant notification. The channel is `IMPORTANCE_LOW` so it never
+     * peeks or makes a sound. The notification is dismissable (`setAutoCancel`
+     * + no `setOngoing`); tapping it opens [MainActivity].
+     */
+    private fun showAutoGrantNotification(newlyGranted: List<com.musichub.service.PermissionState>) {
+        if (newlyGranted.isEmpty()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                PERMISSIONS_CHANNEL,
+                getString(R.string.auto_grant_notification_channel_cn),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = getString(R.string.auto_grant_notification_channel_desc_cn)
+                setShowBadge(false)
+            }
+            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+        }
+        val names = newlyGranted.joinToString("、") { it.displayName }
+        val tapIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val notification = NotificationCompat.Builder(this, PERMISSIONS_CHANNEL)
+            .setSmallIcon(R.drawable.ic_music_note)
+            .setContentTitle(getString(R.string.auto_grant_notification_title_cn))
+            .setContentText(
+                getString(R.string.auto_grant_notification_short_cn, newlyGranted.size, names)
+            )
+            .setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(getString(R.string.auto_grant_notification_long_cn, names))
+            )
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setContentIntent(tapIntent)
+            .build()
+        try {
+            NotificationManagerCompat.from(this)
+                .notify(NOTIFICATION_ID_AUTO_GRANT, notification)
+        } catch (e: SecurityException) {
+            // POST_NOTIFICATIONS not yet propagated on this process — silently
+            // best-effort. The next launch will re-check and find everything
+            // already granted, including POST_NOTIFICATIONS.
+            Log.w(TAG, "Auto-grant notify suppressed: ${e.message}")
         }
     }
 

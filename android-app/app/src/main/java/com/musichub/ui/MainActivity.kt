@@ -86,12 +86,6 @@ class MainActivity : AppCompatActivity() {
         setupNowPlayingBar()
         showSetupIfFirstRun()
 
-        // HyperOS frequently leaves MediaMonitorService unbound after the
-        // process is killed (which happens between playback sessions). Force
-        // a rebind every time the user opens the UI so auto-advance keeps
-        // working.
-        (application as? MusicHubApplication)?.rebindMediaMonitor()
-
         if (RemoteMode.isController()) {
             // In controller mode, listen to remote state updates instead of binding local service
             RemoteClient.addStateListener(remoteStateListener)
@@ -109,6 +103,20 @@ class MainActivity : AppCompatActivity() {
 
         // Handle share intent
         handleIntent(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // HyperOS frequently leaves MediaMonitorService unbound after the
+        // process is killed (which happens between playback sessions). Force
+        // a rebind every time the user opens or returns to the UI so
+        // auto-advance keeps working. Also re-fire the Shizuku-mediated
+        // accessibility restore here — Application.onCreate covers the
+        // first-process-start path, but onResume fires for every return to
+        // the UI and catches revocations that happened while we were away.
+        val app = application as? MusicHubApplication
+        app?.rebindMediaMonitor()
+        app?.restoreAccessibilityIfNeeded("MainActivity.onResume")
     }
 
     override fun onNewIntent(intent: Intent?) {

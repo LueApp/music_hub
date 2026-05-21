@@ -1,14 +1,51 @@
 package com.musichub.service
 
+import android.app.AppOpsManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Build
+import android.os.Process
 import android.provider.Settings
 import android.util.Log
+import androidx.core.content.ContextCompat
 import java.util.concurrent.atomic.AtomicLong
 import rikka.shizuku.Shizuku
+
+/**
+ * Status of one permission's auto-grant attempt. Surfaced back to UI / logs so
+ * the user can see which permissions were missing, which were granted, and
+ * which ones the shell command could not satisfy.
+ */
+data class PermissionState(
+    val key: String,
+    val displayName: String,
+    val alreadyGranted: Boolean,
+    val grantAttempted: Boolean,
+    val grantSucceeded: Boolean,
+)
+
+/**
+ * Aggregate of all permission states from one `autoGrantAllPermissions` call.
+ * `newlyGranted` is the subset the notification cares about; `failed` lets
+ * callers decide whether to follow up with a Toast or a deeper diagnostic.
+ */
+data class AutoGrantResult(
+    val states: List<PermissionState>,
+    val shizukuStatus: ShizukuLauncher.Status,
+) {
+    val newlyGranted: List<PermissionState>
+        get() = states.filter { !it.alreadyGranted && it.grantSucceeded }
+    val attempted: List<PermissionState>
+        get() = states.filter { it.grantAttempted }
+    val failed: List<PermissionState>
+        get() = states.filter { it.grantAttempted && !it.grantSucceeded }
+    val allReady: Boolean
+        get() = states.isNotEmpty() && states.all { it.alreadyGranted || it.grantSucceeded }
+}
 
 /**
  * Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID
@@ -518,6 +555,20 @@ object ShizukuLauncher {
     )
 
     /**
+     * The HyperOS Security Center package — host of the
+     * `com.miui.wakepath.ui.ConfirmStartActivity` dialog that asks the user
+     * to confirm cross-app launches ("Tutti 想要打开 QQ 音乐"). The
+     * PlayerAccessibilityService also listens to this package so it can
+     * auto-tap "始终允许" the first time the dialog appears for each
+     * (Tutti → target) pair; after that, HyperOS records the choice and
+     * the dialog stops firing.
+     */
+    const val MIUI_SECURITY_CENTER_PACKAGE = "com.miui.securitycenter"
+
+    fun accessibilityListenPackages(): Set<String> =
+        musicAppPackages() + MIUI_SECURITY_CENTER_PACKAGE
+
+    /**
      * Fire-and-forget single-shot resize. Called by the AccessibilityService
      * when a music-app window's bounds change (typically because HyperOS
      * pulled the task back on-screen during a home gesture). Skips if we
@@ -727,33 +778,301 @@ object ShizukuLauncher {
      *
      * Preserves any third-party services already in the list; appends only
      * the components in [desired] that are missing.
+     *
+     * Component-name matching is form-tolerant: a desired entry written as
+     * `pkg/com.full.Class` is treated as already-present if the setting
+     * stores `pkg/.Class` (relative form). The system uses canonical form on
+     * API 26+ HyperOS empirically, but defensive normalization protects
+     * against future Android versions that may rewrite to either form.
+     *
+     * After writing the setting, reads it back via Settings.Secure to verify
+     * the desired components actually landed (the shell call exiting 0 only
+     * means the command ran — it does not guarantee the value persisted; on
+     * some ROMs an over-aggressive security audit can roll back the write).
+     * Returns true iff exit == 0 AND every desired component is observed in
+     * the post-write read.
      */
     fun restoreAccessibilityServices(context: Context, desired: Set<String>): Boolean {
-        if (status(context) != Status.READY) {
-            Log.d(TAG, "Shizuku not ready, can't restore accessibility services")
+        val currentStatus = status(context)
+        if (currentStatus != Status.READY) {
+            Log.d(TAG, "restoreA11y skipped: Shizuku status=$currentStatus")
             return false
         }
         if (desired.isEmpty()) return true
 
-        val current = Settings.Secure.getString(
+        val before = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ).orEmpty()
-        val existing = current.split(':').filter { it.isNotBlank() }.toMutableSet()
-        val missing = desired - existing
-        if (missing.isEmpty()) return true
+        val existing = before.split(':').filter { it.isNotBlank() }
+        val missing = desired.filter { !isComponentPresent(it, existing) }.toSet()
+        if (missing.isEmpty()) {
+            Log.i(TAG, "restoreA11y no-op: desired components already present (before='$before')")
+            return true
+        }
 
-        val merged = (existing + desired).joinToString(":")
+        val merged = (existing + missing).joinToString(":")
         val script =
             "settings put secure enabled_accessibility_services '$merged' && settings put secure accessibility_enabled 1"
         return try {
             val proc = newShizukuProcess(arrayOf("sh", "-c", script)) ?: return false
             val exit = proc.waitFor()
-            Log.i(TAG, "Shizuku restoreAccessibilityServices missing=$missing exit=$exit")
-            exit == 0
+            val after = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ).orEmpty()
+            val afterEntries = after.split(':').filter { it.isNotBlank() }
+            val landed = desired.all { isComponentPresent(it, afterEntries) }
+            val logMsg =
+                "restoreA11y exit=$exit landed=$landed missing=$missing before='$before' merged='$merged' after='$after'"
+            if (landed) {
+                Log.i(TAG, logMsg)
+            } else {
+                Log.w(TAG, logMsg)
+            }
+            exit == 0 && landed
         } catch (e: Throwable) {
-            Log.w(TAG, "Shizuku restoreAccessibilityServices failed: ${e.message}")
+            Log.w(TAG, "restoreA11y failed: ${e.javaClass.simpleName}: ${e.message}")
             false
+        }
+    }
+
+    /**
+     * Form-tolerant membership: a desired component like `pkg/com.full.Class`
+     * matches both the canonical entry `pkg/com.full.Class` and the relative
+     * entry `pkg/.Class` (where `.Class` resolves to `pkg.Class` once joined
+     * with the package). Likewise the other direction. Anything that doesn't
+     * have a `/` separator falls back to exact equality.
+     */
+    private fun isComponentPresent(component: String, existing: Collection<String>): Boolean {
+        if (existing.contains(component)) return true
+        val parts = component.split('/', limit = 2)
+        if (parts.size != 2) return false
+        val pkg = parts[0]
+        val cls = parts[1]
+        val alternative = when {
+            cls.startsWith(".") -> "$pkg/$pkg$cls"
+            cls.startsWith("$pkg.") -> "$pkg/." + cls.removePrefix("$pkg.")
+            else -> null
+        }
+        return alternative != null && existing.contains(alternative)
+    }
+
+    /**
+     * Bulk auto-grant every special permission Tutti needs, via shell commands
+     * delivered through Shizuku. Skips permissions that are already granted, so
+     * repeated invocations are cheap and idempotent.
+     *
+     * Order matters: POST_NOTIFICATIONS is granted first so the auto-grant
+     * notification can be posted afterwards. Accessibility is granted last via
+     * `restoreAccessibilityServices` (so the merge-with-existing logic
+     * preserves any third-party services already in the list).
+     *
+     * Returns an [AutoGrantResult] enumerating each permission's pre/post state.
+     * When Shizuku is not READY, returns immediately with an empty result and a
+     * `Log.d` line identifying the blocker.
+     */
+    fun autoGrantAllPermissions(context: Context): AutoGrantResult {
+        val currentStatus = status(context)
+        if (currentStatus != Status.READY) {
+            Log.d(TAG, "autoGrant skipped: status=$currentStatus")
+            return AutoGrantResult(emptyList(), currentStatus)
+        }
+        val pkg = context.packageName
+        val states = mutableListOf<PermissionState>()
+
+        // 1. POST_NOTIFICATIONS — granted first so notify() is allowed afterwards.
+        states += grantViaShell(
+            key = "POST_NOTIFICATIONS",
+            displayName = "通知发送",
+            probe = { isPostNotificationsGranted(context) },
+            cmd = "pm grant $pkg android.permission.POST_NOTIFICATIONS",
+        )
+
+        // 2. SYSTEM_ALERT_WINDOW — floating ball overlay.
+        states += grantViaShell(
+            key = "SYSTEM_ALERT_WINDOW",
+            displayName = "悬浮窗",
+            probe = { Settings.canDrawOverlays(context) },
+            cmd = "appops set $pkg SYSTEM_ALERT_WINDOW allow",
+        )
+
+        // 3. WRITE_SETTINGS — NetEase landscape rotation workaround.
+        states += grantViaShell(
+            key = "WRITE_SETTINGS",
+            displayName = "修改系统设置",
+            probe = { Settings.System.canWrite(context) },
+            cmd = "appops set $pkg WRITE_SETTINGS allow",
+        )
+
+        // 4. PACKAGE_USAGE_STATS — double-click floating-ball navigation.
+        states += grantViaShell(
+            key = "PACKAGE_USAGE_STATS",
+            displayName = "应用使用情况",
+            probe = { isUsageStatsGranted(context) },
+            cmd = "appops set $pkg GET_USAGE_STATS allow",
+        )
+
+        // 5. NotificationListener (MediaMonitorService) — auto-advance detection.
+        val listenerCn = ComponentName(context, MediaMonitorService::class.java).flattenToString()
+        states += grantViaShell(
+            key = "NOTIFICATION_LISTENER",
+            displayName = "通知访问",
+            probe = { MediaMonitorService.isEnabled(context) },
+            cmd = "cmd notification allow_listener $listenerCn",
+        )
+
+        // 6. HyperOS-specific MIUIOP(10021) — controls the "想要打开 XX 音乐"
+        // background-activity-launch dialog that fires when Tutti launches a
+        // music app's deep link. Not in the public appops vocabulary; the
+        // probe via `appops get <pkg> 10021` returns "MIUIOP(10021): allow"
+        // on HyperOS and an error / no-MIUIOP output on stock Android — so
+        // the entry self-skips on non-HyperOS devices.
+        val miuiBalCurrent = probeMiuiOp(context.packageName, "10021")
+        if (miuiBalCurrent != null) {
+            val alreadyAllow = miuiBalCurrent == "allow"
+            val attempted = !alreadyAllow
+            val after: Boolean
+            if (alreadyAllow) {
+                after = true
+            } else {
+                val proc = newShizukuProcess(
+                    arrayOf("appops", "set", context.packageName, "10021", "allow")
+                )
+                val exit = proc?.waitFor() ?: -1
+                Thread.sleep(150)
+                after = probeMiuiOp(context.packageName, "10021") == "allow"
+                if (exit != 0 || !after) {
+                    Log.w(
+                        TAG,
+                        "autoGrant HYPEROS_BAL failed: exit=$exit before=$miuiBalCurrent after=$after"
+                    )
+                }
+            }
+            states += PermissionState(
+                key = "HYPEROS_BAL",
+                displayName = "应用启动",
+                alreadyGranted = alreadyAllow,
+                grantAttempted = attempted,
+                grantSucceeded = after,
+            )
+        }
+
+        // 7. Accessibility — re-use restoreAccessibilityServices so the
+        // existing setting (other apps' services) is preserved.
+        val a11yCn = "$pkg/${PlayerAccessibilityService::class.java.canonicalName}"
+        val a11yBefore = PlayerAccessibilityService.isEnabled(context)
+        val a11yAttempted = !a11yBefore
+        val a11yAfter = if (a11yBefore) {
+            true
+        } else {
+            restoreAccessibilityServices(context, setOf(a11yCn))
+            Thread.sleep(150)
+            PlayerAccessibilityService.isEnabled(context)
+        }
+        states += PermissionState(
+            key = "ACCESSIBILITY",
+            displayName = "无障碍服务",
+            alreadyGranted = a11yBefore,
+            grantAttempted = a11yAttempted,
+            grantSucceeded = a11yAfter,
+        )
+
+        val result = AutoGrantResult(states, currentStatus)
+        Log.i(
+            TAG,
+            "autoGrant newly=${result.newlyGranted.map { it.key }} " +
+                "alreadyGranted=${states.count { it.alreadyGranted }} " +
+                "failed=${result.failed.map { it.key }} total=${states.size}"
+        )
+        return result
+    }
+
+    /**
+     * Probe → if missing, run the shell command via Shizuku → wait ~150 ms for
+     * the system to propagate the change → re-probe → record the result.
+     */
+    private fun grantViaShell(
+        key: String,
+        displayName: String,
+        probe: () -> Boolean,
+        cmd: String,
+    ): PermissionState {
+        val before = probe()
+        if (before) {
+            return PermissionState(
+                key = key,
+                displayName = displayName,
+                alreadyGranted = true,
+                grantAttempted = false,
+                grantSucceeded = true,
+            )
+        }
+        val proc = newShizukuProcess(arrayOf("sh", "-c", cmd))
+        val exit = proc?.waitFor() ?: -1
+        Thread.sleep(150)
+        val after = probe()
+        if (exit != 0 || !after) {
+            Log.w(TAG, "autoGrant $key failed: cmd='$cmd' exit=$exit before=$before after=$after")
+        }
+        return PermissionState(
+            key = key,
+            displayName = displayName,
+            alreadyGranted = false,
+            grantAttempted = true,
+            grantSucceeded = after,
+        )
+    }
+
+    private fun isPostNotificationsGranted(context: Context): Boolean {
+        // POST_NOTIFICATIONS only exists as a runtime permission on API 33+.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(
+            context,
+            "android.permission.POST_NOTIFICATIONS"
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isUsageStatsGranted(context: Context): Boolean {
+        val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager
+            ?: return false
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOps.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                context.packageName,
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOps.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                context.packageName,
+            )
+        }
+        return mode == AppOpsManager.MODE_ALLOWED
+    }
+
+    /**
+     * Probe a HyperOS / MIUI-specific opcode by its integer ID via `appops
+     * get`. Returns "allow" / "ignore" / "deny" / "default", or `null` if
+     * the opcode does not exist on this ROM (so we skip the entry on stock
+     * Android). Requires Shizuku to be `READY`.
+     *
+     * The output format on HyperOS is `MIUIOP(<id>): <mode>`; on stock
+     * Android the same command emits an error or `No operations`.
+     */
+    private fun probeMiuiOp(pkg: String, opNumber: String): String? {
+        return try {
+            val proc = newShizukuProcess(arrayOf("appops", "get", pkg, opNumber))
+                ?: return null
+            val out = proc.inputStream.bufferedReader().readText().trim()
+            proc.waitFor()
+            if (!out.contains("MIUIOP")) return null
+            out.substringAfterLast(":").trim().lowercase()
+        } catch (e: Throwable) {
+            Log.d(TAG, "probeMiuiOp $opNumber failed: ${e.message}")
+            null
         }
     }
 

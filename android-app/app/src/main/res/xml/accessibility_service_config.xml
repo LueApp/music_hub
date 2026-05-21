@@ -6,6 +6,6 @@
     android:canRetrieveWindowContent="true"
     android:canPerformGestures="true"
     android:notificationTimeout="100"
-    android:packageNames="com.tencent.qqmusic,com.netease.cloudmusic,tv.danmaku.bili,com.kugou.android"
+    android:packageNames="com.tencent.qqmusic,com.netease.cloudmusic,tv.danmaku.bili,com.kugou.android,com.miui.securitycenter"
     android:description="@string/accessibility_service_desc_cn"
     android:settingsActivity="com.musichub.ui.MainActivity" />

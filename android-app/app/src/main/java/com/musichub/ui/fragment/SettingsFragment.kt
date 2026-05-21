@@ -131,10 +131,16 @@ class SettingsFragment : PreferenceFragmentCompat() {
         // Overlay permission preference
         findPreference<Preference>("overlay_access")?.apply {
             setOnPreferenceClickListener {
-                val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-                    data = Uri.parse("package:${requireContext().packageName}")
+                showPermissionGuideDialog(
+                    R.string.overlay_guide_title_cn,
+                    R.drawable.guide_overlay,
+                    R.string.overlay_guide_image_desc_cn,
+                ) {
+                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                        data = Uri.parse("package:${requireContext().packageName}")
+                    }
+                    startActivity(intent)
                 }
-                startActivity(intent)
                 true
             }
         }
@@ -142,7 +148,11 @@ class SettingsFragment : PreferenceFragmentCompat() {
         // Notification access preference
         findPreference<Preference>("notification_access")?.apply {
             setOnPreferenceClickListener {
-                if (!MediaMonitorService.isEnabled(requireContext())) {
+                showPermissionGuideDialog(
+                    R.string.notification_listener_guide_title_cn,
+                    R.drawable.guide_notification_listener,
+                    R.string.notification_listener_guide_image_desc_cn,
+                ) {
                     MediaMonitorService.openSettings(requireContext())
                 }
                 true
@@ -152,17 +162,40 @@ class SettingsFragment : PreferenceFragmentCompat() {
         // Accessibility service preference
         findPreference<Preference>("accessibility_access")?.apply {
             setOnPreferenceClickListener {
-                if (!PlayerAccessibilityService.isEnabled(requireContext())) {
+                showPermissionGuideDialog(
+                    R.string.accessibility_guide_title_cn,
+                    R.drawable.guide_accessibility,
+                    R.string.accessibility_guide_image_desc_cn,
+                ) {
                     PlayerAccessibilityService.openSettings(requireContext())
                 }
                 true
             }
         }
 
+        // Diagnostic restore action: force-stop / HyperOS background sweeps
+        // silently revoke our accessibility service. This preference attempts
+        // the Shizuku-mediated restore on demand and shows the outcome.
+        findPreference<Preference>("restore_a11y_now")?.setOnPreferenceClickListener {
+            handleRestoreAllPermissionsClick(); true
+        }
+
+        // Wake-path (应用关联启动) status row — tapping opens HyperOS's
+        // launch-permission settings page so the user can review or
+        // pre-allow specific targets. The status itself depends on
+        // accessibility being granted (auto-tap path).
+        findPreference<Preference>("wake_path_access")?.setOnPreferenceClickListener {
+            showWakePathGuideDialog(); true
+        }
+
         // Write settings permission (for auto-rotate toggle workaround)
         findPreference<Preference>("write_settings_access")?.apply {
             setOnPreferenceClickListener {
-                if (!Settings.System.canWrite(requireContext())) {
+                showPermissionGuideDialog(
+                    R.string.write_settings_guide_title_cn,
+                    R.drawable.guide_write_settings,
+                    R.string.write_settings_guide_image_desc_cn,
+                ) {
                     val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
                         data = Uri.parse("package:${requireContext().packageName}")
                     }
@@ -175,8 +208,14 @@ class SettingsFragment : PreferenceFragmentCompat() {
         // Usage stats permission (for double-click navigation)
         findPreference<Preference>("usage_stats_access")?.apply {
             setOnPreferenceClickListener {
-                val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-                startActivity(intent)
+                showPermissionGuideDialog(
+                    R.string.usage_stats_guide_title_cn,
+                    R.drawable.guide_usage_stats,
+                    R.string.usage_stats_guide_image_desc_cn,
+                ) {
+                    val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+                    startActivity(intent)
+                }
                 true
             }
         }
@@ -378,6 +417,46 @@ class SettingsFragment : PreferenceFragmentCompat() {
         }
     }
 
+    /**
+     * On-demand bulk restoration of every special permission Tutti needs,
+     * exposed in Settings as "立即恢复所有权限". Re-runs the same flow as
+     * the automatic Shizuku-binder-received path so a user who notices a
+     * permission missing can force a re-check without restarting the app.
+     *
+     * Surfaces the outcome via Toast so the user gets immediate feedback:
+     *  - pref disabled                    → "已关闭自动授权"
+     *  - Shizuku not ready                → "Shizuku 未就绪"
+     *  - no new grants needed             → "无新授权（已全部授予）"
+     *  - one or more permissions granted  → "已新增 N 项授权"
+     */
+    private fun handleRestoreAllPermissionsClick() {
+        val ctx = requireContext()
+        val app = requireActivity().application as MusicHubApplication
+        val prefs = PreferenceManager.getDefaultSharedPreferences(ctx)
+        if (!prefs.getBoolean(MusicHubApplication.PREF_AUTO_GRANT, true)) {
+            Toast.makeText(ctx, R.string.auto_grant_pref_disabled_cn, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (ShizukuLauncher.status(ctx) != ShizukuLauncher.Status.READY) {
+            Toast.makeText(ctx, R.string.auto_grant_shizuku_not_ready_cn, Toast.LENGTH_LONG).show()
+            return
+        }
+        // The grant flow blocks on Shizuku binder IPC and 6 × ~150 ms sleeps,
+        // so run it off the main thread and Toast from the completion callback.
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val result = app.runAutoGrantIfEnabled("diagnostic")
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                if (!isAdded) return@withContext
+                val msg = if (result.newlyGranted.isEmpty()) {
+                    getString(R.string.auto_grant_no_change_cn)
+                } else {
+                    getString(R.string.auto_grant_result_new_cn, result.newlyGranted.size)
+                }
+                Toast.makeText(ctx, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun updateRemoteModeSummary(mode: String) {
         findPreference<ListPreference>("remote_mode")?.summary = when (mode) {
             "player" -> {
@@ -428,6 +507,21 @@ class SettingsFragment : PreferenceFragmentCompat() {
 
         // Grey out the auto-open switch when the accessibility service is not running
         findPreference<SwitchPreferenceCompat>("qqmusic_auto_open_player")?.isEnabled = a11yEnabled && a11yRunning
+
+        // Wake-path (HyperOS 应用关联启动) — surfaces whether our auto-tap
+        // can run. Granted iff accessibility is enabled & running.
+        findPreference<Preference>("wake_path_access")?.apply {
+            val supported = isHyperOSDevice()
+            val autoOn = PreferenceManager.getDefaultSharedPreferences(requireContext())
+                .getBoolean("auto_confirm_wakepath", false)
+            summary = when {
+                !supported -> getString(R.string.wake_path_access_unsupported_cn)
+                !autoOn -> getString(R.string.wake_path_access_manual_cn)
+                a11yEnabled && a11yRunning -> getString(R.string.wake_path_access_ready_cn)
+                else -> getString(R.string.wake_path_access_blocked_cn)
+            }
+        }
+        findPreference<SwitchPreferenceCompat>("auto_confirm_wakepath")?.isVisible = isHyperOSDevice()
 
         // Update overlay permission status
         val canDrawOverlays = Settings.canDrawOverlays(requireContext())
@@ -646,6 +740,95 @@ class SettingsFragment : PreferenceFragmentCompat() {
         super.onDestroyView()
         RemoteClient.removeConnectionListener(connectionListener)
         Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener)
+    }
+
+    /**
+     * Whether this device runs HyperOS / MIUI (which is what triggers the
+     * wake-path confirmation dialog). Detected via `ro.miui.ui.version.name`
+     * system property; absent on stock Android.
+     */
+    private fun isHyperOSDevice(): Boolean {
+        return try {
+            val p = Runtime.getRuntime().exec("getprop ro.miui.ui.version.name")
+            p.inputStream.bufferedReader().readText().trim().isNotEmpty()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Generic permission-setup guide dialog. Shows a drawn diagram (PNG in
+     * res/drawable-xxhdpi) inside an AlertDialog with two buttons:
+     * "前往设置" runs [onProceed], "稍后再说" dismisses. Used by every
+     * permission card so the user sees the navigation steps before being
+     * dropped into the system Settings page.
+     */
+    private fun showPermissionGuideDialog(
+        titleResId: Int,
+        imageResId: Int,
+        contentDescResId: Int,
+        onProceed: () -> Unit,
+    ) {
+        val ctx = requireContext()
+        val view = layoutInflater.inflate(R.layout.dialog_permission_guide, null)
+        view.findViewById<android.widget.ImageView>(R.id.guideImage).apply {
+            setImageResource(imageResId)
+            contentDescription = getString(contentDescResId)
+        }
+        AlertDialog.Builder(ctx)
+            .setTitle(titleResId)
+            .setView(view)
+            .setPositiveButton(R.string.wakepath_guide_go_settings_cn) { _, _ -> onProceed() }
+            .setNegativeButton(R.string.wakepath_guide_cancel_cn, null)
+            .show()
+    }
+
+    /**
+     * Wake-path / 链式启动 setup guide. Wraps [showPermissionGuideDialog]
+     * with the wake-path-specific drawable so the click handler stays a
+     * one-liner.
+     */
+    private fun showWakePathGuideDialog() {
+        showPermissionGuideDialog(
+            R.string.wakepath_guide_title_cn,
+            R.drawable.guide_wakepath,
+            R.string.wakepath_guide_image_desc_cn,
+        ) {
+            openHyperOSAppLaunchSettings()
+        }
+    }
+
+    /**
+     * Open the HyperOS "应用关联启动" (wake-path) settings page for Tutti
+     * if the OEM activity is available; otherwise fall back to the standard
+     * app-info page. Even when the OEM activity is exposed, accessibility
+     * service is what powers the auto-tap, so the page is purely
+     * informational for the user.
+     */
+    private fun openHyperOSAppLaunchSettings() {
+        val ctx = requireContext()
+        val intents = listOf(
+            Intent("miui.intent.action.APP_PERM_EDITOR").apply {
+                setClassName(
+                    "com.miui.securitycenter",
+                    "com.miui.permcenter.permissions.PermissionsEditorActivity"
+                )
+                putExtra("extra_pkgname", ctx.packageName)
+            },
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", ctx.packageName, null)
+            },
+        )
+        for (intent in intents) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                ctx.startActivity(intent)
+                return
+            } catch (_: Exception) {
+                // Try next fallback
+            }
+        }
+        Toast.makeText(ctx, "无法打开应用详情设置页", Toast.LENGTH_SHORT).show()
     }
 
     private fun hasUsageStatsPermission(): Boolean {

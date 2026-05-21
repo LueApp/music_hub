@@ -1,7 +1,12 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-18T15:01:07.107Z
-> Files: 709 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-20T13:56:55.248Z
+> Files: 720 tracked | Anatomy hits: 0 | Misses: 0
+
+## ../../../../tmp/
+
+- `draw_permission_guides.py` — font, draw_panel, draw_pointer, draw_arrow_down (~3392 tok)
+- `draw_wakepath_guide.py` — font, draw_mock_phone_panel, draw_pointer, draw_arrow_down (~1630 tok)
 
 ## ../../.claude/plans/
 
@@ -12,7 +17,8 @@
 
 - `feedback_deploy_command.md` (~189 tok)
 - `feedback_versioning_rule.md` (~334 tok)
-- `MEMORY.md` (~88 tok)
+- `feedback_visual_guides.md` (~439 tok)
+- `MEMORY.md` (~121 tok)
 
 ## ./
 
@@ -752,7 +758,7 @@
 
 ## android-app/app/src/main/java/com/musichub/
 
-- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Music Hub's process (~1861 tok)
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Tutti's process (~4006 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
@@ -783,13 +789,13 @@
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17830 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15720 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~13460 tok)
-- `PlayerAccessibilityService.kt` — Accessibility service that can click the mini player bar in QQ Music (~6380 tok)
-- `ShizukuLauncher.kt` — Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID (~9736 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14235 tok)
+- `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~8022 tok)
+- `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~13286 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 
-- `MainActivity.kt` — MainActivity: onServiceConnected, onServiceDisconnected, onCreate, onNewIntent (~2341 tok)
+- `MainActivity.kt` — MainActivity: onServiceConnected, onServiceDisconnected, onCreate, onResume (~2453 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/adapter/
 
@@ -807,7 +813,7 @@
 - `ImportFromLibraryFragment.kt` — ImportFromLibraryFragment: onCreateView, onViewCreated, setupAdapter, setupSearchAndFilter (~2562 tok)
 - `LibraryFragment.kt` — Scroll to the currently playing song in the list. (~1544 tok)
 - `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4923 tok)
-- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences (~7458 tok)
+- `SettingsFragment.kt` — SettingsFragment: onCreatePreferences (~9615 tok)
 - `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1256 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
@@ -822,6 +828,8 @@
 
 ## android-app/app/src/main/res/layout/
 
+- `dialog_permission_guide.xml` (~194 tok)
+- `dialog_wakepath_guide.xml` (~217 tok)
 - `fragment_home.xml` (~3004 tok)
 - `fragment_import_from_library.xml` (~1712 tok)
 - `fragment_library.xml` (~1965 tok)
@@ -836,13 +844,13 @@
 
 - `arrays.xml` (~170 tok)
 - `colors.xml` (~588 tok)
-- `strings.xml` (~3656 tok)
+- `strings.xml` (~4419 tok)
 
 ## android-app/app/src/main/res/xml/
 
-- `accessibility_service_config.xml` (~186 tok)
+- `accessibility_service_config.xml` (~193 tok)
 - `freeform_resize_service_config.xml` (~175 tok)
-- `preferences.xml` (~1515 tok)
+- `preferences.xml` (~1798 tok)
 
 ## openspec/changes/add-kugou-platform/
 
@@ -864,15 +872,33 @@
 
 - `spec.md` — ADDED Requirements (~1489 tok)
 
+## openspec/changes/fix-shizuku-a11y-restore/
+
+- `design.md` — Context (~3545 tok)
+- `proposal.md` — Why (~2702 tok)
+- `tasks.md` — 1. Shared pref store and PlayerAccessibilityService grant capture (~5124 tok)
+
+## openspec/changes/fix-shizuku-a11y-restore/specs/accessibility-permission-recovery/
+
+- `spec.md` — ADDED Requirements (~2085 tok)
+
+## openspec/changes/fix-shizuku-a11y-restore/specs/shizuku-permission-auto-grant/
+
+- `spec.md` — ADDED Requirements (~2042 tok)
+
 ## openspec/specs/kugou-platform/
 
 - `spec.md` — Purpose (~3481 tok)
 
+## scripts/
+
+- `draw_permission_guides.py` — font, draw_panel, draw_pointer, draw_arrow_down (~3568 tok)
+
 ## site/
 
-- `index.html` — Tutti | 管乐 (~6045 tok)
+- `index.html` — Tutti | 管乐 (~6114 tok)
 
 ## site/src/
 
-- `main.js` — Declares FALLBACK_VERSION (~6630 tok)
-- `styles.css` — Styles: 109 rules, 14 vars (~4881 tok)
+- `main.js` — Declares FALLBACK_VERSION (~6794 tok)
+- `styles.css` — Styles: 109 rules, 14 vars (~4944 tok)
