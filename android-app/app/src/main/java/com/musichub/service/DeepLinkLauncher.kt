@@ -405,17 +405,17 @@ object DeepLinkLauncher {
      * API and is enough to trigger freeform on supporting devices.
      */
     /**
-     * Off-screen sliver: position the freeform window so the bulk of it sits
-     * past the right edge of the display. Only a thin vertical strip
-     * (SLIVER_VISIBLE_PX) remains on-screen, so the music app is barely
-     * visible but still drag-back-able. HyperOS happily accepts freeform
-     * bounds that extend beyond the screen — verified via dumpsys (existing
-     * tasks observed at e.g. Rect(724, -168 - 1804, 1560)).
+     * Compute freeform bounds that push the music-app fully off-screen
+     * (left > screenWidth). With the floating ball shown, anchors the row
+     * vertically to the ball so the off-screen task tracks ball movement;
+     * without the ball, centers vertically. HyperOS happily accepts
+     * out-of-screen freeform bounds — the chrome surface is drawn off-screen
+     * along with the task, and audio keeps playing because the task is still
+     * freeform-visible-and-active.
      *
-     * Closest we can get to HyperOS's native floating-bar without reaching
-     * for the proprietary miui_multi_sence/IFloatingWindow service or
-     * synthesising a drag-to-edge accessibility gesture (both of which
-     * would only kick in *after* a visible flash of the full freeform window).
+     * SPEC: freeform-multi-task-hide — no sliver fallback; Tutti's background
+     * mode always pushes music apps fully off-screen so the home screen has
+     * no music-app squares regardless of the floating ball's state.
      */
     private fun computeBackgroundBounds(context: Context): android.graphics.Rect {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? android.view.WindowManager
@@ -453,20 +453,19 @@ object DeepLinkLauncher {
             return android.graphics.Rect(left, top, left + w, top + h)
         }
 
-        // No floating overlay — fall back to the off-screen sliver. HyperOS
-        // accepts down to 1x1; we keep ~20 px visible on the right edge so
-        // the user has a handle to drag the window back into view.
-        val sliverVisiblePx = 20
-        val windowWidth = 100
-        val windowHeight = 100
-        val left = screenW - sliverVisiblePx
-        val top = (screenH - windowHeight) / 2
-        return android.graphics.Rect(
-            left,
-            top,
-            left + windowWidth,
-            top + windowHeight
-        )
+        // No floating overlay — push off-screen anyway. SPEC: freeform-multi-
+        // task-hide. The sliver-style fallback (20 px visible) made sense when
+        // there was no other UI surface for the user to control playback, but
+        // in Tutti's background mode the user always controls playback through
+        // the floating ball (and through HOME-gesture handling), so a visible
+        // sliver of a music-app freeform task on the home screen is pure
+        // visual noise. Push the chrome fully off-screen and center the row
+        // vertically so the task still renders and keeps audio playing.
+        val w = 100
+        val h = 100
+        val left = screenW + 50
+        val top = ((screenH - h) / 2).coerceAtLeast(0)
+        return android.graphics.Rect(left, top, left + w, top + h)
     }
 
     private fun buildFreeformLaunchBundle(context: Context): android.os.Bundle? {

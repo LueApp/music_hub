@@ -2150,6 +2150,38 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-21T06:58:00.455Z"
+    },
+    {
+      "id": "bug-133",
+      "timestamp": "2026-05-21T07:04:10.165Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T07:04:10.165Z"
+    },
+    {
+      "id": "bug-134",
+      "timestamp": "2026-05-21T07:07:36.110Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "14 lines replaced/restructured",
+      "fix": "Rewrote 15→14 lines (14 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T07:07:36.110Z"
     }
   ]
 }

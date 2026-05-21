@@ -96,13 +96,14 @@ object ShizukuLauncher {
     private val resizeGeneration = AtomicLong(0)
 
     // SPEC: freeform-multi-task-hide
-    // Per-package off-screen bounds memory. Populated by scheduleResize for every
-    // music-app package Tutti has launched in this process lifetime; never
-    // evicted on platform switch. Lets PlayerAccessibilityService re-hide a
-    // prior platform's freeform task (e.g. NetEase) after the user has switched
-    // to a different platform (e.g. QQ Music) and a HOME gesture pulls the
-    // stale NetEase task back on-screen.
-    private val pkgOffscreenBounds = ConcurrentHashMap<String, Rect>()
+    // Set of music-app packages whose freeform tasks Tutti has launched in
+    // this process lifetime. Cleared only by clearTargetState (mode switch
+    // away from background); never evicted on platform switch. Together with
+    // [currentBoundsProvider] (which always reflects the latest live
+    // floating-ball position) this lets triggerResize re-hide any prior
+    // platform's task to the *current* ball position — not a stale snapshot
+    // from the moment that platform was launched.
+    private val pkgManaged = ConcurrentHashMap.newKeySet<String>()
 
     // SPEC: freeform-multi-task-hide
     // Per-package throttle for triggerResize. HyperOS TYPE_WINDOWS_CHANGED events
@@ -410,16 +411,28 @@ object ShizukuLauncher {
         currentInitialBounds = initialBounds
 
         // SPEC: freeform-multi-task-hide
-        // Snapshot the off-screen bounds per package so the accessibility-driven
-        // re-hide path in triggerResize can still target this package after the
-        // user switches to a different platform (and currentTargetPkg moves on).
-        val snapshotBounds = try {
-            boundsProvider?.invoke() ?: initialBounds
-        } catch (e: Throwable) {
-            Log.w(TAG, "scheduleResize boundsProvider snapshot threw: ${e.message}")
-            initialBounds
+        // Register pkg as managed. The actual bounds are read live from
+        // currentBoundsProvider on every triggerResize, so prior-platform
+        // tasks always re-hide to the CURRENT floating-ball position rather
+        // than a stale launch-time snapshot.
+        //
+        // Also pre-register every music-app package: HyperOS preserves
+        // freeform tasks across Tutti process restarts, and the user expects
+        // background-mode to hide *all* music-app squares — not only those
+        // explicitly launched in the current process lifetime.
+        pkgManaged.add(pkg)
+        pkgManaged.addAll(musicAppPackages())
+
+        // SPEC: freeform-multi-task-hide
+        // Fire an immediate adopt-resize pass for every other music-app
+        // package. Stale freeform tasks from prior Tutti sessions never fire
+        // TYPE_WINDOWS_CHANGED on their own — they're already sitting
+        // visible-and-unchanging — so the accessibility event path alone
+        // misses them. This proactive pass pulls them off-screen at every
+        // new launch.
+        musicAppPackages().forEach { otherPkg ->
+            if (otherPkg != pkg) triggerResize(otherPkg)
         }
-        pkgOffscreenBounds[pkg] = snapshotBounds
 
         // Build a `am task resize` command for the given bounds. Used for
         // both the initial multi-attempt resize and the watchdog loop —
@@ -619,6 +632,18 @@ object ShizukuLauncher {
     }
 
     /**
+     * Fire triggerResize for every music-app package in [musicAppPackages].
+     * Called from [PlayerAccessibilityService] on any music-app window event
+     * — even when only one app's window animated (e.g. during a HOME
+     * gesture), every other music-app freeform task should be re-hidden too,
+     * because stale tasks may not fire their own TYPE_WINDOWS_CHANGED. The
+     * per-pkg 200 ms throttle in [triggerResize] absorbs the spam.
+     */
+    fun triggerResizeForAllMusicApps() {
+        musicAppPackages().forEach { triggerResize(it) }
+    }
+
+    /**
      * Drop all background-mode tracking state so foreground-mode launches
      * (and other paths that don't manage windowing) don't inherit a stale
      * target package + bounds-provider from a prior background launch.
@@ -635,6 +660,10 @@ object ShizukuLauncher {
         currentTargetPkg = null
         currentBoundsProvider = null
         currentInitialBounds = null
+        // SPEC: freeform-multi-task-hide
+        // Mode switch away from background — drop the managed set so foreground
+        // launches don't accidentally resize tasks Tutti is no longer managing.
+        pkgManaged.clear()
         Log.d(TAG, "Cleared target state (gen=$newGen)")
     }
 
@@ -645,35 +674,33 @@ object ShizukuLauncher {
      * during HOME / recents gestures).
      *
      * SPEC: freeform-multi-task-hide — no longer gated on `currentTargetPkg`;
-     * any package with an entry in [pkgOffscreenBounds] is eligible. Throttled
-     * per-pkg at [TRIGGER_THROTTLE_MS] to absorb HyperOS event storms.
+     * any package in [pkgManaged] is eligible. Throttled per-pkg at
+     * [TRIGGER_THROTTLE_MS] to absorb HyperOS event storms.
      */
     fun triggerResize(pkg: String) {
         // SPEC: freeform-multi-task-hide
-        // No longer gated on `currentTargetPkg == pkg`. Every music-app package
-        // that has an entry in pkgOffscreenBounds (i.e. one Tutti launched in
-        // this session) is eligible for off-screen re-hide, even if it is not
-        // currently the active platform. This is the mechanism that re-hides
-        // a stale NetEase freeform task after the user has switched to QQ Music
-        // and a HOME gesture pulls the NetEase task back on-screen.
+        // No longer gated on `currentTargetPkg == pkg`. Any package registered
+        // in pkgManaged (i.e. one Tutti launched in this background-mode session)
+        // is eligible for off-screen re-hide. Always uses the LIVE bounds
+        // provider so prior-platform tasks re-hide to the current floating-ball
+        // position — not a stale snapshot from when that platform was launched.
+        if (pkg !in pkgManaged) return
+
         val now = System.currentTimeMillis()
         val last = lastTriggerAtMs[pkg] ?: 0L
         if (now - last < TRIGGER_THROTTLE_MS) return
         lastTriggerAtMs[pkg] = now
 
-        // Active target uses the live boundsProvider so the freeform task
-        // follows the floating-ball if the user dragged it. Inactive prior
-        // platforms reuse their last-known snapshot — still off-screen, which
-        // is what hide-on-HOME needs.
-        val bounds = if (pkg == currentTargetPkg) {
-            currentBoundsProvider?.invoke() ?: currentInitialBounds ?: pkgOffscreenBounds[pkg]
-        } else {
-            pkgOffscreenBounds[pkg]
-        } ?: return
+        val bounds = try {
+            currentBoundsProvider?.invoke()
+        } catch (e: Throwable) {
+            Log.w(TAG, "boundsProvider threw: ${e.message}")
+            null
+        } ?: currentInitialBounds ?: return
 
         Log.d(
             TAG,
-            "triggerResize($pkg): pkg in pkgOffscreenBounds (size=${pkgOffscreenBounds.size}), resizing to $bounds"
+            "triggerResize($pkg): pkg in pkgManaged (size=${pkgManaged.size}), resizing to $bounds"
         )
 
         Thread({
