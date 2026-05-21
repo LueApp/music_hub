@@ -12,6 +12,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.musichub.platform.Platforms
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili).
@@ -38,6 +39,20 @@ class MediaMonitorService : NotificationListenerService() {
     // The package name of the platform currently playing via Tutti.
     // Only song-end events from this package trigger auto-advance.
     private var currentPlatformPackage: String? = null
+
+    // SPEC: current-platform-playback-isolation
+    // Per-package memory so getPlaybackInfo can return a sensible "paused at last
+    // known position" view when the current platform's MediaController has been
+    // destroyed (e.g. the music app was killed). Updated on every successful
+    // read from a current-platform controller.
+    private val lastKnownPositionByPackage = ConcurrentHashMap<String, Long>()
+    private val lastKnownDurationByPackage = ConcurrentHashMap<String, Long>()
+    private val lastKnownTitleByPackage = ConcurrentHashMap<String, String>()
+
+    // Tracks the most recently logged "filtered to pkg" value so the spec-recipe
+    // log line fires once per platform change rather than every poll tick.
+    @Volatile
+    private var lastFilteredLogPkg: String? = null
 
     // Per-song user-configured early end-of-song trigger in milliseconds.
     // When set, song-finished fires once playback position reaches this value,
@@ -1013,82 +1028,83 @@ class MediaMonitorService : NotificationListenerService() {
     }
 
     /**
-     * Get current playback info from any active media session.
-     * Prioritizes controllers that are actively playing.
-     * Returns null if no active playback.
+     * Get current playback info for the platform Tutti most recently launched.
+     *
+     * SPEC: current-platform-playback-isolation
+     * Sources state EXCLUSIVELY from the controller whose package matches
+     * [currentPlatformPackage]. Foreign sessions (other music apps, Bilibili
+     * video) are never considered, even when they report STATE_PLAYING.
+     *
+     * When the current platform has no live controller (music app killed),
+     * returns a synthetic paused snapshot built from
+     * [lastKnownPositionByPackage] / [lastKnownDurationByPackage] so the
+     * floating-ball progress ring keeps the user's last context instead of
+     * snapping to 0 or to a stray foreign session's position.
+     *
+     * Returns null only when no current platform has been set.
      */
     fun getPlaybackInfo(): PlaybackInfo? {
-        // Snapshot controllers under lock, then iterate outside lock to avoid
-        // holding the lock during potentially slow MediaController IPC calls.
-        // This prevents ConcurrentModificationException when the broadcast thread
-        // calls this while the main thread modifies activeControllers.
-        val controllerSnapshot = synchronized(controllersLock) {
-            activeControllers.values.toList()
+        val pkg = currentPlatformPackage
+        if (pkg.isNullOrEmpty()) return null
+
+        // Snapshot controllers under lock; release before any MediaController IPC.
+        val (controller, otherKeys) = synchronized(controllersLock) {
+            val c = activeControllers[pkg]
+            val others = activeControllers.keys.filter { it != pkg }
+            c to others
         }
 
-        // Prefer the platform Tutti last launched so a stale paused controller
-        // from another app can't shadow the song the user actually expects to see.
-        val target = currentPlatformPackage
-        val orderedControllers = if (target != null) {
-            controllerSnapshot.sortedByDescending { it.packageName == target }
-        } else {
-            controllerSnapshot
+        if (lastFilteredLogPkg != pkg) {
+            Log.d(TAG, "getPlaybackInfo: pkg=$pkg filtered; ignored $otherKeys")
+            lastFilteredLogPkg = pkg
         }
 
-        // First pass: find a controller that is actively playing
-        orderedControllers.forEach { controller ->
+        if (controller != null) {
             try {
                 val state = controller.playbackState
                 val metadata = controller.metadata
+                val duration = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
 
-                if (state != null && state.state == PlaybackState.STATE_PLAYING) {
-                    val lastUpdateTime = state.lastPositionUpdateTime
-                    val elapsedRealtime = android.os.SystemClock.elapsedRealtime()
-                    val timeSinceUpdate = elapsedRealtime - lastUpdateTime
-                    val position = state.position + (timeSinceUpdate * state.playbackSpeed).toLong()
-                    val duration = metadata?.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-                    val title = metadata?.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
-
-                    if (duration > 0) {
-                        return PlaybackInfo(
-                            isPlaying = true,
-                            position = position,
-                            duration = duration,
-                            packageName = controller.packageName,
-                            title = title
-                        )
+                if (state != null && duration > 0) {
+                    val isPlaying = state.state == PlaybackState.STATE_PLAYING
+                    val rawPosition = state.position
+                    val position = if (isPlaying) {
+                        val elapsed = android.os.SystemClock.elapsedRealtime() - state.lastPositionUpdateTime
+                        rawPosition + (elapsed * state.playbackSpeed).toLong()
+                    } else {
+                        rawPosition
                     }
+
+                    lastKnownPositionByPackage[pkg] = position
+                    lastKnownDurationByPackage[pkg] = duration
+                    if (title != null) lastKnownTitleByPackage[pkg] = title
+
+                    return PlaybackInfo(
+                        isPlaying = isPlaying,
+                        position = position,
+                        duration = duration,
+                        packageName = pkg,
+                        title = title,
+                    )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error getting playback info (playing): ${e.message}")
+                Log.e(TAG, "Error getting playback info for $pkg: ${e.message}")
             }
         }
 
-        // Second pass: find any controller with valid metadata (paused state)
-        orderedControllers.forEach { controller ->
-            try {
-                val state = controller.playbackState
-                val metadata = controller.metadata
-
-                if (state != null && metadata != null) {
-                    val duration = metadata.getLong(android.media.MediaMetadata.METADATA_KEY_DURATION)
-                    if (duration > 0) {
-                        val title = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
-                        return PlaybackInfo(
-                            isPlaying = false,
-                            position = state.position,
-                            duration = duration,
-                            packageName = controller.packageName,
-                            title = title
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error getting playback info (paused): ${e.message}")
-            }
-        }
-
-        return null
+        // No live controller for the current platform — return last-known
+        // paused snapshot so the ring stays anchored to the launched song
+        // instead of jumping to a foreign session's position.
+        val lastDuration = lastKnownDurationByPackage[pkg] ?: 0L
+        if (lastDuration <= 0L) return null
+        return PlaybackInfo(
+            isPlaying = false,
+            position = lastKnownPositionByPackage[pkg] ?: 0L,
+            duration = lastDuration,
+            packageName = pkg,
+            title = lastKnownTitleByPackage[pkg],
+        )
     }
 
     /**

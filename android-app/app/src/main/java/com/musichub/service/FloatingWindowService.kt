@@ -667,6 +667,12 @@ class FloatingWindowService : Service() {
             return
         }
 
+        // SPEC: current-platform-playback-isolation
+        // All playback-state reads in this service route through getPlaybackInfo(),
+        // which filters to the currently launched platform. Do NOT introduce
+        // direct MediaSessionManager.getActiveSessions() or per-package
+        // MediaController lookups here — a foreign PLAYING session (e.g. a
+        // Bilibili video) must never drive the floating ball's ring.
         val playbackInfo = MediaMonitorService.getInstance()?.getPlaybackInfo()
 
         // Update mini ball progress if in mini mode
@@ -1183,9 +1189,7 @@ class FloatingWindowService : Service() {
         val savedY = miniModeParams?.y ?: 100
 
         // Stop and clean up rotation animator
-        coverRotationAnimator?.cancel()
-        coverRotationAnimator = null
-        currentRotatingView = null
+        stopCoverRotation()
 
         // Remove mini ball view
         if (miniBallView != null) {
@@ -1359,51 +1363,50 @@ class FloatingWindowService : Service() {
         }
     }
 
-    /**
-     * Start the cover rotation animation.
-     */
+    // SPEC: ball-cover-rotation
+    // Rebuild the rotation animator on every PLAYING tick instead of pause/resume.
+    // ObjectAnimator.resume() is a silent no-op after cancel(), and HyperOS has been
+    // observed to leave a paused animator in a stuck state across configuration
+    // changes — always rebuilding from the live view.rotation is simpler and gives
+    // zero visible angle jump across pause→play cycles.
     private fun startCoverRotation(view: View?) {
         if (view == null) {
             Log.d(TAG, "startCoverRotation: view is null")
             return
         }
 
-        // If animating the same view, just resume if paused
-        if (currentRotatingView == view && coverRotationAnimator != null) {
-            if (coverRotationAnimator?.isPaused == true) {
-                Log.d(TAG, "Resuming rotation animation")
-                coverRotationAnimator?.resume()
-                return
-            }
-            if (coverRotationAnimator?.isRunning == true) {
-                Log.d(TAG, "Rotation already running")
-                return
-            }
+        val existing = coverRotationAnimator
+        if (existing != null && existing.isRunning && currentRotatingView === view) {
+            return
         }
 
-        // Cancel any existing animator
-        coverRotationAnimator?.cancel()
+        val fromAngle = view.rotation
+        existing?.cancel()
 
-        // Create new animator for this view
         currentRotatingView = view
-        coverRotationAnimator = ObjectAnimator.ofFloat(view, "rotation", view.rotation, view.rotation + 360f).apply {
-            duration = 8000 // 8 seconds per rotation
+        coverRotationAnimator = ObjectAnimator.ofFloat(view, View.ROTATION, fromAngle, fromAngle + 360f).apply {
+            duration = 10_000L
             repeatCount = ValueAnimator.INFINITE
             repeatMode = ValueAnimator.RESTART
             interpolator = LinearInterpolator()
             start()
         }
-        Log.d(TAG, "Started new rotation animation")
+        Log.d(TAG, "startCoverRotation: built new animator from angle=%.1f°".format(fromAngle))
     }
 
     /**
-     * Stop the cover rotation animation (keeps current position).
+     * Stop the cover rotation animation, persisting the current angle on the view
+     * so the next start can carry it forward without a visible jump.
      */
     private fun stopCoverRotation() {
-        if (coverRotationAnimator?.isRunning == true || coverRotationAnimator?.isPaused == true) {
-            Log.d(TAG, "Pausing rotation animation")
-            coverRotationAnimator?.pause()
+        val animator = coverRotationAnimator ?: return
+        val view = currentRotatingView
+        if (animator.isRunning && view != null) {
+            (animator.animatedValue as? Float)?.let { view.rotation = it }
         }
+        animator.cancel()
+        coverRotationAnimator = null
+        currentRotatingView = null
     }
 
     /**

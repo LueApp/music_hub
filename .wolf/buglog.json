@@ -2038,6 +2038,70 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-20T13:56:55.255Z"
+    },
+    {
+      "id": "bug-126",
+      "timestamp": "2026-05-21T06:08:54.850Z",
+      "error_message": "Wrong operator: || should be ===",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "Used \"||\" instead of \"===\"",
+      "fix": "Changed operator || → ===",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:08:54.850Z"
+    },
+    {
+      "id": "bug-127",
+      "timestamp": "2026-05-21T06:13:55.710Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "No early return/throw for edge case: pkg.isNullOrEmpty(",
+      "fix": "Added guard clause: if (pkg.isNullOrEmpty()",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:13:55.710Z"
+    },
+    {
+      "id": "bug-128",
+      "timestamp": "2026-05-21T06:16:10.021Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:16:10.021Z"
+    },
+    {
+      "id": "bug-129",
+      "timestamp": "2026-05-21T06:16:29.040Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 33→56 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:16:29.040Z"
     }
   ]
 }
