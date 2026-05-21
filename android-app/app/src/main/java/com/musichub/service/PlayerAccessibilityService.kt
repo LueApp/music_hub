@@ -116,10 +116,17 @@ class PlayerAccessibilityService : AccessibilityService() {
         // Window-bounds-changed events fire when HyperOS pulls a freeform task
         // back on-screen during a home-gesture/recents transition. Re-fire the
         // resize immediately so the music-app stays sized down off-screen.
+        // SPEC: freeform-multi-task-hide — ripple to ALL music-app packages
+        // on any music-app window event. The TYPE_WINDOWS_CHANGED event only
+        // carries the package whose window animated; stale prior-session
+        // freeform tasks that sit visible-and-unchanging never fire it on
+        // their own, so we proactively re-hide every music app whenever one
+        // of them moves. Per-pkg 200 ms throttle in ShizukuLauncher absorbs
+        // the spam.
         if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
             val pkg = event.packageName?.toString()
             if (pkg != null && pkg in ShizukuLauncher.musicAppPackages()) {
-                ShizukuLauncher.triggerResize(pkg)
+                ShizukuLauncher.triggerResizeForAllMusicApps()
             }
         }
 

@@ -2038,6 +2038,150 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-20T13:56:55.255Z"
+    },
+    {
+      "id": "bug-126",
+      "timestamp": "2026-05-21T06:08:54.850Z",
+      "error_message": "Wrong operator: || should be ===",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "Used \"||\" instead of \"===\"",
+      "fix": "Changed operator || → ===",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:08:54.850Z"
+    },
+    {
+      "id": "bug-127",
+      "timestamp": "2026-05-21T06:13:55.710Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "No early return/throw for edge case: pkg.isNullOrEmpty(",
+      "fix": "Added guard clause: if (pkg.isNullOrEmpty()",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:13:55.710Z"
+    },
+    {
+      "id": "bug-128",
+      "timestamp": "2026-05-21T06:16:10.021Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:16:10.021Z"
+    },
+    {
+      "id": "bug-129",
+      "timestamp": "2026-05-21T06:16:29.040Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 33→56 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:16:29.040Z"
+    },
+    {
+      "id": "bug-130",
+      "timestamp": "2026-05-21T06:37:09.204Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "No early return/throw for edge case: !isRotating",
+      "fix": "Added guard clause: if (!isRotating)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-21T06:37:24.751Z"
+    },
+    {
+      "id": "bug-131",
+      "timestamp": "2026-05-21T06:51:27.507Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:51:27.507Z"
+    },
+    {
+      "id": "bug-132",
+      "timestamp": "2026-05-21T06:58:00.455Z",
+      "error_message": "Incorrect value in code",
+      "file": "openspec/changes/fix-floating-ball-and-freeform-bugs/tasks.md",
+      "root_cause": "Had `dumpsys activity activities | grep -E \"",
+      "fix": "Changed to `triggerResize(com.tencent.qqmusic): pkg in pkgOff",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T06:58:00.455Z"
+    },
+    {
+      "id": "bug-133",
+      "timestamp": "2026-05-21T07:04:10.165Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T07:04:10.165Z"
+    },
+    {
+      "id": "bug-134",
+      "timestamp": "2026-05-21T07:07:36.110Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "14 lines replaced/restructured",
+      "fix": "Rewrote 15→14 lines (14 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T07:07:36.110Z"
     }
   ]
 }

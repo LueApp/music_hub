@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-20T13:56:55.248Z
-> Files: 720 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-21T07:31:35.544Z
+> Files: 726 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -758,7 +758,7 @@
 
 ## android-app/app/src/main/java/com/musichub/
 
-- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Tutti's process (~4006 tok)
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Tutti's process (~4224 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
@@ -785,13 +785,13 @@
 
 ## android-app/app/src/main/java/com/musichub/service/
 
-- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~7859 tok)
-- `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~17830 tok)
+- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~9610 tok)
+- `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~18213 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
-- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~15720 tok)
+- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~16125 tok)
 - `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14235 tok)
-- `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~8022 tok)
-- `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~13286 tok)
+- `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~8153 tok)
+- `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~14380 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 
@@ -871,6 +871,24 @@
 ## openspec/changes/enable-kugou-background-mode/specs/kugou-platform/
 
 - `spec.md` — ADDED Requirements (~1489 tok)
+
+## openspec/changes/fix-floating-ball-and-freeform-bugs/
+
+- `design.md` — Context (~2550 tok)
+- `proposal.md` — Why (~1392 tok)
+- `tasks.md` — 1. Bug 1 — Album cover rotation (~1722 tok)
+
+## openspec/changes/fix-floating-ball-and-freeform-bugs/specs/ball-cover-rotation/
+
+- `spec.md` — ADDED Requirements (~495 tok)
+
+## openspec/changes/fix-floating-ball-and-freeform-bugs/specs/current-platform-playback-isolation/
+
+- `spec.md` — ADDED Requirements (~747 tok)
+
+## openspec/changes/fix-floating-ball-and-freeform-bugs/specs/freeform-multi-task-hide/
+
+- `spec.md` — ADDED Requirements (~807 tok)
 
 ## openspec/changes/fix-shizuku-a11y-restore/
 
