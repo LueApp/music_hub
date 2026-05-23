@@ -2182,6 +2182,454 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-21T07:07:36.110Z"
+    },
+    {
+      "id": "bug-135",
+      "timestamp": "2026-05-21T09:58:48.703Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T09:58:48.703Z"
+    },
+    {
+      "id": "bug-136",
+      "timestamp": "2026-05-21T10:00:26.992Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 4→6 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-21T10:00:26.992Z"
+    },
+    {
+      "id": "bug-137",
+      "timestamp": "2026-05-22T02:40:20.330Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/LaunchModeSwitcher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T02:40:20.330Z"
+    },
+    {
+      "id": "bug-138",
+      "timestamp": "2026-05-22T02:40:42.958Z",
+      "error_message": "Significant refactor of ",
+      "file": "openspec/changes/handle-launch-mode-switch/specs/launch-mode-switching/spec.md",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 3→3 lines (2 removed) | Also: #### Scenario: Background-to-foreground purges off; - **WHEN** the user switches from `background` to ",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-22T02:41:14.026Z"
+    },
+    {
+      "id": "bug-139",
+      "timestamp": "2026-05-22T02:41:29.487Z",
+      "error_message": "Significant refactor of ",
+      "file": "openspec/changes/handle-launch-mode-switch/design.md",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 3→3 lines (2 removed) | Also: - *(C) Selectively kill only off-screen freeform t; **Why kill-all is fine:** Tutti is the source of t",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-22T02:41:55.127Z"
+    },
+    {
+      "id": "bug-140",
+      "timestamp": "2026-05-22T03:04:07.706Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T03:04:07.706Z"
+    },
+    {
+      "id": "bug-141",
+      "timestamp": "2026-05-22T03:05:44.057Z",
+      "error_message": "Incorrect value in code",
+      "file": "openspec/changes/handle-launch-mode-switch/tasks.md",
+      "root_cause": "Had `dumpsys`",
+      "fix": "Changed to `background`",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T03:05:44.057Z"
+    },
+    {
+      "id": "bug-142",
+      "timestamp": "2026-05-22T05:06:06.465Z",
+      "error_message": "Wrong operator: && should be ==",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Used \"&&\" instead of \"==\"",
+      "fix": "Changed operator && → ==",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T05:06:06.465Z"
+    },
+    {
+      "id": "bug-143",
+      "timestamp": "2026-05-22T05:06:39.375Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/LaunchModeSwitcher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T05:06:39.375Z"
+    },
+    {
+      "id": "bug-144",
+      "timestamp": "2026-05-22T05:07:10.384Z",
+      "error_message": "Null/undefined access in ",
+      "file": "openspec/changes/handle-launch-mode-switch/specs/launch-mode-switching/spec.md",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T05:07:10.384Z"
+    },
+    {
+      "id": "bug-145",
+      "timestamp": "2026-05-22T05:07:58.487Z",
+      "error_message": "Null/undefined access in ",
+      "file": "openspec/changes/handle-launch-mode-switch/design.md",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T05:07:58.487Z"
+    },
+    {
+      "id": "bug-146",
+      "timestamp": "2026-05-22T05:08:13.832Z",
+      "error_message": "Null/undefined access in ",
+      "file": "openspec/changes/handle-launch-mode-switch/tasks.md",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T05:08:13.832Z"
+    },
+    {
+      "id": "bug-147",
+      "timestamp": "2026-05-22T05:30:48.680Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/ShizukuLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T05:30:48.680Z"
+    },
+    {
+      "id": "bug-148",
+      "timestamp": "2026-05-22T06:43:36.583Z",
+      "error_message": "Null/undefined access in ",
+      "file": "openspec/changes/handle-launch-mode-switch/specs/launch-mode-switching/spec.md",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T06:43:36.583Z"
+    },
+    {
+      "id": "bug-149",
+      "timestamp": "2026-05-22T06:43:56.353Z",
+      "error_message": "Null/undefined access in ",
+      "file": "openspec/changes/handle-launch-mode-switch/design.md",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "md"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T06:43:56.353Z"
+    },
+    {
+      "id": "bug-150",
+      "timestamp": "2026-05-22T08:52:46.477Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/res/xml/accessibility_service_config.xml",
+      "root_cause": "Had \"com.tencent.qqmusic,com.netease.cloudmusic,tv.dan",
+      "fix": "Changed to \"com.tencent.qqmusic,com.netease.cloudmusic,tv.dan",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T08:52:46.477Z"
+    },
+    {
+      "id": "bug-151",
+      "timestamp": "2026-05-22T08:53:10.162Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 16→26 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T08:53:10.162Z"
+    },
+    {
+      "id": "bug-152",
+      "timestamp": "2026-05-22T09:35:33.096Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "12 lines replaced/restructured",
+      "fix": "Rewrote 23→8 lines (12 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T09:35:33.096Z"
+    },
+    {
+      "id": "bug-153",
+      "timestamp": "2026-05-22T10:20:21.340Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T10:20:21.340Z"
+    },
+    {
+      "id": "bug-154",
+      "timestamp": "2026-05-22T10:20:48.060Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "9 lines replaced/restructured",
+      "fix": "Rewrote 11→6 lines (9 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T10:20:48.060Z"
+    },
+    {
+      "id": "bug-155",
+      "timestamp": "2026-05-22T10:22:49.070Z",
+      "error_message": "Wrong reference: stopProgressUpdates should be stopBreathing",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "Used \"stopProgressUpdates\" instead of \"stopBreathing\"",
+      "fix": "Changed stopProgressUpdates → stopBreathing",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-22T10:22:49.070Z"
+    },
+    {
+      "id": "bug-156",
+      "timestamp": "2026-05-23T02:21:13.258Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 14→19 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T02:21:13.258Z"
+    },
+    {
+      "id": "bug-157",
+      "timestamp": "2026-05-23T02:35:09.877Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/res/xml/accessibility_service_config.xml",
+      "root_cause": "Had \"com.tencent.qqmusic,com.netease.cloudmusic,tv.dan",
+      "fix": "Changed to \"com.tencent.qqmusic,com.netease.cloudmusic,tv.dan",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "xml"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T02:35:09.877Z"
+    },
+    {
+      "id": "bug-158",
+      "timestamp": "2026-05-23T02:53:47.060Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "47 lines replaced/restructured",
+      "fix": "Rewrote 59→9 lines (47 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T02:53:47.060Z"
+    },
+    {
+      "id": "bug-159",
+      "timestamp": "2026-05-23T02:54:57.943Z",
+      "error_message": "Wrong reference: stopBreathing should be cancelPendingNudge",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "Used \"stopBreathing\" instead of \"cancelPendingNudge\"",
+      "fix": "Changed stopBreathing → cancelPendingNudge",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T02:54:57.943Z"
+    },
+    {
+      "id": "bug-160",
+      "timestamp": "2026-05-23T03:01:20.427Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: /** Cancel any pending or in-flight nudge — call when hiding; animationActive = false",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-23T03:01:38.872Z"
+    },
+    {
+      "id": "bug-161",
+      "timestamp": "2026-05-23T03:08:44.260Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 45→82 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T03:08:44.260Z"
+    },
+    {
+      "id": "bug-162",
+      "timestamp": "2026-05-23T03:14:54.293Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/FloatingWindowService.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T03:14:54.293Z"
     }
   ]
 }

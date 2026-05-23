@@ -123,10 +123,31 @@ class PlayerAccessibilityService : AccessibilityService() {
         // their own, so we proactively re-hide every music app whenever one
         // of them moves. Per-pkg 200 ms throttle in ShizukuLauncher absorbs
         // the spam.
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+        //
+        // We also listen to com.miui.home (HyperOS launcher) events: on a
+        // HOME gesture HyperOS rescues an off-screen freeform task into its
+        // `miui_multi_sence` sidebar widget. The launcher receives focus
+        // first; the music-app task's own bounds may not change so it
+        // wouldn't fire a music-app TYPE_WINDOWS_CHANGED. Catching launcher
+        // events ensures we re-resize even in that path.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            || event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkg = event.packageName?.toString()
-            if (pkg != null && pkg in ShizukuLauncher.musicAppPackages()) {
+            val isMusicApp = pkg != null && pkg in ShizukuLauncher.musicAppPackages()
+            val isLauncher = pkg == ShizukuLauncher.MIUI_HOME_PACKAGE
+            val isSystemUi = pkg == ShizukuLauncher.ANDROID_SYSTEMUI_PACKAGE
+            if (isMusicApp || isLauncher) {
                 ShizukuLauncher.triggerResizeForAllMusicApps()
+            }
+            // Launcher and system-UI events fire during system gestures
+            // (HOME swipe, slow swipe-up-hold for Recent apps). Schedule a
+            // debounced one-shot multi_sence-dismissal nudge — each event
+            // resets the timer, so the nudge only fires once the gesture
+            // burst has settled. This keeps the floating ball perfectly
+            // idle during the gesture (no input dispatcher competition)
+            // and only dismisses the widget after the user has finished.
+            if (isLauncher || isSystemUi) {
+                FloatingWindowService.getInstance()?.scheduleNudgeAfterGesture(800L)
             }
         }
 

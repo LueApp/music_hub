@@ -108,12 +108,11 @@ object DeepLinkLauncher {
         val resolvedLink = convertLegacyBilibiliDeepLink(deepLink)
         Log.d(TAG, "Launching deep link (foreground mode): $resolvedLink (original: $deepLink)")
 
-        // Drop any leftover background-mode tracking so PlaybackService's
-        // DisplayListener / onConfigurationChanged hook doesn't fire a
-        // `am task resize` against the music app we're about to launch
-        // fullscreen. Even though that hook is also gated by launch_mode
-        // below, clearing here closes the small race where the mode-change
-        // pref hasn't propagated yet.
+        // Per-launch belt-and-suspenders clear. LaunchModeSwitcher.onModeChanged
+        // already calls clearTargetState on every mode toggle, but its purge
+        // runs on a background thread — a song launch triggered immediately
+        // after the toggle can race the switcher and reach this code before
+        // the background work finishes. This call closes that small window.
         ShizukuLauncher.clearTargetState()
 
         // For NetEase in landscape: force portrait before launch, use CLEAR_TASK,
@@ -431,24 +430,23 @@ object DeepLinkLauncher {
             // it's truly invisible. The user controls playback through the
             // ball; the music app never needs to be visible.
             //
-            // Why off-screen instead of "small bounds at ball position":
-            // HyperOS renders freeform window chrome (a ~150×150 white frame
-            // around the task) on a separate system surface, sized to a
-            // minimum regardless of how small we set task bounds. Even with
-            // bounds=10×10, the chrome shows as a visible square behind the
-            // ball (verified via screenshot). Pushing bounds past the right
-            // screen edge moves the chrome off-screen too — the only visible
-            // UI is our floating ball. Music keeps playing because the task
-            // is still freeform-visible-and-active.
+            // Why far off-screen (3× screen width) instead of `screenW + 50`:
+            // HyperOS engages a `miui_multi_sence` sidebar tiny-ball widget at
+            // the screen edge for off-screen freeform tasks when they're only
+            // marginally off-screen — visible as a small album-art bubble at
+            // the screen border. Pushing the task ~3× the screen width past
+            // the right edge takes it out of the sidebar's "rescue range" so
+            // the widget is not engaged. Tutti's own floating ball (when
+            // shown) is the user's playback surface; if it's not shown, this
+            // far-off-screen position prevents HyperOS from substituting its
+            // own widget.
             //
             // We anchor the *vertical* position to the ball so if the ball
-            // is dragged, the off-screen window follows in lockstep — keeps
-            // the chrome consistently off-screen at the ball's row even
-            // during a home-gesture snap-back.
+            // is dragged, the off-screen window follows in lockstep.
             val w = 100
             val h = 100
             val centerY = (anchorBounds.top + anchorBounds.bottom) / 2
-            val left = screenW + 50  // start 50 px past the right edge
+            val left = screenW * 3
             val top = (centerY - h / 2).coerceIn(0, (screenH - h).coerceAtLeast(0))
             return android.graphics.Rect(left, top, left + w, top + h)
         }
@@ -459,11 +457,11 @@ object DeepLinkLauncher {
         // in Tutti's background mode the user always controls playback through
         // the floating ball (and through HOME-gesture handling), so a visible
         // sliver of a music-app freeform task on the home screen is pure
-        // visual noise. Push the chrome fully off-screen and center the row
-        // vertically so the task still renders and keeps audio playing.
+        // visual noise. Push the chrome 3× screen width off-screen (same
+        // reasoning as above — avoid HyperOS's sidebar tiny-ball substitution).
         val w = 100
         val h = 100
-        val left = screenW + 50
+        val left = screenW * 3
         val top = ((screenH - h) / 2).coerceAtLeast(0)
         return android.graphics.Rect(left, top, left + w, top + h)
     }

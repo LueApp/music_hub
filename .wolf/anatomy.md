@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-21T08:12:06.518Z
-> Files: 726 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-23T03:14:54.285Z
+> Files: 735 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -785,13 +785,14 @@
 
 ## android-app/app/src/main/java/com/musichub/service/
 
-- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~9610 tok)
-- `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~18213 tok)
+- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~9580 tok)
+- `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~20899 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
+- `LaunchModeSwitcher.kt` — Handles transitions between `launch_mode = background` and (~1597 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~16125 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14235 tok)
-- `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~8153 tok)
-- `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~14380 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14737 tok)
+- `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~8522 tok)
+- `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~16826 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
 
@@ -824,12 +825,16 @@
 ## android-app/app/src/main/res/drawable/
 
 - `bg_badge_kugou.xml` (~62 tok)
+- `ic_decoration_bubble.xml` (~101 tok)
+- `ic_decoration_heart.xml` (~131 tok)
+- `ic_decoration_sparkle.xml` (~100 tok)
 - `ic_kugou.xml` (~168 tok)
 
 ## android-app/app/src/main/res/layout/
 
 - `dialog_permission_guide.xml` (~194 tok)
 - `dialog_wakepath_guide.xml` (~217 tok)
+- `floating_ball.xml` (~732 tok)
 - `fragment_home.xml` (~3004 tok)
 - `fragment_import_from_library.xml` (~1712 tok)
 - `fragment_library.xml` (~1965 tok)
@@ -842,15 +847,15 @@
 
 ## android-app/app/src/main/res/values/
 
-- `arrays.xml` (~170 tok)
+- `arrays.xml` (~279 tok)
 - `colors.xml` (~588 tok)
-- `strings.xml` (~4419 tok)
+- `strings.xml` (~4550 tok)
 
 ## android-app/app/src/main/res/xml/
 
-- `accessibility_service_config.xml` (~193 tok)
+- `accessibility_service_config.xml` (~202 tok)
 - `freeform_resize_service_config.xml` (~175 tok)
-- `preferences.xml` (~1798 tok)
+- `preferences.xml` (~1907 tok)
 
 ## openspec/changes/add-kugou-platform/
 
@@ -903,6 +908,16 @@
 ## openspec/changes/fix-shizuku-a11y-restore/specs/shizuku-permission-auto-grant/
 
 - `spec.md` — ADDED Requirements (~2042 tok)
+
+## openspec/changes/handle-launch-mode-switch/
+
+- `design.md` — Context (~5136 tok)
+- `proposal.md` — Why (~1487 tok)
+- `tasks.md` — 1. ShizukuLauncher purge primitives (~2118 tok)
+
+## openspec/changes/handle-launch-mode-switch/specs/launch-mode-switching/
+
+- `spec.md` — ADDED Requirements (~3546 tok)
 
 ## openspec/specs/kugou-platform/
 

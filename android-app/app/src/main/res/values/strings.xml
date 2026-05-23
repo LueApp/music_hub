@@ -124,6 +124,15 @@
     <string name="launch_mode_health_reset_done">已重置 %s</string>
     <string name="launch_mode_health_reset_failed">重置失败：%s</string>
 
+    <!-- Launch Mode switching (background <-> foreground) -->
+    <string name="launch_mode_switch_done_cn">已清理 %1$d 个旧任务，切换到%2$s模式</string>
+    <string name="launch_mode_switch_no_shizuku_cn">已切换到%1$s模式，但需要 Shizuku 才能清理旧任务</string>
+    <string name="launch_mode_switch_failed_cn">切换模式时清理任务失败：%1$s</string>
+
+    <!-- Floating ball decoration animation -->
+    <string name="nudge_decoration_title_cn">小球装饰动画</string>
+    <string name="nudge_decoration_summary_cn">小球消除系统侧边栏时显示的装饰图案</string>
+
     <!-- Settings - Permissions -->
     <string name="overlay_access_cn">悬浮窗权限</string>
     <string name="overlay_access_desc_cn">在其他应用上方显示浮窗控制栏</string>

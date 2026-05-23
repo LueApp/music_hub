@@ -47,6 +47,15 @@
             android:defaultValue="false"
             app:iconSpaceReserved="false" />
 
+        <ListPreference
+            android:key="nudge_decoration"
+            android:title="@string/nudge_decoration_title_cn"
+            android:summary="@string/nudge_decoration_summary_cn"
+            android:entries="@array/nudge_decoration_entries"
+            android:entryValues="@array/nudge_decoration_values"
+            android:defaultValue="note"
+            app:iconSpaceReserved="false" />
+
         <SwitchPreferenceCompat
             android:key="auto_advance"
             android:title="@string/enable_auto_advance_cn"
