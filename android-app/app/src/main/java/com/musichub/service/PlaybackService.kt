@@ -279,6 +279,7 @@ class PlaybackService : Service() {
             ACTION_START_FOREGROUND -> startForegroundService()
             ACTION_TOGGLE_SHUFFLE -> toggleShuffle()
             ACTION_TOGGLE_REPEAT -> toggleRepeatMode()
+            else -> startForegroundService()
         }
         return START_STICKY
     }

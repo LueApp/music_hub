@@ -14,10 +14,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
+import com.musichub.R
 import com.musichub.databinding.FragmentSetupBinding
 import com.musichub.service.MediaMonitorService
 import com.musichub.service.PlayerAccessibilityService
@@ -52,29 +54,59 @@ class SetupFragment : Fragment() {
         }
 
         binding.btnGrantOverlay.setOnClickListener {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:${requireContext().packageName}"))
-            )
+            showPermissionGuideDialog(
+                R.string.overlay_guide_title_cn,
+                R.drawable.guide_overlay,
+                R.string.overlay_guide_image_desc_cn,
+            ) {
+                startActivity(
+                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:${requireContext().packageName}"))
+                )
+            }
         }
 
         binding.btnGrantListener.setOnClickListener {
-            MediaMonitorService.openSettings(requireContext())
+            showPermissionGuideDialog(
+                R.string.notification_listener_guide_title_cn,
+                R.drawable.guide_notification_listener,
+                R.string.notification_listener_guide_image_desc_cn,
+            ) {
+                MediaMonitorService.openSettings(requireContext())
+            }
         }
 
         binding.btnGrantWriteSettings.setOnClickListener {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
-                    Uri.parse("package:${requireContext().packageName}"))
-            )
+            showPermissionGuideDialog(
+                R.string.write_settings_guide_title_cn,
+                R.drawable.guide_write_settings,
+                R.string.write_settings_guide_image_desc_cn,
+            ) {
+                startActivity(
+                    Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS,
+                        Uri.parse("package:${requireContext().packageName}"))
+                )
+            }
         }
 
         binding.btnGrantUsageStats.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            showPermissionGuideDialog(
+                R.string.usage_stats_guide_title_cn,
+                R.drawable.guide_usage_stats,
+                R.string.usage_stats_guide_image_desc_cn,
+            ) {
+                startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            }
         }
 
         binding.btnGrantAccessibility.setOnClickListener {
-            PlayerAccessibilityService.openSettings(requireContext())
+            showPermissionGuideDialog(
+                R.string.accessibility_guide_title_cn,
+                R.drawable.guide_accessibility,
+                R.string.accessibility_guide_image_desc_cn,
+            ) {
+                PlayerAccessibilityService.openSettings(requireContext())
+            }
         }
 
         binding.btnDone.setOnClickListener {
@@ -121,6 +153,26 @@ class SetupFragment : Fragment() {
     private fun setGranted(button: MaterialButton, granted: Boolean) {
         button.text = if (granted) "✓ 已授权" else "授权"
         button.isEnabled = !granted
+    }
+
+    private fun showPermissionGuideDialog(
+        titleResId: Int,
+        imageResId: Int,
+        contentDescResId: Int,
+        onProceed: () -> Unit,
+    ) {
+        val ctx = requireContext()
+        val view = layoutInflater.inflate(R.layout.dialog_permission_guide, null)
+        view.findViewById<android.widget.ImageView>(R.id.guideImage).apply {
+            setImageResource(imageResId)
+            contentDescription = getString(contentDescResId)
+        }
+        AlertDialog.Builder(ctx)
+            .setTitle(titleResId)
+            .setView(view)
+            .setPositiveButton(R.string.wakepath_guide_go_settings_cn) { _, _ -> onProceed() }
+            .setNegativeButton(R.string.wakepath_guide_cancel_cn, null)
+            .show()
     }
 
     override fun onDestroyView() {
