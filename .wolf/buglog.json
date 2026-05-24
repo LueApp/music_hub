@@ -2630,6 +2630,94 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-23T03:14:54.293Z"
+    },
+    {
+      "id": "bug-163",
+      "timestamp": "2026-05-23T04:15:00Z",
+      "error_message": "ANR: Context.startForegroundService() did not then call Service.startForeground(): PlaybackService",
+      "file": "PlaybackService.kt",
+      "root_cause": "MainActivity.bindPlaybackService() calls startForegroundService() with an Intent that has no action. onStartCommand when(intent?.action) has no else/null branch, so startForeground() is never called. Android kills the app after 5-second deadline.",
+      "fix": "Added else -> startForegroundService() branch to onStartCommand when() block. Covers both null-action (from bindPlaybackService) and null-intent (START_STICKY restart) cases.",
+      "tags": [
+        "anr",
+        "foreground-service",
+        "PlaybackService",
+        "startup",
+        "crash"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-23T04:15:00Z"
+    },
+    {
+      "id": "bug-164",
+      "timestamp": "2026-05-24T13:22:17.698Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 5→12 lines (4 removed) | Also: val cardNodes = rootNode.findAccessibilityNodeInfo; \"$QQMUSIC_PACKAGE:id/$ID_MUSIC_CARD\" | Also: /**; * Try clicking at a known fallback position where  | Also: private fun findNodesByContentDesc(; root: AccessibilityNodeInfo,",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-05-24T13:25:43.001Z"
+    },
+    {
+      "id": "bug-165",
+      "timestamp": "2026-05-24T13:24:14.560Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-24T13:24:14.560Z"
+    },
+    {
+      "id": "bug-110",
+      "timestamp": "2026-05-24T21:30:00Z",
+      "error_message": "QQ Music: trying to open player page accidentally tapped a different song in a list, causing the wrong song to play; PlaybackService then skipped the song due to title mismatch ('wrong song playing! Expected X, actual Y - treating as timeout')",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "PlayerAccessibilityService.tryClickMiniPlayer fell through to tryFallbackClick() at a hardcoded coordinate (554, 2117) whenever its ID-based strategies failed. Two compounding issues: (1) QQ Music's obfuscated IDs cxy/jrh/jro no longer exist in the current QQ Music release — the mini-player container is now h58/h51 with album cover h4z, play button fy5, queue button h53. With all three ID lookups returning empty, the fallback fires THREE times (retry 1/2/3, before Strategy 4 'assume player open' kicks in at retry > 3). (2) On QQ Music's singer-detail page (where playSonglist deep links commonly land), the song-track RecyclerView ends with a clickable item_layout at bounds [0,1976][1080,2144] — and the hardcoded (554, 2117) falls INSIDE that row. So each fallback tick taps a song row → QQ Music plays that song → PlaybackService.schedulePlaybackTimeout detects title mismatch (QQ Music is NOT exempt from title verification, only NetEase/Kugou are) → song is skipped with '播放超时' toast. Verified by uiautomator dump on user's device: bounds=(0, 1976, 1080, 2144) id=com.tencent.qqmusic:id/item_layout clickable=true sits exactly under (554, 2117).",
+      "fix": "Three-part fix in PlayerAccessibilityService.kt: (1) Replaced the ID constants with candidate lists ID_MUSIC_CARD_CANDIDATES and ID_MINI_PLAYER_CANDIDATES so Strategy 1/2 try both old (cxy/jrh/jro) and new (h58/h51) IDs — soft-lands future ID churn. (2) Added Strategy 2b tryContentDescMiniPlayerClick() that finds the mini-player by stable Chinese content-desc strings (歌曲队列 / 播放 / 暂停) on its ImageView children, then walks the tree for a wide clickable element on the same row to the LEFT of the marker (the song-info clickable region whose tap navigates to NewPlayerActivity). Content-desc strings are i18n/accessibility labels that don't change across QQ Music versions. (3) Removed tryFallbackClick() entirely. The hardcoded coordinate has no way to verify what's underneath it — better to give up cleanly and let Strategy 4 trigger 'assume player open' than to gamble on tapping a song row. Also removed unused findNodesByContentDesc/findNodesByContentDescRecursive helpers that the old code had defined but never called.",
+      "tags": [
+        "qqmusic",
+        "accessibility-service",
+        "mini-player",
+        "obfuscated-ids",
+        "wrong-song",
+        "playback-timeout",
+        "title-mismatch",
+        "fallback-coordinates"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-24T22:10:00Z",
+      "second_pass_fix": "First-pass fix added candidate-list IDs but missed two things: (a) the home-page music card uses id 'c85', NOT the mini-player id 'h58' — different QQ Music pages show different player widgets (FragmentActivityWithMinibar on singer/playlist pages uses the compact h58 mini-player; the home page uses the big expanded c85 music card). Added 'c85' to ID_MUSIC_CARD_CANDIDATES. (b) Click position was unsafe on the expanded c85 card. Strategy 1 used y = top + height/4 = 1755 on a 610-tall card, which overlaps the recommendation-list item g3r (clickable, drawn behind the card; z-order is usually fine but the marginal overlap was risky). The content-desc strategy used center-of-target, which on c85 hits y=1908 — directly on the SeekBar hga at [106, 1905, 974, 1961], which consumes the tap as a seek gesture instead of bubbling to c85. Capped Strategy 1's offset at min(height/4, 100) so it lands in the title row [1673,1725] for tall cards, and changed the content-desc strategy from center to top + min(height/4, 100). Verified empirically: at (554, 1703) the only elements covering the point are c85 (clickable=true) and the inner non-clickable title TextView c8c — no z-order ambiguity, no SeekBar interception."
+    },
+    {
+      "id": "bug-167",
+      "timestamp": "2026-05-24T13:51:26.149Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 13→18 lines (3 removed) | Also: // Click the album-cover area on the left of the t; // is the most reliable tap target on QQ Music's m",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-24T13:51:45.054Z"
     }
   ]
 }

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-23T03:14:54.285Z
-> Files: 735 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-24T13:51:44.998Z
+> Files: 736 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -18,7 +18,8 @@
 - `feedback_deploy_command.md` (~189 tok)
 - `feedback_versioning_rule.md` (~334 tok)
 - `feedback_visual_guides.md` (~439 tok)
-- `MEMORY.md` (~121 tok)
+- `MEMORY.md` (~157 tok)
+- `project_qqmusic_tap_fragility.md` (~511 tok)
 
 ## ./
 
@@ -790,8 +791,8 @@
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `LaunchModeSwitcher.kt` — Handles transitions between `launch_mode = background` and (~1597 tok)
 - `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~16125 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14737 tok)
-- `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~8522 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14749 tok)
+- `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~10188 tok)
 - `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~16826 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/
@@ -815,7 +816,7 @@
 - `LibraryFragment.kt` — Scroll to the currently playing song in the list. (~1544 tok)
 - `PlaylistDetailFragment.kt` — PlaylistDetailFragment: onCreateView, onViewCreated, setupRecyclerView, setupSearchAndFilter (~4923 tok)
 - `SettingsFragment.kt` — SettingsFragment: onCreatePreferences (~9615 tok)
-- `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1256 tok)
+- `SetupFragment.kt` — SetupFragment: onCreateView, onViewCreated, onResume, updateStatus (~1797 tok)
 
 ## android-app/app/src/main/java/com/musichub/ui/viewmodel/
 
