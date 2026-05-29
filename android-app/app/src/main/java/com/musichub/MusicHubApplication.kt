@@ -99,8 +99,18 @@ class MusicHubApplication : Application() {
         // every 5-10s during normal use, making the strict-filter
         // getPlaybackInfo return null and the timeout watchdog spuriously
         // skip QQ Music / Bilibili songs whose metadata takes >5s to load.
-        if (MediaMonitorService.getInstance() != null) {
-            Log.d(TAG, "rebindMediaMonitorIfNeeded: already bound, skipping toggle")
+        // Gate on real listener connectivity, not mere process existence.
+        // `instance` is set in onCreate and SURVIVES a silent HyperOS unbind
+        // (onListenerDisconnected clears controllers but not `instance`), so the
+        // old `getInstance() != null` check masked an unbound listener and the
+        // rebind that would repair it never ran — leaving activeControllers empty
+        // and cross-platform pause permanently disarmed (two platforms bleed).
+        // Skip only when the listener is genuinely connected. Do NOT also require
+        // non-empty controllers: at cold start the listener is connected with an
+        // empty map, and requiring non-empty would re-introduce the every-5-10s
+        // toggle churn this guard exists to prevent.
+        if (MediaMonitorService.isListenerConnected()) {
+            Log.d(TAG, "rebindMediaMonitorIfNeeded: listener connected, skipping toggle")
             return
         }
         val component = ComponentName(this, MediaMonitorService::class.java)

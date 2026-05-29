@@ -74,6 +74,16 @@ class MediaMonitorService : NotificationListenerService() {
     // (auto-advance happens within ~2s, target song takes 3-8s).
     private var samePlatformNetEasePauseUntil: Long = 0
 
+    // --- Cross-platform switch transaction (Layers 1 & 2) --------------------
+    // The "pin" (switchingFromPackage + isCrossPlatformSwitch, declared lower)
+    // keeps the OLD platform paused during a Tutti-initiated switch to a
+    // DIFFERENT platform. It is disarmed the instant the TARGET reports
+    // STATE_PLAYING, on a hard safety timeout, or when the user takes manual
+    // control (pause/stop) — so once Tutti is idle the user may freely play ANY
+    // app (the old platform or another) without being re-paused or muted.
+    private var crossSwitchSafetyRunnable: Runnable? = null
+    private val CROSS_SWITCH_HARD_TIMEOUT_MS = 10000L
+
 
     // One-shot callback for detecting when a platform starts playing.
     // Used by DeepLinkLauncher to restore auto-rotation after NetEase loads.
@@ -185,6 +195,7 @@ class MediaMonitorService : NotificationListenerService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        listenerConnected = false
         stopMonitoring()
         Log.d(TAG, "MediaMonitorService destroyed")
     }
@@ -192,12 +203,14 @@ class MediaMonitorService : NotificationListenerService() {
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d(TAG, "NotificationListener connected")
+        listenerConnected = true
         startMonitoring()
     }
 
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Log.d(TAG, "NotificationListener disconnected")
+        listenerConnected = false
         stopMonitoring()
     }
 
@@ -342,6 +355,19 @@ class MediaMonitorService : NotificationListenerService() {
                 }
             }
             return
+        }
+
+        // Target confirmed playing → disarm the cross-platform pin (Layer 1).
+        // Event-driven, replacing the old blind 3s disarm that lost the race
+        // against the new app's 3-8s load. Clears the pin, cancels the safety
+        // timeout, and lifts the foreground mute so only the target stays audible.
+        // (currentPlatformPackage was set to the target before launch, so this
+        // matches the NEW platform, never the old one being re-paused.)
+        if (isCrossPlatformSwitch && fromPackage != null &&
+            fromPackage == currentPlatformPackage &&
+            currentState == PlaybackState.STATE_PLAYING) {
+            Log.d(TAG, "Target $fromPackage confirmed playing; disarming cross-platform switch")
+            finishCrossPlatformSwitch()
         }
 
         // Reactive pause for same-platform NetEase: during the pause window
@@ -818,6 +844,15 @@ class MediaMonitorService : NotificationListenerService() {
         if (isCrossPlatformSwitch) {
             Log.d(TAG, "Cross-platform switch detected, scheduling repeated pause for $switchingFromPackage")
             scheduleRepeatedPause()
+            // Hard safety timeout: guarantees the pin drops and the stream unmutes
+            // even if the target never reports STATE_PLAYING (e.g. a failed launch).
+            crossSwitchSafetyRunnable?.let { handler.removeCallbacks(it) }
+            crossSwitchSafetyRunnable = Runnable {
+                if (isCrossPlatformSwitch) {
+                    Log.d(TAG, "Cross-platform switch safety timeout; disarming pin")
+                    finishCrossPlatformSwitch()
+                }
+            }.also { handler.postDelayed(it, CROSS_SWITCH_HARD_TIMEOUT_MS) }
         } else {
             Log.d(TAG, "Same-platform switch, skipping repeated pause")
         }
@@ -837,11 +872,17 @@ class MediaMonitorService : NotificationListenerService() {
      * up to ~2 seconds after the initial pause.
      */
     private fun scheduleRepeatedPause() {
-        // Pause at frequent intervals up to 4 seconds to catch auto-advance
-        val delays = listOf(500L, 1000L, 1500L, 2000L, 2500L, 3000L, 3500L, 4000L)
+        // Re-pause the OLD platform across the whole new-song load window (3-8s),
+        // not just 4s. Each runnable self-terminates the moment the pin clears
+        // (target confirmed playing, safety timeout, or user pause) because the
+        // gate below goes false — so this never pauses the new target. The gate no
+        // longer requires manualControlActive (that disarms at 3s for the
+        // Previous-button race guard; the OLD-platform pin must outlive it).
+        val delays = listOf(500L, 1000L, 1500L, 2000L, 2500L, 3000L, 3500L, 4000L,
+                            5000L, 6000L, 7000L, 8000L, 9000L)
         delays.forEach { delay ->
             handler.postDelayed({
-                if (manualControlActive && switchingFromPackage != null && isCrossPlatformSwitch) {
+                if (switchingFromPackage != null && isCrossPlatformSwitch) {
                     pauseSpecificPackage(switchingFromPackage!!)
                 }
             }, delay)
@@ -867,6 +908,34 @@ class MediaMonitorService : NotificationListenerService() {
                 Log.e(TAG, "Error re-pausing media for $packageName: ${e.message}")
             }
         }
+    }
+
+    /**
+     * Disarm the cross-platform switch pin after a SUCCESSFUL handoff (target
+     * confirmed playing) or the hard safety timeout. Clears the old-platform pin
+     * so scheduled/reactive re-pauses stop, cancels the safety timeout, and lifts
+     * the foreground mute. Leaves manualControlActive alone (it has its own 3s
+     * schedule for the Previous-button race guard).
+     */
+    private fun finishCrossPlatformSwitch() {
+        switchingFromPackage = null
+        isCrossPlatformSwitch = false
+        crossSwitchSafetyRunnable?.let { handler.removeCallbacks(it) }
+        crossSwitchSafetyRunnable = null
+    }
+
+    /**
+     * Cancel an in-flight cross-platform switch because the USER took manual
+     * control (pressed pause/stop, or is about to manually drive an app). Same
+     * teardown as [finishCrossPlatformSwitch]: once the user is in control, Tutti
+     * must stop pinning/muting so they can freely play the old platform OR any
+     * other app. Safe to call when no switch is active (no-op).
+     */
+    fun cancelCrossPlatformSwitch() {
+        if (isCrossPlatformSwitch) {
+            Log.d(TAG, "User took manual control; cancelling cross-platform switch defenses")
+        }
+        finishCrossPlatformSwitch()
     }
 
     /**
@@ -949,11 +1018,16 @@ class MediaMonitorService : NotificationListenerService() {
      */
     fun onNewSongStarted() {
         Log.d(TAG, "onNewSongStarted called - will re-enable auto-advance detection after delay")
-        // Wait for the music app to start playing and report metadata
+        // Wait for the music app to start playing and report metadata.
+        // NOTE: only manualControlActive is disarmed here (preserves the
+        // Previous-button race-guard timing). The cross-platform pin
+        // (switchingFromPackage / isCrossPlatformSwitch) is NO LONGER cleared on
+        // this blind 3s timer — it is disarmed event-driven when the TARGET
+        // reports STATE_PLAYING (or the hard safety timeout), so the old platform
+        // stays pinned through the new song's full 3-8s load window.
         handler.postDelayed({
             Log.d(TAG, "Re-enabling auto-advance detection (manual control deactivated)")
             manualControlActive = false
-            switchingFromPackage = null  // Stop re-pausing the old package
             songEndTriggered = false
         }, 3000L)  // 3 seconds to let the music app settle
     }
@@ -1122,6 +1196,11 @@ class MediaMonitorService : NotificationListenerService() {
      * Prioritizes controllers that are actively playing.
      */
     fun togglePlayPause() {
+        // The user is taking manual control — stop any in-flight cross-platform
+        // switch defenses so they can freely pause/resume the old platform or
+        // play another app without Tutti re-pausing it or holding the stream muted.
+        cancelCrossPlatformSwitch()
+
         val controllerSnapshot = synchronized(controllersLock) {
             activeControllers.values.toList()
         }
@@ -1210,6 +1289,18 @@ class MediaMonitorService : NotificationListenerService() {
         private var instance: MediaMonitorService? = null
 
         fun getInstance(): MediaMonitorService? = instance
+
+        // Tracks whether the NotificationListener binding is actually LIVE.
+        // Set true in onListenerConnected, false in onListenerDisconnected/onDestroy.
+        // This is the real binding-health signal: `instance` only tracks process
+        // existence (set in onCreate), so a silent HyperOS unbind — which clears
+        // activeControllers but does NOT null `instance` — must be detected via
+        // THIS flag, not via getInstance() != null. Otherwise onResume's rebind is
+        // never run and the cross-platform pause machinery iterates an empty map.
+        @Volatile
+        private var listenerConnected: Boolean = false
+
+        fun isListenerConnected(): Boolean = listenerConnected
 
         /**
          * Check if notification listener is enabled.

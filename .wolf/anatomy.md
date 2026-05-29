@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-24T13:51:44.998Z
-> Files: 736 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-29T12:09:06.710Z
+> Files: 737 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
 
@@ -18,8 +18,9 @@
 - `feedback_deploy_command.md` (~189 tok)
 - `feedback_versioning_rule.md` (~334 tok)
 - `feedback_visual_guides.md` (~439 tok)
-- `MEMORY.md` (~157 tok)
+- `MEMORY.md` (~206 tok)
 - `project_qqmusic_tap_fragility.md` (~511 tok)
+- `project_switch_reliability.md` (~575 tok)
 
 ## ./
 
@@ -759,7 +760,7 @@
 
 ## android-app/app/src/main/java/com/musichub/
 
-- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Tutti's process (~4224 tok)
+- `MusicHubApplication.kt` — After an APK reinstall — and after HyperOS kills Tutti's process (~4432 tok)
 
 ## android-app/app/src/main/java/com/musichub/data/backup/
 
@@ -790,8 +791,8 @@
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~20899 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `LaunchModeSwitcher.kt` — Handles transitions between `launch_mode = background` and (~1597 tok)
-- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~16125 tok)
-- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~14749 tok)
+- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~17511 tok)
+- `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~15305 tok)
 - `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~10188 tok)
 - `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~16826 tok)
 

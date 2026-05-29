@@ -2718,6 +2718,160 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-05-24T13:51:45.054Z"
+    },
+    {
+      "id": "bug-168",
+      "timestamp": "2026-05-29T06:34:09.901Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check) | Also: // Target confirmed playing → disarm the cross-platform pin ; // Event-driven, replacing the old blind 3s disarm that lost | Also: // Hard safety timeout: guarantees the pin drops and the str; // even if the target never reports STATE_PLAYING (e.g. a fa",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 3,
+      "last_seen": "2026-05-29T06:34:48.504Z"
+    },
+    {
+      "id": "bug-169",
+      "timestamp": "2026-05-29T06:34:18.926Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T06:34:18.926Z"
+    },
+    {
+      "id": "bug-170",
+      "timestamp": "2026-05-29T06:34:54.262Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 11→17 lines (3 removed) | Also: // Wait for the music app to start playing and rep; switchingFromPackage = null  // Stop re-pausing th",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-05-29T06:34:59.391Z"
+    },
+    {
+      "id": "bug-171",
+      "timestamp": "2026-05-29T06:35:27.028Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T06:35:27.028Z"
+    },
+    {
+      "id": "bug-172",
+      "timestamp": "2026-05-29T06:35:50.474Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T06:35:50.474Z"
+    },
+    {
+      "id": "bug-173",
+      "timestamp": "2026-05-29T06:37:39.057Z",
+      "error_message": "Wrong condition in logic",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt",
+      "root_cause": "Condition was: if (MediaMonitorService.getInstance()",
+      "fix": "Changed to: if (MediaMonitorService.isListenerConnected()",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T06:37:39.057Z"
+    },
+    {
+      "id": "bug-174",
+      "timestamp": "2026-05-29T14:40:00Z",
+      "error_message": "Two music apps on different platforms play simultaneously during a Tutti cross-platform song switch (audio bleed)",
+      "file": "android-app/app/src/main/java/com/musichub/MusicHubApplication.kt, android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt, android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "PRIMARY (regression, commit f2914bd): rebindMediaMonitorIfNeeded() skipped the listener rebind whenever MediaMonitorService.getInstance()!=null. But `instance` is set in onCreate and is NOT nulled when HyperOS silently unbinds the NotificationListener (onListenerDisconnected clears activeControllers + unregisters the session listener but leaves `instance` non-null). After a silent unbind the rebind never ran, activeControllers stayed empty, and pauseAllMedia() found no foreign controller -> isCrossPlatformSwitch never armed -> NO pause/stop/re-pause of the old app at all -> both platforms play. SECONDARY (latent): onNewSongStarted() cleared switchingFromPackage on a blind 3s timer while the new song loads in 3-8s, leaving a defense-free tail window. Also: Tutti never requests audio focus and the 'mute fallback' in armSamePlatformNetEasePause's doc-comment was never implemented (body only set a timestamp).",
+      "fix": "3 layers. L0: added @Volatile listenerConnected flag (set in onListenerConnected, cleared in onListenerDisconnected/onDestroy); MusicHubApplication gates the rebind-skip on MediaMonitorService.isListenerConnected() (companion fun, called statically on the class) instead of getInstance()!=null. Did NOT also require non-empty controllers (cold start is legitimately empty; would re-introduce 5-10s toggle churn). L1: cross-platform pin (switchingFromPackage/isCrossPlatformSwitch) disarms event-driven via finishCrossPlatformSwitch() when the TARGET reports STATE_PLAYING in handlePlaybackStateChange, or a 10s hard safety timeout; removed switchingFromPackage=null from onNewSongStarted's 3s runnable (kept manualControlActive there for Previous-race guard); extended scheduleRepeatedPause to 9s and dropped manualControlActive from its gate. L2: background+Shizuku force-stops the old platform via ShizukuLauncher.purgeMusicAppTasks(exclude=musicAppPackages()-oldPkg) (PlaybackService.forceStopOldPlatformIfBackground); foreground/no-Shizuku uses a cross-platform-only STREAM_MUSIC mute bridge (muteStreamForSwitch/unmuteStreamForSwitch) with guaranteed restore. All defenses switch-scoped and torn down on togglePlayPause()/stop() (cancelCrossPlatformSwitch) so a user who pauses can manually play the old platform or any other app without interference. Build clean, deployed v0.1.1-4-ge3c05a5-dirty.",
+      "tags": [
+        "audio-bleed",
+        "cross-platform",
+        "mediamonitor",
+        "notification-listener",
+        "rebind",
+        "shizuku",
+        "force-stop",
+        "mute",
+        "regression",
+        "f2914bd"
+      ],
+      "related_bugs": [
+        "bug-172",
+        "bug-173"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T14:40:00Z"
+    },
+    {
+      "id": "bug-175",
+      "timestamp": "2026-05-29T12:08:13.356Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→3 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:08:13.356Z"
+    },
+    {
+      "id": "bug-176",
+      "timestamp": "2026-05-29T12:09:06.718Z",
+      "error_message": "Wrong condition in logic",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Condition was: if (isCrossPlatformSwitch || muteSavedVolume >= 0)",
+      "fix": "Changed to: if (isCrossPlatformSwitch)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T12:09:06.718Z"
     }
   ]
 }

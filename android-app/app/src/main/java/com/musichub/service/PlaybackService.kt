@@ -683,10 +683,37 @@ class PlaybackService : Service() {
     fun stop() {
         cancelPlaybackTimeout()
         isPlaying = false
+        // User stopped playback — drop any in-flight cross-platform switch
+        // defenses (pin/mute) so manual playback of any app is not fought.
+        MediaMonitorService.getInstance()?.cancelCrossPlatformSwitch()
         releaseWakeLock()
         releaseScreenWakeLock()
         notifySongChangeListeners(null)
         stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    /**
+     * Background launch mode only: when Shizuku is READY, force-stop the old
+     * platform during a cross-platform switch so it cannot bleed or auto-advance.
+     * No-op in foreground mode or when Shizuku isn't ready (the mute bridge in
+     * MediaMonitorService.pauseAllMedia covers those). One-shot and switch-scoped:
+     * the user can still relaunch the old platform manually afterwards.
+     */
+    private fun forceStopOldPlatformIfBackground(oldPackage: String) {
+        val mode = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            .getString("launch_mode", DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
+        if (mode != DeepLinkLauncher.LAUNCH_MODE_BACKGROUND) return
+        if (ShizukuLauncher.status(this) != ShizukuLauncher.Status.READY) return
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                // Exclude every music package EXCEPT the old one -> purge only it.
+                val exclude = ShizukuLauncher.musicAppPackages() - oldPackage
+                val result = ShizukuLauncher.purgeMusicAppTasks(this@PlaybackService, exclude)
+                Log.d(TAG, "Force-stopped old platform $oldPackage on cross-platform switch: $result")
+            } catch (e: Exception) {
+                Log.w(TAG, "Force-stop of old platform $oldPackage failed: ${e.message}")
+            }
+        }
     }
 
     private fun launchCurrentSong() {
@@ -711,6 +738,12 @@ class PlaybackService : Service() {
             if (currentPlatform != null && currentPlatform != targetPackage) {
                 Log.d(TAG, "Pre-emptive cross-platform pause: $currentPlatform -> $targetPackage")
                 monitor.pauseAllMedia(targetPackage)
+                // Background mode + Shizuku: force-stop the OLD platform outright —
+                // the most reliable silencer (a killed app cannot ignore pause or
+                // auto-advance). Foreground mode (no Shizuku) relies on the mute
+                // bridge armed inside pauseAllMedia instead. One-shot and
+                // switch-scoped: the user can still relaunch the old platform later.
+                forceStopOldPlatformIfBackground(currentPlatform)
             }
         }
 
