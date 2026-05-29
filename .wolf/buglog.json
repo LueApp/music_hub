@@ -2872,6 +2872,50 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-05-29T12:09:06.718Z"
+    },
+    {
+      "id": "bug-177",
+      "timestamp": "2026-05-29T14:28:59.056Z",
+      "error_message": "Null/undefined access in ",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "Property access on potentially null/undefined value",
+      "fix": "Added null safety (optional chaining or null check)",
+      "tags": [
+        "auto-detected",
+        "null-safety",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T14:28:59.056Z"
+    },
+    {
+      "id": "bug-178",
+      "timestamp": "2026-05-29T22:35:00Z",
+      "error_message": "Foreground mode, phone held physically landscape: switching to a NetEase song INTERMITTENTLY opens the portrait PlayerActivity instead of NetEase's dedicated PlayerLandscapeActivity. Works most of the time; fails sometimes.",
+      "file": "android-app/app/src/main/java/com/musichub/service/DeepLinkLauncher.kt",
+      "root_cause": "restoreAutoRotation was called SYNCHRONOUSLY the instant MediaMonitorService fired the onNextPlaybackStart callback on NetEase's first armed STATE_PLAYING (DeepLinkLauncher.kt onNextPlaybackStart lambda; fire site MediaMonitorService.handlePlaybackStateChange ~line 444). STATE_PLAYING (NetEase audio-engine readiness) is only a PROXY for 'the fresh CLEAR_TASK'd PlayerActivity has registered its internal OrientationEventListener while still portrait' — and the two events are not strictly ordered (engine vs UI thread). When restore (re-enabling ACCELEROMETER_ROTATION=1) won the race, the system rotated to physical landscape BEFORE the listener registered; the listener then registered in an already-landscape state, saw no portrait->landscape edge, and stayed in the portrait PlayerActivity. Intermittent because run-to-run jitter flips whether audio-start precedes or follows listener registration. Secondary (medium-confidence) contributor: after ACCELEROMETER_ROTATION=1, the actual portrait->landscape display edge depends on AOSP's WindowOrientationListener tilt/hysteresis/debounce state at the restore instant, so a flat/near-threshold hold can fail to produce a prompt edge. Diagnosed via a 6-lens + adversarial-verify + synthesis workflow (rank 1 high confidence, rank 2 medium).",
+      "fix": "Added a fixed ROTATION_RESTORE_SETTLE_MS=900L delay between the STATE_PLAYING callback and restoreAutoRotation (postDelayed on main looper) so 'audio started' becomes 'audio started AND the UI had time to arm its OrientationEventListener while still portrait', making the subsequent rotation a genuine transition. Only delays the restore (device already loading, visibly portrait); never skips it; the 15000ms LANDSCAPE_ROTATION_TIMEOUT_MS safety fallback still bounds the total wait. Also added a zero-write diagnostic confirm-log (ROTATION_CONFIRM_MS=700L after restore) that samples display rotation and warns if STILL PORTRAIT — to confirm on-device whether the rank-2 hysteresis residual actually occurs before adding any riskier re-assert. REGRESSION-SAFE: no change to any early-return in MediaMonitorService.handlePlaybackStateChange (bug-068 hazard untouched); the 6 scheduled pause+stop calls in PlaybackService.doLaunchSong stay un-gated (bug-095 untouched); the single-slot pendingPlaybackCallback remains owned solely by this workaround (cross-platform pin/mute 2026-05-29 untouched); no USER_ROTATION landscape write, so no persisted-rotation leak / stuck-landscape risk. REJECTED: title-match guard on the fire block (NetEase cycles lyric lines through METADATA_KEY_TITLE), lowering PLAYBACK_CALLBACK_MIN_DELAY_MS (re-admits stale events), synthesizing USER_ROTATION=90/270 (leak + can't know 90 vs 270).",
+      "tags": [
+        "netease",
+        "landscape",
+        "rotation-workaround",
+        "orientationeventlistener",
+        "race-condition",
+        "timing",
+        "restoreAutoRotation",
+        "settle-delay",
+        "intermittent",
+        "foreground-mode",
+        "STATE_PLAYING"
+      ],
+      "related_bugs": [
+        "bug-068",
+        "bug-082",
+        "bug-095"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-05-29T22:35:00Z"
     }
   ]
 }

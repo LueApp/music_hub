@@ -27,6 +27,27 @@ object DeepLinkLauncher {
     // Timeout for waiting for NetEase playback to start before restoring auto-rotation
     private const val LANDSCAPE_ROTATION_TIMEOUT_MS = 15000L
 
+    // Settle delay between NetEase reporting STATE_PLAYING and re-enabling
+    // auto-rotate. STATE_PLAYING (NetEase's audio engine becoming ready) is only
+    // a *proxy* for "the fresh PlayerActivity has registered its internal
+    // OrientationEventListener while still portrait" — and those two events are
+    // NOT strictly ordered. Restoring rotation the instant STATE_PLAYING arrives
+    // can win the race against that registration: the system rotates to the
+    // physical landscape first, NetEase's listener then registers in an
+    // already-landscape state, sees no portrait->landscape edge, and stays in
+    // the portrait PlayerActivity. That was the intermittent failure. A short
+    // settle converts "audio started" into "audio started AND the UI has had
+    // time to arm its listener while still portrait", so the subsequent rotation
+    // is observed as a genuine transition. This only DELAYS the restore (the
+    // device is already loading, visibly portrait); it never skips it, and the
+    // LANDSCAPE_ROTATION_TIMEOUT_MS safety fallback still bounds the total wait.
+    private const val ROTATION_RESTORE_SETTLE_MS = 900L
+
+    // How long after re-enabling auto-rotate we sample the display rotation to
+    // confirm the system actually rotated to landscape. Diagnostic only (logs
+    // the outcome) — see the confirm block in restoreAutoRotation.
+    private const val ROTATION_CONFIRM_MS = 700L
+
     private const val BILIBILI_PACKAGE = "tv.danmaku.bili"
     private const val NETEASE_PACKAGE = "com.netease.cloudmusic"
     private const val KUGOU_PACKAGE = "com.kugou.android"
@@ -171,8 +192,14 @@ object DeepLinkLauncher {
                 val monitor = MediaMonitorService.getInstance()
                 if (monitor != null) {
                     monitor.onNextPlaybackStart(NETEASE_PACKAGE, LANDSCAPE_ROTATION_TIMEOUT_MS) {
-                        Log.d(TAG, "NetEase playback detected, restoring auto-rotation")
-                        restoreAutoRotation(context)
+                        // Defer the restore by a short settle so NetEase's fresh
+                        // PlayerActivity has reliably registered its OrientationEventListener
+                        // (while still portrait) before we re-enable auto-rotate. Restoring
+                        // inline lost this race intermittently. See ROTATION_RESTORE_SETTLE_MS.
+                        Log.d(TAG, "NetEase playback detected, scheduling rotation restore after ${ROTATION_RESTORE_SETTLE_MS}ms settle")
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            restoreAutoRotation(context)
+                        }, ROTATION_RESTORE_SETTLE_MS)
                     }
                 } else {
                     // No monitor available, restore after timeout
@@ -704,6 +731,26 @@ object DeepLinkLauncher {
                     context.contentResolver, Settings.System.USER_ROTATION, user
                 )
                 Log.i(TAG, "Settings.System.putInt USER_ROTATION $curUser -> $user")
+
+                // Diagnostic confirm (no Settings writes): sample the display
+                // rotation shortly after re-enabling auto-rotate. If it's still
+                // portrait, AOSP's accelerometer rotation filter hadn't yet
+                // proposed a non-portrait rotation at the restore instant
+                // (hysteresis/debounce, or the hold was near a threshold) — i.e.
+                // a residual, rarer cause distinct from the settle-delay race the
+                // ROTATION_RESTORE_SETTLE_MS fix targets. This block only LOGS the
+                // outcome so we can confirm on-device whether that residual occurs
+                // before adding any (riskier) re-assert. It performs no writes, so
+                // it cannot leave the device in a bad rotation state.
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val rotation = (context.getSystemService(Context.WINDOW_SERVICE)
+                        as? android.view.WindowManager)?.defaultDisplay?.rotation
+                    if (rotation == android.view.Surface.ROTATION_0) {
+                        Log.w(TAG, "Rotation confirm: display STILL PORTRAIT ${ROTATION_CONFIRM_MS}ms after restore — accelerometer filter did not rotate to landscape (residual hysteresis case)")
+                    } else {
+                        Log.d(TAG, "Rotation confirm: display rotated to $rotation after restore (landscape OK)")
+                    }
+                }, ROTATION_CONFIRM_MS)
             } else {
                 val curAccel = Settings.System.getInt(
                     context.contentResolver, Settings.System.ACCELEROMETER_ROTATION, 1

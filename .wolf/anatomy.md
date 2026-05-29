@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-05-29T12:09:06.710Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-05-29T14:28:59.049Z
 > Files: 737 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
@@ -787,7 +787,7 @@
 
 ## android-app/app/src/main/java/com/musichub/service/
 
-- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~9580 tok)
+- `DeepLinkLauncher.kt` — Handles launching songs in their native music apps via deep links. (~10509 tok)
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~20899 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `LaunchModeSwitcher.kt` — Handles transitions between `launch_mode = background` and (~1597 tok)
