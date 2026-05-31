@@ -49,6 +49,19 @@ data class AutoGrantResult(
 }
 
 /**
+ * Result of a [ShizukuLauncher.purgeMusicAppTasks] sweep. `total` is the sum of
+ * `perPackage` values. Packages whose `am stack remove-task` failed and were
+ * recovered via `am force-stop` appear in `fallbackUsed`. Packages explicitly
+ * excluded from the sweep (e.g. the currently-playing one) appear in `skipped`.
+ */
+data class PurgeResult(
+    val perPackage: Map<String, Int>,
+    val total: Int,
+    val fallbackUsed: Set<String>,
+    val skipped: Set<String> = emptySet(),
+)
+
+/**
  * Bridge to the Shizuku app (https://shizuku.rikka.app) for executing shell-UID
  * commands from a regular app. We use it specifically to run
  * `am start --windowingMode 5` (freeform), which the Android framework otherwise
@@ -607,8 +620,27 @@ object ShizukuLauncher {
      */
     const val MIUI_SECURITY_CENTER_PACKAGE = "com.miui.securitycenter"
 
+    /**
+     * HyperOS launcher (home screen). Listening to its window events lets
+     * [PlayerAccessibilityService] re-fire [triggerResizeForAllMusicApps] on
+     * HOME gestures — when HyperOS rescues an off-screen freeform task into
+     * its `miui_multi_sence` sidebar widget, the launcher gets the foreground
+     * focus first. Without this, the music-app's own window event may not
+     * fire (the task didn't actually move), and the sidebar widget persists.
+     */
+    const val MIUI_HOME_PACKAGE = "com.miui.home"
+
+    /**
+     * System UI package — handles the bottom navigation gesture bar. Events
+     * from this package fire as the user starts a system gesture (HOME
+     * swipe, swipe-up-hold for Recent apps), earlier than the launcher
+     * events. [FloatingWindowService] uses this signal to pause its
+     * breathing animation so the gesture detection isn't competed against.
+     */
+    const val ANDROID_SYSTEMUI_PACKAGE = "com.android.systemui"
+
     fun accessibilityListenPackages(): Set<String> =
-        musicAppPackages() + MIUI_SECURITY_CENTER_PACKAGE
+        musicAppPackages() + MIUI_SECURITY_CENTER_PACKAGE + MIUI_HOME_PACKAGE + ANDROID_SYSTEMUI_PACKAGE
 
     /**
      * Fire a resize for whichever music-app package is currently being
@@ -641,6 +673,185 @@ object ShizukuLauncher {
      */
     fun triggerResizeForAllMusicApps() {
         musicAppPackages().forEach { triggerResize(it) }
+    }
+
+    /**
+     * Purge stale music-app tasks via a single Shizuku shell script. Used by
+     * [LaunchModeSwitcher] to wipe stale state on a `launch_mode` toggle so
+     * the next launch starts from a clean slate.
+     *
+     * [excludePackages] is a set of packages to leave completely untouched —
+     * typically the currently-playing package, so audio is not interrupted by
+     * the mode switch. Excluded packages get no `remove-task` and no
+     * `force-stop`; they appear in [PurgeResult.skipped] for the caller's log.
+     *
+     * Script flow per non-excluded package:
+     *   1. Dump `dumpsys activity activities` ONCE.
+     *   2. Extract every Task id whose Hist line references the package.
+     *   3. Run `am stack remove-task <tid>` per task. If any removal fails,
+     *      run `am force-stop <pkg>` once as a fallback (covers HyperOS's
+     *      occasional refusal to remove the top-of-stack task).
+     *   4. Emit `PKG=<pkg> COUNT=<n> FALLBACK=<0|1>` per package and a final
+     *      `TOTAL=<n>`. Kotlin parses these into [PurgeResult].
+     *
+     * Returns `PurgeResult(emptyMap(), 0, emptySet(), emptySet())` when Shizuku
+     * is not READY — callers should check [status] separately to distinguish
+     * "no tasks found" from "couldn't run the purge".
+     */
+    fun purgeMusicAppTasks(
+        context: Context,
+        excludePackages: Set<String> = emptySet()
+    ): PurgeResult {
+        if (status(context) != Status.READY) {
+            Log.d(TAG, "purgeMusicAppTasks skipped: Shizuku not ready")
+            return PurgeResult(emptyMap(), 0, emptySet(), emptySet())
+        }
+
+        val allPkgs = musicAppPackages()
+        val targetPkgs = allPkgs - excludePackages
+        val skipped = allPkgs.intersect(excludePackages)
+        if (targetPkgs.isEmpty()) {
+            Log.i(TAG, "purgeMusicAppTasks: nothing to purge (all packages excluded: $skipped)")
+            return PurgeResult(emptyMap(), 0, emptySet(), skipped)
+        }
+
+        val pkgList = targetPkgs.joinToString(" ")
+        val script = """
+            DUMP=${'$'}(dumpsys activity activities 2>/dev/null)
+            TOTAL=0
+            for PKG in $pkgList; do
+              TIDS=${'$'}(echo "${'$'}DUMP" | awk -v pkg="${'$'}PKG" '
+                /^[[:space:]]*\* Task\{/ {
+                  if (has && cur != "") { print cur }
+                  match(${'$'}0, /#[0-9]+/); cur=substr(${'$'}0, RSTART+1, RLENGTH-1); has=0
+                }
+                /Hist/ && index(${'$'}0, pkg "/") > 0 { has=1 }
+                END { if (has && cur != "") print cur }
+              ')
+              COUNT=0
+              FAIL=0
+              for T in ${'$'}TIDS; do
+                if am stack remove-task "${'$'}T" >/dev/null 2>&1; then
+                  COUNT=${'$'}((COUNT+1))
+                else
+                  FAIL=1
+                fi
+              done
+              FBK=0
+              if [ "${'$'}FAIL" = "1" ]; then
+                if am force-stop "${'$'}PKG" >/dev/null 2>&1; then
+                  FBK=1
+                  COUNT=${'$'}((COUNT+1))
+                fi
+              fi
+              echo "PKG=${'$'}PKG COUNT=${'$'}COUNT FALLBACK=${'$'}FBK"
+              TOTAL=${'$'}((TOTAL+COUNT))
+            done
+            echo "TOTAL=${'$'}TOTAL"
+        """.trimIndent()
+
+        return try {
+            val proc = newShizukuProcess(arrayOf("sh", "-c", script))
+                ?: return PurgeResult(emptyMap(), 0, emptySet(), skipped)
+            val out = proc.inputStream.bufferedReader().readText()
+            proc.waitFor()
+
+            val perPackage = mutableMapOf<String, Int>()
+            val fallbackUsed = mutableSetOf<String>()
+            var total = 0
+            val pkgLine = Regex("""PKG=(\S+) COUNT=(\d+) FALLBACK=(\d+)""")
+            val totalLine = Regex("""TOTAL=(\d+)""")
+            out.lineSequence().forEach { line ->
+                pkgLine.matchEntire(line.trim())?.let { m ->
+                    val (pkg, countStr, fbkStr) = m.destructured
+                    val count = countStr.toIntOrNull() ?: 0
+                    perPackage[pkg] = count
+                    if (fbkStr == "1") fallbackUsed.add(pkg)
+                }
+                totalLine.matchEntire(line.trim())?.let { m ->
+                    total = m.groupValues[1].toIntOrNull() ?: total
+                }
+            }
+
+            val result = PurgeResult(perPackage, total, fallbackUsed, skipped)
+            Log.i(
+                TAG,
+                "purgeMusicAppTasks: total=$total perPackage=$perPackage fallback=$fallbackUsed skipped=$skipped"
+            )
+            result
+        } catch (e: Throwable) {
+            Log.w(TAG, "purgeMusicAppTasks failed: ${e.javaClass.simpleName}: ${e.message}")
+            PurgeResult(emptyMap(), 0, emptySet(), skipped)
+        }
+    }
+
+    /**
+     * Promote a music app's existing freeform task to fullscreen. Used by
+     * [LaunchModeSwitcher] on a `background → foreground` toggle so the
+     * currently-playing music app's off-screen freeform window becomes a
+     * normal fullscreen view.
+     *
+     * Mechanism — single `am start` via Shizuku:
+     *
+     *   am start --windowingMode 1 -a android.intent.action.VIEW
+     *            -d <deeplink> -p <pkg> -f 0x10000000
+     *
+     *   0x10000000 = FLAG_ACTIVITY_NEW_TASK
+     *   `--windowingMode 1` = WINDOWING_MODE_FULLSCREEN
+     *
+     * Empirically on HyperOS (Android 14): the `--windowingMode 1` hint flips
+     * the existing task's windowing mode from freeform to fullscreen even when
+     * the Intent is delivered to an existing singleTask Activity via
+     * `onNewIntent`. No `CLEAR_TASK` needed, no task removal needed — the
+     * task id and Activity stack are preserved, only the windowing mode and
+     * default bounds change. Audio Service is untouched so playback continues.
+     *
+     * Why not `am stack move-task <tid> 1 true`: empirically observed silent
+     * no-op on HyperOS for an in-process active freeform task.
+     *
+     * Why not `FLAG_ACTIVITY_CLEAR_TASK` (0x00008000): observed to preserve
+     * the existing task's windowing mode even after destroying the Activity
+     * stack — the freeform window stays freeform.
+     *
+     * Why not `am stack remove-task <tid>`: command does not exist on
+     * Android 14 (`Error: unknown command 'remove-task'`).
+     *
+     * Returns true if the `am start` exited 0.
+     */
+    fun promoteTaskToFullscreen(context: Context, pkg: String, deepLink: String): Boolean {
+        if (status(context) != Status.READY) {
+            Log.d(TAG, "promoteTaskToFullscreen($pkg) skipped: Shizuku not ready")
+            return false
+        }
+        if (pkg.isBlank() || deepLink.isBlank()) return false
+
+        val quotedDeepLink = "'" + deepLink.replace("'", """'\''""") + "'"
+        val cmd = arrayOf(
+            "am", "start",
+            "--windowingMode", "1",
+            "-a", "android.intent.action.VIEW",
+            "-d", deepLink,
+            "-p", pkg,
+            "-f", "0x10000000"
+        )
+
+        return try {
+            val proc = newShizukuProcess(cmd) ?: return false
+            val exit = proc.waitFor()
+            val out = try {
+                proc.inputStream.bufferedReader().readText()
+            } catch (_: Exception) {
+                ""
+            }
+            Log.i(
+                TAG,
+                "promoteTaskToFullscreen($pkg): exit=$exit out=${out.replace("\n", " | ").take(200)}"
+            )
+            exit == 0
+        } catch (e: Throwable) {
+            Log.w(TAG, "promoteTaskToFullscreen($pkg) failed: ${e.javaClass.simpleName}: ${e.message}")
+            false
+        }
     }
 
     /**

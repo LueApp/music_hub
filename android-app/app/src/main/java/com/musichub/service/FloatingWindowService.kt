@@ -244,7 +244,212 @@ class FloatingWindowService : Service() {
         // Enable dragging
         setupDragListener(params)
 
+        // Schedule an initial multi_sence dismissal nudge ~500 ms after the
+        // overlay materializes. Subsequent dismissals are event-driven via
+        // [scheduleNudgeAfterGesture] from PlayerAccessibilityService.
+        scheduleNudgeAfterGesture(500L)
+
         Log.d(TAG, "Floating window shown")
+    }
+
+    /**
+     * Smooth "bounce" animation — the ball gently slides outward (toward
+     * screen edge) ~14 px on an ease-out curve, then smoothly springs back
+     * with an overshoot wobble. ~360 ms total, 60 fps interpolation.
+     *
+     * Two purposes:
+     *   1. UX: reads as an intentional "attention" / "pulse" animation —
+     *      the kind users expect from notification beacons. Not a
+     *      glitchy 2-px jitter.
+     *   2. Functional: the smooth motion is enough updateViewLayout calls
+     *      to register with HyperOS's `miui_multi_sence` drag-detector
+     *      heuristic, which then dismisses its sidebar widget.
+     *
+     * Not continuous — fired only by [scheduleNudgeAfterGesture] once
+     * launcher / system-UI accessibility events have settled, so it never
+     * competes with active system gesture detection.
+     */
+    fun nudgeOnce() {
+        val view: android.view.View = if (isMiniMode) miniBallView ?: return else floatingView ?: return
+        val wm = windowManager ?: return
+        val params = view.layoutParams as? WindowManager.LayoutParams ?: return
+        val originalX = params.x
+        val originalY = params.y
+        val handler = Handler(Looper.getMainLooper())
+
+        // Decoration style — user-picked via Settings → 小球装饰动画.
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        val style = prefs.getString("nudge_decoration", "note") ?: "note"
+        val decoView: android.widget.ImageView? = if (isMiniMode) {
+            miniBallView?.findViewById(R.id.ivNoteBurst)
+        } else null
+        configureDecoration(decoView, style)
+        decoView?.apply {
+            alpha = 0f
+            scaleX = 0.5f
+            scaleY = 0.5f
+            translationX = 0f
+            translationY = 0f
+            rotation = 0f
+        }
+
+        val durationMs = 360L
+        val frameMs = 16L
+        val peakXDelta = -14  // negative x → inward from right edge
+        animationStartMs = android.os.SystemClock.uptimeMillis()
+        animationActive = true
+        animationRunnable?.let { handler.removeCallbacks(it) }
+        animationRunnable = object : Runnable {
+            override fun run() {
+                if (!animationActive) return
+                val elapsed = android.os.SystemClock.uptimeMillis() - animationStartMs
+                val t = (elapsed.toFloat() / durationMs).coerceIn(0f, 1f)
+                val curve = Math.sin(t * Math.PI * 1.7).let { it * Math.exp(-t.toDouble() * 1.8) }
+
+                // Position bounce on the WHOLE window.
+                val v: android.view.View = if (isMiniMode) miniBallView ?: return
+                    else floatingView ?: return
+                val p = v.layoutParams as? WindowManager.LayoutParams ?: return
+                p.x = originalX + (peakXDelta * curve * 1.5).toInt()
+                p.y = originalY
+                try { wm.updateViewLayout(v, p) } catch (_: Throwable) {}
+
+                // Per-style decoration animation.
+                if (decoView != null && style != "none") {
+                    animateDecoration(decoView, style, t)
+                }
+
+                if (t >= 1f) {
+                    p.x = originalX
+                    p.y = originalY
+                    try { wm.updateViewLayout(v, p) } catch (_: Throwable) {}
+                    decoView?.apply {
+                        alpha = 0f
+                        translationX = 0f
+                        translationY = 0f
+                        scaleX = 1f
+                        scaleY = 1f
+                        rotation = 0f
+                    }
+                    animationActive = false
+                    return
+                }
+                handler.postDelayed(this, frameMs)
+            }
+        }
+        handler.post(animationRunnable!!)
+    }
+
+    /**
+     * Set the decoration drawable + tint based on the user-picked style.
+     * The view shape (size, base position) is shared across all styles.
+     */
+    private fun configureDecoration(deco: android.widget.ImageView?, style: String) {
+        if (deco == null) return
+        if (style == "none") {
+            deco.visibility = android.view.View.GONE
+            return
+        }
+        deco.visibility = android.view.View.VISIBLE
+        val (drawable, tint) = when (style) {
+            "heart"   -> R.drawable.ic_decoration_heart    to 0xFFFF4D7E.toInt()
+            "sparkle" -> R.drawable.ic_decoration_sparkle  to 0xFFFFC857.toInt()
+            "bubble"  -> R.drawable.ic_decoration_bubble   to 0xFF6FCFFF.toInt()
+            else      -> R.drawable.ic_music_note          to 0xFFFF6B9D.toInt()  // "note" / default
+        }
+        deco.setImageResource(drawable)
+        deco.imageTintList = android.content.res.ColorStateList.valueOf(tint)
+    }
+
+    /**
+     * Per-style frame update for the decoration view. Position-bounce of the
+     * ball window is shared; only the decoration motion differs.
+     */
+    private fun animateDecoration(deco: android.widget.ImageView, style: String, t: Float) {
+        when (style) {
+            "heart" -> {
+                // Heartbeat: two scale bursts (lub-dub).
+                val s = 0.6f + 0.6f * (
+                    Math.exp(-Math.pow((t.toDouble() - 0.20) * 9.0, 2.0)) +
+                    0.7 * Math.exp(-Math.pow((t.toDouble() - 0.50) * 9.0, 2.0))
+                ).toFloat()
+                deco.alpha = (1f - Math.abs(t - 0.35f) * 2f).coerceIn(0f, 1f)
+                deco.scaleX = s
+                deco.scaleY = s
+                deco.translationX = 0f
+                deco.translationY = 0f
+            }
+            "sparkle" -> {
+                // Spin + scale + slight outward drift.
+                deco.alpha = (1f - Math.abs(t - 0.4f) * 2f).coerceIn(0f, 1f)
+                val s = 0.4f + 1.0f * Math.sin((t * Math.PI).toDouble()).toFloat()
+                deco.scaleX = s
+                deco.scaleY = s
+                deco.rotation = t * 220f
+                deco.translationX = -6f * t
+                deco.translationY = -6f * t
+            }
+            "bubble" -> {
+                // Floats straight up + scales then pops.
+                val fadeIn = (t / 0.3f).coerceIn(0f, 1f)
+                val fadeOut = (1f - ((t - 0.3f) / 0.7f).coerceIn(0f, 1f))
+                deco.alpha = if (t < 0.3f) fadeIn else fadeOut
+                val s = 0.5f + 0.9f * t
+                deco.scaleX = s
+                deco.scaleY = s
+                deco.translationX = 0f
+                deco.translationY = -20f * t
+            }
+            else -> { // "note"
+                val fadeIn = (t / 0.4f).coerceIn(0f, 1f)
+                val fadeOut = (1f - ((t - 0.4f) / 0.6f).coerceIn(0f, 1f))
+                deco.alpha = if (t < 0.4f) fadeIn else fadeOut
+                val s = 0.5f + 0.7f * (1f - Math.abs(t - 0.45f) * 1.8f).coerceIn(0f, 1f)
+                deco.scaleX = s
+                deco.scaleY = s
+                deco.translationX = -8f * t
+                deco.translationY = -16f * t
+            }
+        }
+    }
+
+    private var animationActive = false
+    private var animationStartMs = 0L
+    private var animationRunnable: Runnable? = null
+
+    /**
+     * Schedule a single [nudgeOnce] call to fire [debounceMs] ms after the
+     * last invocation. Each call resets the timer — so while accessibility
+     * events keep firing (during a system gesture), no nudge is sent.
+     * Once events stop (gesture settled), the nudge fires once.
+     *
+     * Designed for the slow swipe-up-hold "Recent apps" gesture: instead of
+     * a continuous animation that competes with the gesture detector, we
+     * stay idle during the gesture and only dismiss the multi_sence widget
+     * after the system has finished processing the user's input.
+     */
+    private val nudgeRunnable = Runnable { nudgeOnce() }
+    private val nudgeHandler = Handler(Looper.getMainLooper())
+    fun scheduleNudgeAfterGesture(debounceMs: Long = 800L) {
+        nudgeHandler.removeCallbacks(nudgeRunnable)
+        nudgeHandler.postDelayed(nudgeRunnable, debounceMs)
+    }
+
+    /** Cancel any pending or in-flight nudge — call when hiding the overlay. */
+    fun cancelPendingNudge() {
+        nudgeHandler.removeCallbacks(nudgeRunnable)
+        animationActive = false
+        animationRunnable?.let { nudgeHandler.removeCallbacks(it) }
+    }
+
+    /**
+     * Backwards-compat shim. Now schedules a debounced one-shot nudge
+     * instead of starting a continuous loop, so callers that previously
+     * needed "keep dismissing" get one dismissal after the next event-quiet
+     * window.
+     */
+    fun nudgeFloatingWindowToDismissMultiSenceSidebar() {
+        scheduleNudgeAfterGesture(800L)
     }
 
     private fun setupFloatingView() {
@@ -1066,12 +1271,19 @@ class FloatingWindowService : Service() {
                     initialY = params.y
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
+                    // User is touching the ball — cancel any pending nudge.
+                    cancelPendingNudge()
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     params.x = initialX - (event.rawX - initialTouchX).toInt()
                     params.y = initialY + (event.rawY - initialTouchY).toInt()
                     windowManager?.updateViewLayout(floatingView, params)
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    // Real user drag dismisses the multi_sence widget on its
+                    // own — no need to schedule another nudge here.
                     true
                 }
                 else -> false
@@ -1106,6 +1318,7 @@ class FloatingWindowService : Service() {
     }
 
     private fun hideFloatingWindow() {
+        cancelPendingNudge()
         stopProgressUpdates()
         if (floatingView != null) {
             try {
@@ -1138,6 +1351,9 @@ class FloatingWindowService : Service() {
         // Save current full mode position
         fullModeParams = floatingView?.layoutParams as? WindowManager.LayoutParams
 
+        // Cancel any pending nudge during mode switch.
+        cancelPendingNudge()
+
         // Remove full mode view
         if (floatingView != null) {
             try {
@@ -1153,8 +1369,13 @@ class FloatingWindowService : Service() {
         val inflater = LayoutInflater.from(themedContext)
         miniBallView = inflater.inflate(R.layout.floating_ball, null)
 
-        // Set up mini ball window parameters with explicit size (56dp)
-        val ballSizePx = (56 * resources.displayMetrics.density).toInt()
+        // Set up mini ball window parameters with explicit size (80dp — the
+        // visible ball is still 56dp at center; the extra space hosts the
+        // cute musical-note burst that animates around the ball during the
+        // nudge dismissal). Bigger window = bigger touch target, but the
+        // empty space is `FLAG_NOT_TOUCHABLE_OUTSIDE_CHILD` equivalent
+        // because only the cardCover view has a click listener.
+        val ballSizePx = (80 * resources.displayMetrics.density).toInt()
         miniModeParams = WindowManager.LayoutParams(
             ballSizePx,
             ballSizePx,
@@ -1193,6 +1414,11 @@ class FloatingWindowService : Service() {
 
         // Start progress updates for mini ball
         startProgressUpdates()
+
+        // After mode-switch the overlay shrinks; HyperOS's miui_multi_sence
+        // may re-engage its sidebar widget. Schedule a debounced nudge to
+        // dismiss it once events settle.
+        scheduleNudgeAfterGesture(500L)
     }
 
     /**

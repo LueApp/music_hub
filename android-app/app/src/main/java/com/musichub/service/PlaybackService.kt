@@ -81,6 +81,13 @@ class PlaybackService : Service() {
     // on at most one event per second.
     @Volatile private var lastA11yObserverFire = 0L
 
+    // Tracks the previous `launch_mode` SharedPreferences value so the
+    // pref-change listener can pass an accurate `fromMode` to
+    // LaunchModeSwitcher.onModeChanged. Initialized in onCreate from the
+    // current pref value (so the first toggle has the right starting point);
+    // updated after every observed change.
+    @Volatile private var lastLaunchMode: String = DeepLinkLauncher.LAUNCH_MODE_BACKGROUND
+
     private val accessibilityObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean, uri: Uri?) {
             val now = System.currentTimeMillis()
@@ -159,8 +166,10 @@ class PlaybackService : Service() {
 
         registerDisplayListener()
 
-        androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
-            .registerOnSharedPreferenceChangeListener(launchModePrefListener)
+        val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        lastLaunchMode = prefs.getString("launch_mode", DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
+            ?: DeepLinkLauncher.LAUNCH_MODE_BACKGROUND
+        prefs.registerOnSharedPreferenceChangeListener(launchModePrefListener)
 
         // Live revocation monitor: AccessibilityManagerService can drop our
         // service from `enabled_accessibility_services` while our process is
@@ -204,24 +213,29 @@ class PlaybackService : Service() {
         }
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
         val offsets = longArrayOf(0L, 300L, 800L, 1500L, 2500L, 4000L)
+        // Resize ALL managed music-app tasks, not just the current target. A
+        // stale managed task (e.g. QQ Music after Tutti switched to NetEase)
+        // also has freeform bounds that were computed for the previous
+        // orientation; without a resize, HyperOS snaps it to default freeform
+        // bounds on rotation, making it a big on-screen window.
         offsets.forEach { off ->
-            handler.postDelayed({ ShizukuLauncher.triggerResizeForCurrentTarget() }, off)
+            handler.postDelayed({ ShizukuLauncher.triggerResizeForAllMusicApps() }, off)
         }
     }
 
-    // Pref-change listener: when the user switches launch_mode away from
-    // background, drop any in-flight Shizuku tracking state so a stale
-    // currentTargetPkg can't fire resizes against a foreground-mode launch.
-    // Kept as a member (not local) so the same instance can be removed in
-    // onDestroy — anonymous lambdas don't compare equal across calls.
+    // Pref-change listener: dispatch every `launch_mode` toggle to
+    // LaunchModeSwitcher, which purges stale music-app tasks across all four
+    // platforms and clears in-process Shizuku tracking. Kept as a member (not
+    // local) so the same instance can be removed in onDestroy — anonymous
+    // lambdas don't compare equal across calls.
     private val launchModePrefListener =
         android.content.SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
             if (key == "launch_mode") {
-                val mode = prefs.getString(key, DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
-                if (mode != DeepLinkLauncher.LAUNCH_MODE_BACKGROUND) {
-                    ShizukuLauncher.clearTargetState()
-                    Log.d(TAG, "launch_mode changed to $mode; cleared Shizuku target state")
-                }
+                val newMode = prefs.getString(key, DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
+                    ?: DeepLinkLauncher.LAUNCH_MODE_BACKGROUND
+                val fromMode = lastLaunchMode
+                lastLaunchMode = newMode
+                LaunchModeSwitcher.onModeChanged(applicationContext, fromMode, newMode)
             }
         }
 
@@ -265,6 +279,7 @@ class PlaybackService : Service() {
             ACTION_START_FOREGROUND -> startForegroundService()
             ACTION_TOGGLE_SHUFFLE -> toggleShuffle()
             ACTION_TOGGLE_REPEAT -> toggleRepeatMode()
+            else -> startForegroundService()
         }
         return START_STICKY
     }
@@ -668,10 +683,37 @@ class PlaybackService : Service() {
     fun stop() {
         cancelPlaybackTimeout()
         isPlaying = false
+        // User stopped playback — drop any in-flight cross-platform switch
+        // defenses (pin/mute) so manual playback of any app is not fought.
+        MediaMonitorService.getInstance()?.cancelCrossPlatformSwitch()
         releaseWakeLock()
         releaseScreenWakeLock()
         notifySongChangeListeners(null)
         stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
+    /**
+     * Background launch mode only: when Shizuku is READY, force-stop the old
+     * platform during a cross-platform switch so it cannot bleed or auto-advance.
+     * No-op in foreground mode or when Shizuku isn't ready (the mute bridge in
+     * MediaMonitorService.pauseAllMedia covers those). One-shot and switch-scoped:
+     * the user can still relaunch the old platform manually afterwards.
+     */
+    private fun forceStopOldPlatformIfBackground(oldPackage: String) {
+        val mode = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            .getString("launch_mode", DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
+        if (mode != DeepLinkLauncher.LAUNCH_MODE_BACKGROUND) return
+        if (ShizukuLauncher.status(this) != ShizukuLauncher.Status.READY) return
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                // Exclude every music package EXCEPT the old one -> purge only it.
+                val exclude = ShizukuLauncher.musicAppPackages() - oldPackage
+                val result = ShizukuLauncher.purgeMusicAppTasks(this@PlaybackService, exclude)
+                Log.d(TAG, "Force-stopped old platform $oldPackage on cross-platform switch: $result")
+            } catch (e: Exception) {
+                Log.w(TAG, "Force-stop of old platform $oldPackage failed: ${e.message}")
+            }
+        }
     }
 
     private fun launchCurrentSong() {
@@ -696,6 +738,12 @@ class PlaybackService : Service() {
             if (currentPlatform != null && currentPlatform != targetPackage) {
                 Log.d(TAG, "Pre-emptive cross-platform pause: $currentPlatform -> $targetPackage")
                 monitor.pauseAllMedia(targetPackage)
+                // Background mode + Shizuku: force-stop the OLD platform outright —
+                // the most reliable silencer (a killed app cannot ignore pause or
+                // auto-advance). Foreground mode (no Shizuku) relies on the mute
+                // bridge armed inside pauseAllMedia instead. One-shot and
+                // switch-scoped: the user can still relaunch the old platform later.
+                forceStopOldPlatformIfBackground(currentPlatform)
             }
         }
 
@@ -818,6 +866,21 @@ class PlaybackService : Service() {
         // Check if this is a cold start (no active controller = app not running)
         val isColdStart = targetPackage != null &&
             MediaMonitorService.getInstance()?.hasActiveController(targetPackage) != true
+
+        // Pre-emptively start Tutti's floating ball BEFORE the freeform launch.
+        // The SYSTEM_ALERT_WINDOW surface needs to be mounted and visible at
+        // the screen edge so it covers HyperOS's `miui_multi_sence` widget
+        // that engages whenever it detects an off-screen freeform task. We
+        // start the service immediately and rely on the `launchDelay`
+        // postDelayed below (≥100ms) to give the ball time to materialize
+        // before the freeform task is created.
+        // Mode-gated: foreground launches don't create off-screen freeform
+        // tasks so they don't need the ball as a cover.
+        val launchMode = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+            .getString("launch_mode", DeepLinkLauncher.LAUNCH_MODE_BACKGROUND)
+        if (launchMode == DeepLinkLauncher.LAUNCH_MODE_BACKGROUND) {
+            FloatingWindowService.start(this)
+        }
 
         // Delay to ensure pause takes effect before launching new app
         mainHandler.postDelayed({

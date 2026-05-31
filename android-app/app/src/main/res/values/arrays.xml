@@ -18,4 +18,18 @@
         <item>background</item>
         <item>foreground</item>
     </string-array>
+    <string-array name="nudge_decoration_entries">
+        <item>无装饰</item>
+        <item>音符 ♪</item>
+        <item>爱心 ♥</item>
+        <item>闪光 ✦</item>
+        <item>气泡 ●</item>
+    </string-array>
+    <string-array name="nudge_decoration_values">
+        <item>none</item>
+        <item>note</item>
+        <item>heart</item>
+        <item>sparkle</item>
+        <item>bubble</item>
+    </string-array>
 </resources>

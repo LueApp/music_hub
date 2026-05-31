@@ -4,12 +4,27 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Cute musical-note burst — appears around the ball during the
+         dismissal nudge animation. Initially invisible. -->
+    <ImageView
+        android:id="@+id/ivNoteBurst"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="6dp"
+        android:layout_marginStart="6dp"
+        android:src="@drawable/ic_music_note"
+        app:tint="#FF6B9D"
+        android:alpha="0"
+        android:contentDescription="@null" />
+
     <!-- Progress ring (circular progress indicator) -->
     <ProgressBar
         android:id="@+id/progressRing"
         style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="center"
         android:indeterminate="false"
         android:max="100"
         android:progress="0"
@@ -37,13 +52,13 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Play/Pause indicator (small badge at bottom-right) -->
+    <!-- Play/Pause indicator (small badge at bottom-right of the 56dp ring) -->
     <FrameLayout
         android:layout_width="18dp"
         android:layout_height="18dp"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="2dp"
-        android:layout_marginBottom="2dp"
+        android:layout_gravity="center"
+        android:translationX="22dp"
+        android:translationY="22dp"
         android:background="@drawable/bg_play_indicator_circle">
 
         <ImageView

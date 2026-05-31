@@ -123,10 +123,31 @@ class PlayerAccessibilityService : AccessibilityService() {
         // their own, so we proactively re-hide every music app whenever one
         // of them moves. Per-pkg 200 ms throttle in ShizukuLauncher absorbs
         // the spam.
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+        //
+        // We also listen to com.miui.home (HyperOS launcher) events: on a
+        // HOME gesture HyperOS rescues an off-screen freeform task into its
+        // `miui_multi_sence` sidebar widget. The launcher receives focus
+        // first; the music-app task's own bounds may not change so it
+        // wouldn't fire a music-app TYPE_WINDOWS_CHANGED. Catching launcher
+        // events ensures we re-resize even in that path.
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            || event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val pkg = event.packageName?.toString()
-            if (pkg != null && pkg in ShizukuLauncher.musicAppPackages()) {
+            val isMusicApp = pkg != null && pkg in ShizukuLauncher.musicAppPackages()
+            val isLauncher = pkg == ShizukuLauncher.MIUI_HOME_PACKAGE
+            val isSystemUi = pkg == ShizukuLauncher.ANDROID_SYSTEMUI_PACKAGE
+            if (isMusicApp || isLauncher) {
                 ShizukuLauncher.triggerResizeForAllMusicApps()
+            }
+            // Launcher and system-UI events fire during system gestures
+            // (HOME swipe, slow swipe-up-hold for Recent apps). Schedule a
+            // debounced one-shot multi_sence-dismissal nudge — each event
+            // resets the timer, so the nudge only fires once the gesture
+            // burst has settled. This keeps the floating ball perfectly
+            // idle during the gesture (no input dispatcher competition)
+            // and only dismisses the widget after the user has finished.
+            if (isLauncher || isSystemUi) {
+                FloatingWindowService.getInstance()?.scheduleNudgeAfterGesture(800L)
             }
         }
 
@@ -301,15 +322,16 @@ class PlayerAccessibilityService : AccessibilityService() {
         val rootNode = rootInActiveWindow
         if (rootNode == null) {
             Log.d(TAG, "rootInActiveWindow is null (retry $retryCount)")
-            return tryFallbackClick()
+            return false
         }
 
         try {
             // Strategy 1: Try the music card - appears during song transitions
-            val cardNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/$ID_MUSIC_CARD"
-            )
-            Log.d(TAG, "Found ${cardNodes.size} $ID_MUSIC_CARD (card) nodes")
+            val cardNodes = ID_MUSIC_CARD_CANDIDATES.firstNotNullOfOrNull { id ->
+                val nodes = rootNode.findAccessibilityNodeInfosByViewId("$QQMUSIC_PACKAGE:id/$id")
+                if (nodes.isNotEmpty()) nodes else null
+            } ?: emptyList()
+            Log.d(TAG, "Found ${cardNodes.size} card nodes (candidates=$ID_MUSIC_CARD_CANDIDATES)")
             if (cardNodes.isNotEmpty()) {
                 val node = cardNodes[0]
                 val rect = android.graphics.Rect()
@@ -320,12 +342,17 @@ class PlayerAccessibilityService : AccessibilityService() {
                     lastFoundCard = true
                     foundUIElement = true
 
-                    // Click at 1/4 height from top (likely where the album cover/title is)
+                    // Click in the title-row area: cap the vertical offset so
+                    // we land above the SeekBar/controls on tall expanded
+                    // music cards (c85 is ~610 px tall on a 1080×2400 device;
+                    // 1/4 of that would land on the SeekBar at y≈1905, which
+                    // intercepts the touch instead of bubbling to the
+                    // clickable card and navigating to the player page).
                     val x = (rect.left + rect.right) / 2f
-                    val y = rect.top + (rect.height() / 4f)
+                    val y = rect.top + kotlin.math.min(rect.height() / 4f, 100f)
 
                     if (performGestureClick(x, y)) {
-                        Log.i(TAG, "Clicked music card via gesture at ($x, $y) at 1/4 height (retry $retryCount)")
+                        Log.i(TAG, "Clicked music card via gesture at ($x, $y) (retry $retryCount)")
                         return true
                     }
                 }
@@ -336,16 +363,15 @@ class PlayerAccessibilityService : AccessibilityService() {
                 return true
             }
 
-            // Strategy 2: Try the mini player container
-            var miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                "$QQMUSIC_PACKAGE:id/$ID_MINI_PLAYER_PRIMARY"
-            )
-            Log.d(TAG, "Found ${miniPlayerNodes.size} $ID_MINI_PLAYER_PRIMARY nodes")
-            if (miniPlayerNodes.isEmpty()) {
-                miniPlayerNodes = rootNode.findAccessibilityNodeInfosByViewId(
-                    "$QQMUSIC_PACKAGE:id/$ID_MINI_PLAYER_FALLBACK"
-                )
-                Log.d(TAG, "Found ${miniPlayerNodes.size} $ID_MINI_PLAYER_FALLBACK nodes")
+            // Strategy 2: Try the mini player container (multiple candidate IDs)
+            var miniPlayerNodes: List<AccessibilityNodeInfo> = emptyList()
+            for (id in ID_MINI_PLAYER_CANDIDATES) {
+                val nodes = rootNode.findAccessibilityNodeInfosByViewId("$QQMUSIC_PACKAGE:id/$id")
+                if (nodes.isNotEmpty()) {
+                    Log.d(TAG, "Found ${nodes.size} mini-player nodes via id=$id")
+                    miniPlayerNodes = nodes
+                    break
+                }
             }
             if (miniPlayerNodes.isNotEmpty()) {
                 val node = miniPlayerNodes[0]
@@ -383,6 +409,17 @@ class PlayerAccessibilityService : AccessibilityService() {
                 dumpUITree()
             }
 
+            // Strategy 2b: Content-desc-based detection. QQ Music's mini-player
+            // has stable Chinese labels (歌曲队列 / 播放 / 暂停) on its
+            // ImageView children — these survive obfuscated-ID churn between
+            // releases. Locate them near the bottom of the screen, then click
+            // their nearest clickable ancestor's left-side song-info area.
+            if (cardNodes.isEmpty() && miniPlayerNodes.isEmpty()) {
+                if (tryContentDescMiniPlayerClick(rootNode)) {
+                    return true
+                }
+            }
+
             // Strategy 3: Heuristic - find a bottom-of-screen bar by position and size
             if (cardNodes.isEmpty() && miniPlayerNodes.isEmpty() && retryCount >= 2) {
                 if (tryHeuristicClick(rootNode)) {
@@ -397,9 +434,13 @@ class PlayerAccessibilityService : AccessibilityService() {
                 return true
             }
 
-            // Strategy 5: Fallback to known position
-            Log.d(TAG, "No UI elements found (retry $retryCount), trying fallback position")
-            return tryFallbackClick()
+            // Earlier retries: nothing actionable found yet. Wait for the next
+            // scheduled tick — do NOT fall back to hardcoded coordinates. The
+            // old hardcoded fallback at (554, 2117) lands inside a clickable
+            // song row on QQ Music's current singer-detail page, causing the
+            // wrong song to play and a title-mismatch skip.
+            Log.d(TAG, "No mini-player elements found (retry $retryCount), waiting for next tick")
+            return false
         } catch (e: Exception) {
             Log.e(TAG, "Error trying to click mini player: ${e.message}")
         } finally {
@@ -408,6 +449,133 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
 
         return false
+    }
+
+    /**
+     * Find QQ Music's mini-player by stable Chinese content-desc strings on
+     * its child ImageViews (歌曲队列 / 播放 / 暂停). These labels are
+     * accessibility/i18n strings that don't change across releases, unlike
+     * the obfuscated resource IDs.
+     *
+     * Once a marker is located near the bottom of the screen, walk up to find
+     * its nearest clickable ancestor (the mini-player title/cover area whose
+     * click navigates to the full player page) and tap that.
+     */
+    private fun tryContentDescMiniPlayerClick(rootNode: AccessibilityNodeInfo): Boolean {
+        val displayMetrics = resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+        val bottomThreshold = (screenHeight * 0.75).toInt()  // bottom 25%
+
+        val markers = mutableListOf<AccessibilityNodeInfo>()
+        for (desc in MINI_PLAYER_DESC_MARKERS) {
+            findNodesByContentDescDeep(rootNode, desc, markers)
+        }
+        if (markers.isEmpty()) {
+            Log.d(TAG, "Content-desc strategy: no mini-player markers found")
+            return false
+        }
+
+        // Keep only markers in the bottom region of the screen
+        val markerRect = android.graphics.Rect()
+        val bottomMarkers = markers.filter { m ->
+            m.getBoundsInScreen(markerRect)
+            markerRect.top >= bottomThreshold
+        }
+        if (bottomMarkers.isEmpty()) {
+            Log.d(TAG, "Content-desc strategy: ${markers.size} markers found but none in bottom region")
+            return false
+        }
+
+        // Use the first marker's row to anchor the mini-player vertical span,
+        // then search for a wide clickable element on the same row that is to
+        // the LEFT of the marker (the song-info area).
+        val anchor = bottomMarkers[0]
+        val anchorRect = android.graphics.Rect()
+        anchor.getBoundsInScreen(anchorRect)
+        val rowCenterY = (anchorRect.top + anchorRect.bottom) / 2
+
+        // Walk up to find a clickable ancestor — this is what we want to tap
+        // (avoids tapping the 歌曲队列 / 播放 button itself which would change
+        // the queue/play state instead of navigating to the player page).
+        val clickTarget = findMiniPlayerClickTarget(rootNode, anchorRect, rowCenterY)
+        if (clickTarget == null) {
+            Log.w(TAG, "Content-desc strategy: marker found but no clickable song-info area on the same row")
+            return false
+        }
+
+        val targetRect = android.graphics.Rect()
+        clickTarget.getBoundsInScreen(targetRect)
+        // Click near the TOP of the target instead of the center. The center
+        // lands on the SeekBar / progress region on tall music cards (the
+        // expanded c85 card is ~600 px tall, and its SeekBar sits in the
+        // middle — taps there get consumed as seek gestures instead of
+        // bubbling to the clickable card). top + 70 keeps us in the title /
+        // album-cover row for both compact mini-players (~170 px tall) and
+        // expanded music cards (~600 px tall).
+        val x = (targetRect.left + targetRect.right) / 2f
+        val y = targetRect.top + kotlin.math.min(targetRect.height() / 4f, 100f)
+        lastFoundMiniPlayer = true
+        foundUIElement = true
+        if (performGestureClick(x, y)) {
+            Log.i(TAG, "Content-desc strategy: clicked mini-player at ($x, $y), target bounds=$targetRect")
+            return true
+        }
+        return false
+    }
+
+    /**
+     * Find the clickable song-info area of the mini-player. Searches the tree
+     * for a wide clickable node whose bounds overlap the anchor row vertically
+     * and sit to the LEFT of the anchor (歌曲队列/播放 buttons live on the
+     * right side; the song-info clickable region is on the left).
+     */
+    private fun findMiniPlayerClickTarget(
+        root: AccessibilityNodeInfo,
+        anchorRect: android.graphics.Rect,
+        rowCenterY: Int
+    ): AccessibilityNodeInfo? {
+        val displayMetrics = resources.displayMetrics
+        val minWidth = (displayMetrics.widthPixels * 0.4).toInt()
+        val candidates = mutableListOf<Pair<AccessibilityNodeInfo, android.graphics.Rect>>()
+        collectClickableInRow(root, rowCenterY, minWidth, anchorRect, candidates)
+        // Prefer the widest candidate that is to the left of the anchor
+        return candidates.maxByOrNull { it.second.width() }?.first
+    }
+
+    private fun collectClickableInRow(
+        node: AccessibilityNodeInfo,
+        rowCenterY: Int,
+        minWidth: Int,
+        anchorRect: android.graphics.Rect,
+        out: MutableList<Pair<AccessibilityNodeInfo, android.graphics.Rect>>
+    ) {
+        val rect = android.graphics.Rect()
+        node.getBoundsInScreen(rect)
+        if (node.isClickable
+            && rect.top <= rowCenterY && rect.bottom >= rowCenterY
+            && rect.width() >= minWidth
+            && rect.left < anchorRect.left
+        ) {
+            out.add(node to android.graphics.Rect(rect))
+        }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            collectClickableInRow(child, rowCenterY, minWidth, anchorRect, out)
+        }
+    }
+
+    private fun findNodesByContentDescDeep(
+        node: AccessibilityNodeInfo,
+        desc: String,
+        out: MutableList<AccessibilityNodeInfo>
+    ) {
+        if (node.contentDescription?.toString() == desc) {
+            out.add(node)
+        }
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            findNodesByContentDescDeep(child, desc, out)
+        }
     }
 
     /**
@@ -499,22 +667,6 @@ class PlayerAccessibilityService : AccessibilityService() {
             @Suppress("DEPRECATION")
             rootNode.recycle()
         }
-    }
-
-    /**
-     * Try clicking at a known fallback position where the mini player typically appears.
-     * This is used when we can't find the UI elements but know QQ Music is active.
-     */
-    private fun tryFallbackClick(): Boolean {
-        // Fallback position: center of mini player at [50,2022][1058,2213]
-        val x = 554f  // Center horizontally
-        val y = 2117f  // Center vertically
-        Log.d(TAG, "Attempting fallback click at ($x, $y)")
-        if (performGestureClick(x, y)) {
-            Log.i(TAG, "Fallback click dispatched at ($x, $y) (retry $retryCount)")
-            return true
-        }
-        return false
     }
 
     private fun performGestureClick(x: Float, y: Float): Boolean {
@@ -618,29 +770,6 @@ class PlayerAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun findNodesByContentDesc(
-        root: AccessibilityNodeInfo,
-        desc: String
-    ): List<AccessibilityNodeInfo> {
-        val results = mutableListOf<AccessibilityNodeInfo>()
-        findNodesByContentDescRecursive(root, desc, results)
-        return results
-    }
-
-    private fun findNodesByContentDescRecursive(
-        node: AccessibilityNodeInfo,
-        desc: String,
-        results: MutableList<AccessibilityNodeInfo>
-    ) {
-        if (node.contentDescription?.toString() == desc) {
-            results.add(node)
-        }
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            findNodesByContentDescRecursive(child, desc, results)
-        }
-    }
-
     companion object {
         private const val TAG = "PlayerA11yService"
         private const val QQMUSIC_PACKAGE = "com.tencent.qqmusic"
@@ -650,11 +779,20 @@ class PlayerAccessibilityService : AccessibilityService() {
         const val ACTION_REQUEST_CLICK = "com.musichub.action.REQUEST_CLICK_MINIPLAYER"
         const val PREF_AUTO_CONFIRM_WAKEPATH = "auto_confirm_wakepath"
 
-        // QQ Music obfuscated resource IDs — update these when QQ Music changes them
-        private const val ID_MUSIC_CARD = "cxy"
-        private const val ID_MINI_PLAYER_PRIMARY = "jrh"
-        private const val ID_MINI_PLAYER_FALLBACK = "jro"
+        // QQ Music obfuscated resource IDs — update these when QQ Music changes them.
+        // These IDs change with every QQ Music release; treat them as best-effort
+        // shortcuts. The content-desc-based strategy below is the reliable path.
+        // - Music card (big "now playing" widget on the home page): c85 (current), cxy (older)
+        // - Mini-player (compact bar on singer/playlist pages): h58/h51 (current), jrh/jro (older)
+        private val ID_MUSIC_CARD_CANDIDATES = listOf("c85", "cxy")
+        private val ID_MINI_PLAYER_CANDIDATES = listOf("h58", "h51", "jrh", "jro")
         private const val ID_CLOSE_BTN = "close_btn"
+
+        // Stable content-desc strings on QQ Music's mini-player. The ImageView
+        // children of the mini-player container carry these descriptions in
+        // every recent QQ Music release — searching by content-desc is robust
+        // against obfuscated-ID churn.
+        private val MINI_PLAYER_DESC_MARKERS = listOf("歌曲队列", "播放", "暂停")
 
         @Volatile
         private var instance: PlayerAccessibilityService? = null
