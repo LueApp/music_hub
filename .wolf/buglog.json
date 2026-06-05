@@ -2916,6 +2916,231 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-05-29T22:35:00Z"
+    },
+    {
+      "id": "bug-179",
+      "timestamp": "2026-06-02T13:00:00Z",
+      "error_message": "RECORDED (not yet fixed). Headphone unplug then replug: the currently-playing Bilibili stops and QQ Music starts playing again instead. Reported while diagnosing the same-platform third-song leak.",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt, android-app/app/src/main/java/com/musichub/service/PlaybackService.kt (suspected; root cause not yet confirmed on-device)",
+      "root_cause": "NOT YET CONFIRMED — two live hypotheses, to be disambiguated by a logcat trace captured during a real unplug/replug (buffer was cleared, awaiting physical repro). (A) SYSTEM AUDIO-FOCUS RESUME: dumpsys audio at repro time showed com.tencent.qqmusic still OWNS MEDIA audio focus (gain: GAIN, loss: none, USAGE_MEDIA/CONTENT_TYPE_MUSIC) even though Bilibili (tv.danmaku.bili) was the foreground app AND Tutti's currentPlatformPackage was correctly tv.danmaku.bili. Tutti pauses the old platform on a cross-platform switch via MediaController pause()+stop() but the old app NEVER abandons audio focus, and Tutti itself owns no MediaSession / MediaButtonReceiver / OnAudioFocusChangeListener / headset receiver (grep-confirmed). On headset reconnect Android dispatches the play/resume to the audio-focus owner (QQ), so QQ resumes and Bilibili — paused by ACTION_AUDIO_BECOMING_NOISY on unplug — stays paused. (B) TUTTI AUTO-ADVANCE MISFIRE: unplug pauses Bilibili (BECOMING_NOISY); MediaMonitorService.handlePlaybackStateChange treats the current platform's PLAYING->PAUSED as a possible song-end -> isSongFinished()/isBilibiliSongFinished() -> sendSongFinishedBroadcast() -> PlaybackService.playNext() -> launches the next queue item which happens to be a QQ song. Distinguish: hypothesis B leaves Tutti log lines (Playback stopped... isSongFinished: true -> playNext -> Launching song); hypothesis A leaves NO Tutti log around the QQ resume.",
+      "fix": "PENDING — not fixed yet per user request to record-only and fix the third-song leak first. Candidate directions once confirmed: (A) on cross-platform switch, make the old app actually release audio focus (hard — Tutti can't force another app to abandon focus; could have Tutti request transient audio focus to dislodge QQ, or force-stop old platform when Shizuku ready), or (B) suppress song-end/auto-advance when a PLAYING->PAUSED coincides with an ACTION_AUDIO_BECOMING_NOISY / headset-state change (Tutti would need to register a headset/becoming-noisy receiver to know).",
+      "tags": [
+        "headphone",
+        "headset-replug",
+        "becoming-noisy",
+        "audio-focus",
+        "bilibili",
+        "qqmusic",
+        "auto-advance",
+        "cross-platform",
+        "recorded-not-fixed"
+      ],
+      "related_bugs": [
+        "bug-174",
+        "bug-065"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T13:00:00Z"
+    },
+    {
+      "id": "bug-180",
+      "timestamp": "2026-06-02T05:32:36.586Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: /**; * Arm the reactive pause window for a same-platform QQ Music",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-02T05:33:08.160Z"
+    },
+    {
+      "id": "bug-181",
+      "timestamp": "2026-06-02T05:33:57.120Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T05:33:57.120Z"
+    },
+    {
+      "id": "bug-182",
+      "timestamp": "2026-06-02T07:22:22.740Z",
+      "error_message": "Missing guard clause",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "No early return/throw for edge case: state != PlaybackState.STATE_PLAYING && state != PlaybackSta",
+      "fix": "Added guard clause: if (state != PlaybackState.STATE_PLAYING && )",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T07:22:22.740Z"
+    },
+    {
+      "id": "bug-183",
+      "timestamp": "2026-06-02T15:00:00Z",
+      "error_message": "Audible 'third song' leak during a warm same-platform QQ Music -> QQ Music switch (in landscape). User confirmed it is QQ leaking; exact track varies.",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt, android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Same-platform anti-bleed was NetEase-ONLY (isSamePlatformNetEase: pausePackage storm + reactive window + double-send). Warm QQ->QQ had ZERO protection. Proven from a live trace (13:10:33): a QQ song hit 99% -> Tutti early-end detect -> picked next='Too Bad' (QQ) -> Tutti pause+stop QQ, but the old song reached natural end and QQ auto-advanced to ITS OWN internal-queue next track (metadata flipped to '根 (feat. 2868), 许廷铿' at .774) which was audible for the ~1.75s until the playSonglist deep link for 'Too Bad' landed (confirmed playing at 13:10:35.585). QQ ignores a single pause+stop near song end, exactly like NetEase. NOTE: stream-mute was explicitly REJECTED by the user — some apps surface a '音量过低 / volume too low' notification when STREAM_MUSIC is forced down (also why the bug-174 muteStreamForSwitch bridge is absent from the current tree).",
+      "fix": "Added a same-platform QQ suppressor that pauses QQ's wrong audio WITHOUT muting and WITHOUT touching the target, discriminating by TITLE. PlaybackService.doLaunchSong: detect isSamePlatformQQ (!isPlatformSwitch && song.platform==QQMUSIC && lastLaunchedPlatform==QQMUSIC); on such a switch arm a reactive window (armSamePlatformQQPause(song.title)) and fire title-gated proactive pulses at 150/350/600/900/1300 ms. MediaMonitorService: new samePlatformQQPauseUntil/samePlatformQQTargetTitle; pauseQQIfNotTarget() pauses QQ ONLY when it is PLAYING/BUFFERING a positively-identified non-target title (never on null/unknown title -> never pauses the target -> never causes a 'forget to start' timeout, cf bug-184); a reactive branch in handlePlaybackStateChange pauses QQ on any non-target PLAYING title during the window and disarms the instant the target title plays; samePlatformQQPauseUntil cleared in cancelCrossPlatformSwitch. Safe in landscape: QQ has no OrientationEventListener rotation workaround (bug-068/095/178 NetEase hazards do not apply). Built v0.2.0-dirty, deployed. VERIFICATION PENDING on a live QQ->QQ switch.",
+      "tags": [
+        "qqmusic",
+        "third-song-leak",
+        "same-platform",
+        "audio-bleed",
+        "title-gated",
+        "no-mute",
+        "landscape",
+        "pending-verification"
+      ],
+      "related_bugs": [
+        "bug-095",
+        "bug-174"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T15:00:00Z"
+    },
+    {
+      "id": "bug-184",
+      "timestamp": "2026-06-02T15:20:00Z",
+      "error_message": "RECORDED (not yet fixed). Sometimes a QQ Music song is reported as playback-timeout and skipped ('播放超时') even though it is actually playable; user suspects Tutti's own behavior makes QQ 'forget to start'. Pre-existing/intermittent.",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt (schedulePlaybackTimeout), android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt (pauseAllMedia), android-app/app/src/main/java/com/musichub/service/PlayerAccessibilityService.kt (suspected)",
+      "root_cause": "NOT YET CONFIRMED (no in-buffer trace; the new QQ third-song code (bug-183) had NOT run when reported, and accessibility was verified ENABLED at report time, so it is neither caused by bug-183 nor by accessibility-revoked-on-reinstall). Live hypotheses: (A) QQ deep link lands on a song-detail/singer page that opens the player UI but does NOT auto-start playback; PlayerAccessibilityService is supposed to tap the mini-player to start it (bug-110/167) but the tap intermittently fails (QQ ID/layout churn) -> QQ stays paused -> schedulePlaybackTimeout (5s warm) sees not-playing -> skip. (B) pauseAllMedia sends pause()+stop() to EVERY active controller INCLUDING the target QQ itself (the target-exclusion only guards the cross-platform flag, not the pause loop); if QQ processes that stop() after/around the deep link, the freshly-launched target can land stopped/paused -> 'forget to start' -> timeout. (C) play-nudge (playPackage) + 3s retry sometimes insufficient.",
+      "fix": "PENDING — recorded per user priority (fix the third-song leak first). Needs a live trace of a failing QQ launch (Launching song -> Playback timeout -> skip) to disambiguate A vs B vs C before changing schedulePlaybackTimeout thresholds or the pauseAllMedia target-exclusion.",
+      "tags": [
+        "qqmusic",
+        "playback-timeout",
+        "false-skip",
+        "schedulePlaybackTimeout",
+        "pauseAllMedia",
+        "accessibility-tap",
+        "recorded-not-fixed"
+      ],
+      "related_bugs": [
+        "bug-110",
+        "bug-174"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T15:20:00Z"
+    },
+    {
+      "id": "bug-185",
+      "timestamp": "2026-06-02T15:50:00Z",
+      "error_message": "REGRESSION from bug-183's fix: two songs play at the same time after a rapid QQ->QQ then QQ->NetEase switch. REVERTED.",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt, android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "bug-183's same-platform QQ suppression sent pause()+stop() to QQ's MediaController during/after the playSonglist deep link. Unlike NetEase (CLEAR_TASK isolates the fresh PlayerActivity), QQ processes same-platform deep links via onNewIntent on its EXISTING session, so the pause+stop FIGHTS QQ's own load of the target. Live trace: QQ target '3/8' launched 15:44:03 but did not reach STATE_PLAYING until 15:44:15 (~12s; QQ controller still showed the old '可惜我是水瓶座' at 15:44:11). User then switched QQ->NetEase 'RAW' at 15:44:09; the cross-platform pin disarmed when NetEase confirmed playing at 15:44:12 (finishCrossPlatformSwitch neuters the scheduleRepeatedPause runnables); QQ '3/8' then started UNGUARDED at 15:44:15 -> QQ + NetEase audible simultaneously. The cross-platform disarm-on-target-play vs late-old-app-start race is a latent pre-existing gap (bug-174 'defense-free tail window'); bug-183's load interference made QQ start late enough to hit it reliably.",
+      "fix": "REVERTED bug-183 entirely (git checkout MediaMonitorService.kt + PlaybackService.kt to v0.2.0 HEAD; rebuilt + redeployed v0.2.0-dirty). The brief QQ same-platform third-song leak is back but is the lesser evil vs double-play. CONCLUSION (see cerebrum Do-Not-Repeat 2026-06-02): the QQ same-platform third-song leak cannot be suppressed by pausing QQ (breaks same-app onNewIntent load) nor by muting STREAM_MUSIC (user-banned: '音量过低' notification) nor by controlling QQ's queue (impossible). Treat as a KNOWN LIMITATION unless a non-pause/non-mute mechanism is found. Any future attempt should first close the cross-platform disarm tail-gap so a late old-app start is still guarded.",
+      "tags": [
+        "qqmusic",
+        "double-play",
+        "audio-bleed",
+        "regression",
+        "reverted",
+        "same-platform",
+        "onNewIntent",
+        "cross-platform-disarm-gap"
+      ],
+      "related_bugs": [
+        "bug-183",
+        "bug-174"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T15:50:00Z"
+    },
+    {
+      "id": "bug-186",
+      "timestamp": "2026-06-02T08:48:31.439Z",
+      "error_message": "Incorrect value in code",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "Had \"warm start\"",
+      "fix": "Changed to \"warm start (qq, extended)\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T08:48:31.439Z"
+    },
+    {
+      "id": "bug-186",
+      "timestamp": "2026-06-02T16:45:00Z",
+      "error_message": "UNIFIED root cause for bug-183 (QQ 'third song' leak) AND bug-184 (QQ false playback-timeout/skip): they are the SAME bug. QQ's warm same-platform deep-link load is slower than the 5s warm timeout.",
+      "file": "android-app/app/src/main/java/com/musichub/service/PlaybackService.kt",
+      "root_cause": "Live trace on reverted v0.2.0 (16:36): QQ song 宁愿当初不相见 hit natural end -> Tutti auto-advanced and launched 手心的蔷薇 (QQ->QQ warm, isPlatformSwitch=false) at 16:36:39.86, scheduling a 5000ms warm timeout. QQ's playSonglist deep link via onNewIntent on its existing session took ~6.7s to actually switch the track (QQ controller still showed the OLD 宁愿当初不相见 until 16:36:46.49). At 16:36:44.79 the 5s warm timeout fired and FALSE-skipped 手心的蔷薇 ('Playback timeout ... skipping [skip 1/10]') -> auto-advanced to 少女的祈祷 (16:36:46.06) -> then QQ finished loading and PLAYED the skipped 手心的蔷薇 at 16:36:46.89 (STATE_PLAYING) while Tutti believed 少女的祈祷 was current. So: bug-184 = the 5s timeout firing before QQ loads (false skip); bug-183 'third song' = the wrongly-skipped song playing late after Tutti advanced. NOT an accessibility-tap issue (no PlayerAccessibilityService activity; QQ autoplayed, just slowly). This also explains the desync where Tutti's currentPlatform/title disagrees with what QQ actually plays, which can cascade into further false skips.",
+      "fix": "Added PLAYBACK_TIMEOUT_QQ_WARM_MS = 12000L and a schedulePlaybackTimeout when-branch `song.platform == Platforms.QQMUSIC && hasController -> 12s 'warm start (qq, extended)'` placed before the generic `hasController -> 5s` branch. Gives QQ enough time to finish its slow onNewIntent load before Tutti declares a timeout, so the song is no longer false-skipped and there is no premature auto-advance -> no late stale-target 'third song'. SAFE: pure timeout-deadline change, NOT the audio/pause path (unlike the reverted bug-183/185 pause approach which caused double-play). Worst case is a genuinely-unavailable warm QQ song taking up to 12s to skip instead of 5s. Cross-platform/cold QQ unchanged (already 25s). Built v0.2.0-dirty, deployed. VERIFICATION PENDING: a QQ->QQ switch should now show 'warm start (qq, extended)' and no false skip / no third song.",
+      "tags": [
+        "qqmusic",
+        "playback-timeout",
+        "third-song-leak",
+        "false-skip",
+        "unified-root-cause",
+        "warm-timeout",
+        "onNewIntent",
+        "slow-load",
+        "pending-verification"
+      ],
+      "related_bugs": [
+        "bug-183",
+        "bug-184",
+        "bug-185"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T16:45:00Z"
+    },
+    {
+      "id": "bug-188",
+      "timestamp": "2026-06-02T11:24:14.203Z",
+      "error_message": "Significant refactor of ",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 6→11 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T11:24:14.203Z"
+    },
+    {
+      "id": "bug-187",
+      "timestamp": "2026-06-02T19:25:00Z",
+      "error_message": "Replugging the headphone jumps to the next song (false auto-advance). Confirms bug-179 hypothesis B with a live trace.",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Live trace (19:20:22): QQ song 雾花 playing ~86s into a 264s track. Headphone replug made QQ report PlaybackState PLAYING(3)->STOPPED(1) at position 0. isSongFinished's Case-2 'position reset to 0' block has a sub-branch (lines ~504-507) that returns true when `lastPosition > MIN_POSITION_FOR_END_MS (30s) && state == STOPPED` — with NO near-end check. lastPosition was ~86s (>30s) so it returned 'song finished' -> sendSongFinishedBroadcast -> playNext -> auto-advanced to 爱情. The correct near-end check just above (line ~494: (duration - lastPosition) <= SONG_END_THRESHOLD_MS) had already returned false (86s vs 264s duration), but the looser STOPPED-after-30s branch overrode it. NOT caused by the QQ warm-timeout change (bug-186) — independent song-end-detection logic. Confirms bug-179 was hypothesis B (auto-advance misfire), not hypothesis A (audio-focus resume).",
+      "fix": "Gated the STOPPED-after-substantial-playback branch on `duration <= 0` so it is ONLY a fallback for apps that report no usable duration. When duration IS known (QQ/NetEase always report it), the near-end check above is the sole authority, so a mid-song STOPPED at position 0 (headphone unplug/replug, or any external stop) is no longer misread as a natural end. Natural-end detection preserved via (a) the early-end poll at ~99%, (b) the near-end position-reset check (line ~494), (c) the metadata-change path, and (d) the unchanged duration<=0 fallback. SAFE: pure song-end-detection gate, not the audio/pause path. Built v0.2.0-dirty, deployed. VERIFICATION PENDING: replug headphone mid-QQ-song -> should NOT jump to next.",
+      "tags": [
+        "headphone",
+        "headset-replug",
+        "becoming-noisy",
+        "false-auto-advance",
+        "isSongFinished",
+        "song-end-detection",
+        "qqmusic",
+        "pending-verification"
+      ],
+      "related_bugs": [
+        "bug-179"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-02T19:25:00Z"
     }
   ]
 }
