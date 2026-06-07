@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-02T11:24:14.196Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-06T06:51:22.999Z
 > Files: 737 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ../../../../tmp/
@@ -791,7 +791,7 @@
 - `FloatingWindowService.kt` — Service that displays a floating window overlay for playback control. (~20899 tok)
 - `FreeformResizeAccessibilityService.kt` — Minimal accessibility service whose only job is to detect when HyperOS pulls (~1097 tok)
 - `LaunchModeSwitcher.kt` — Handles transitions between `launch_mode = background` and (~1597 tok)
-- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~17634 tok)
+- `MediaMonitorService.kt` — Service that monitors media playback from other apps (NetEase, QQ Music, Bilibili). (~18054 tok)
 - `PlaybackService.kt` — Service that manages the playback queue and coordinates with other services. (~15491 tok)
 - `PlayerAccessibilityService.kt` — Persistent record of whether the user has ever granted PlayerAccessibilityService. (~10188 tok)
 - `ShizukuLauncher.kt` — Status of one permission's auto-grant attempt. Surfaced back to UI / logs so (~16826 tok)

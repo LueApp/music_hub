@@ -3141,6 +3141,46 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-06-02T19:25:00Z"
+    },
+    {
+      "id": "bug-190",
+      "timestamp": "2026-06-06T06:51:23.006Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "kt"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T06:51:23.006Z"
+    },
+    {
+      "id": "bug-189",
+      "timestamp": "2026-06-06T15:00:00Z",
+      "error_message": "NetEase->NetEase landscape same-platform switch leaks ~300ms of NetEase's own queue next track (the 'third song') before the target loads. User-confirmed fixed.",
+      "file": "android-app/app/src/main/java/com/musichub/service/MediaMonitorService.kt",
+      "root_cause": "The pre-emptive pause that stops NetEase from finishing the old track and auto-advancing to its own internal-queue next song existed ONLY in the 99% early-end POLL path (pollCurrentPosition). The 1s position poll intermittently does NOT sample the 99% window, so song-end is then detected via the PLAYING->PAUSED state path (handlePlaybackStateChange -> isSongFinished) or the metadata-change path with NO pre-pause. Live trace (14:30:09): old song ended 09.13 -> NetEase metadata flipped to its queue's '你的那一章' at 09.38 -> STATE_PLAYING at 09.57 (third song audible) -> Tutti launched target '明月天涯' at 09.78 -> NetEase paused 09.87 -> ~300ms leak (09.57-09.87). The landscape-safe 6-pulse pause storm starts only at 500ms post-launch, far too late to catch an auto-advance that fires before the launch.",
+      "fix": "Moved the NetEase pre-emptive pause into sendSongFinishedBroadcast() (after the manual-control suppression check, before the broadcast) so it fires on EVERY song-end detection path (99% poll, state, metadata). Gated on currentPlatformPackage == com.netease.cloudmusic; uses transportControls.pause()+stop() (the inline 99%-poll one used pause() only; left untouched as a redundant earlier pre-pause). Pausing+stopping NetEase the instant a real song end is confirmed — before the switch broadcast — prevents the auto-advance entirely. NetEase-only (its internal queue is what auto-advances); does NOT touch QQ (its same-platform leak is the timeout bug-186) or the headphone gate (bug-187). SAFE in landscape: a direct pause()+stop() is exactly what the landscape-safe pulse storm does and never touches the rotation pendingPlaybackCallback (bug-068/095/178 hazards avoided). User-confirmed the leak is gone. Built v0.2.0-dirty, deployed.",
+      "tags": [
+        "netease",
+        "landscape",
+        "third-song-leak",
+        "same-platform",
+        "pre-emptive-pause",
+        "song-end-detection",
+        "sendSongFinishedBroadcast",
+        "fixed"
+      ],
+      "related_bugs": [
+        "bug-095",
+        "bug-186"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-06T15:00:00Z"
     }
   ]
 }
