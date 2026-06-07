@@ -60,6 +60,13 @@ class PlaybackService : Service() {
     // Cold start: no MediaSession, app needs splash screen + initialization
     private val PLAYBACK_TIMEOUT_WARM_MS = 5000L
     private val PLAYBACK_TIMEOUT_COLD_MS = 25000L
+    // QQ Music processes a same-platform `playSonglist` deep link via onNewIntent on
+    // its existing session and can take ~6-7s to actually switch the playing track
+    // (observed 6.7s on a clean natural-end auto-advance). The 5s warm timeout fired
+    // first, FALSE-skipped the still-loading song, auto-advanced, and then QQ played
+    // the skipped song late = the "third song" leak. Give warm QQ switches more room.
+    // (Cross-platform / cold QQ already uses the 25s cold timeout.) See bug-183/184/185.
+    private val PLAYBACK_TIMEOUT_QQ_WARM_MS = 12000L
     private var playbackTimeoutRunnable: Runnable? = null
     private var lastLaunchedSongId: Long = -1L
     private var lastLaunchedPlatform: String? = null
@@ -1228,6 +1235,7 @@ class PlaybackService : Service() {
             isLandscapeWorkaround -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (landscape workaround)"
             isPlatformSwitch -> PLAYBACK_TIMEOUT_COLD_MS to "cold start (cross-platform)"
             song.platform == Platforms.BILIBILI && hasController -> PLAYBACK_TIMEOUT_COLD_MS to "extended start (bilibili)"
+            song.platform == Platforms.QQMUSIC && hasController -> PLAYBACK_TIMEOUT_QQ_WARM_MS to "warm start (qq, extended)"
             hasController -> PLAYBACK_TIMEOUT_WARM_MS to "warm start"
             else -> PLAYBACK_TIMEOUT_COLD_MS to "cold start"
         }

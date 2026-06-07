@@ -499,10 +499,15 @@ class MediaMonitorService : NotificationListenerService() {
                 }
             }
 
-            // If last position indicates substantial playback (more than 30 seconds)
-            // and current state is STOPPED (not just PAUSED), likely song ended
-            if (lastPosition > MIN_POSITION_FOR_END_MS && currentState == PlaybackState.STATE_STOPPED) {
-                Log.d(TAG, "Position reset with STOPPED state after substantial playback (lastPosition=$lastPosition)")
+            // Fallback ONLY when duration is unknown: a STOPPED + position-reset after
+            // substantial playback (>30s) is treated as song end. Gated on duration<=0
+            // because when the duration IS known, the wasNearEnd check above is the
+            // authority — and a mid-song STOPPED at position 0 is NOT near the end.
+            // Without this gate, an EXTERNAL stop (e.g. headphone unplug/replug makes QQ
+            // report STOPPED at position 0 mid-song) was misread as a natural end and
+            // wrongly auto-advanced to the next song. See bug-179/187.
+            if (duration <= 0 && lastPosition > MIN_POSITION_FOR_END_MS && currentState == PlaybackState.STATE_STOPPED) {
+                Log.d(TAG, "Position reset with STOPPED state after substantial playback, duration unknown (lastPosition=$lastPosition)")
                 return true
             }
         }
@@ -734,6 +739,30 @@ class MediaMonitorService : NotificationListenerService() {
                 // Manual control timed out, allow auto-advance again
                 Log.d(TAG, "Manual control timed out, allowing song finished broadcast")
                 manualControlActive = false
+            }
+        }
+
+        // Pre-emptively pause+stop NetEase the instant a REAL song end is confirmed,
+        // on EVERY detection path (99% early-poll, PLAYING->PAUSED state, metadata
+        // change). The 99%-poll path already pre-pauses inline, but it MISSES whenever
+        // the 1s poll doesn't sample the 99% window — then song end is caught here via
+        // the state/metadata path with no pre-pause, and NetEase finishes the track and
+        // auto-advances to ITS OWN next queue song (the audible "third song"), leaking
+        // ~300ms before Tutti's deep link / pause-pulses land. Pausing here, before the
+        // broadcast triggers the switch, closes that window. NetEase-only (its internal
+        // queue is what auto-advances). Safe in landscape: a direct pause()+stop() is
+        // exactly what the landscape-safe pulse storm does and never touches the
+        // rotation pendingPlaybackCallback. See bug-095/189.
+        if (currentPlatformPackage == "com.netease.cloudmusic") {
+            val neController = synchronized(controllersLock) { activeControllers["com.netease.cloudmusic"] }
+            if (neController != null) {
+                try {
+                    neController.transportControls.pause()
+                    neController.transportControls.stop()
+                    Log.d(TAG, "Pre-emptive pause+stop sent to NetEase on confirmed song end (any path)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error pre-emptively pausing NetEase on song end: ${e.message}")
+                }
             }
         }
 
