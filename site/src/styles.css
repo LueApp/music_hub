@@ -815,9 +815,30 @@ article p {
   border-top: 1px solid var(--line);
 }
 
-.site-footer span:first-child {
+.footer-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.footer-brand > span {
   color: var(--ink);
   font-weight: 900;
+}
+
+.footer-brand a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.footer-brand a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 @media (max-width: 900px) {
