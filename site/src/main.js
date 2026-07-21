@@ -124,7 +124,8 @@ const translations = {
     downloadCopy: '下载 APK 后在 Android 8.0 及以上设备安装。首次使用需要按提示授予悬浮窗、通知访问和无障碍相关权限。',
     downloadButton: '下载 APK',
     downloadNote: 'APK 会随 Cloudflare Pages 构建一起生成；也可用 VITE_DOWNLOAD_URL 指向外部下载地址。',
-    footerText: '基于播放委托与媒体会话监听的跨平台音乐队列管理器。'
+    footerText: '基于播放委托与媒体会话监听的跨平台音乐队列管理器。',
+    footerPersonalSite: '更多来自 Lue'
   },
   en: {
     navFeatures: 'Features',
@@ -247,7 +248,8 @@ const translations = {
     downloadCopy: 'Download the APK and install it on Android 8.0 or later. First use requires overlay, notification access, and accessibility permissions.',
     downloadButton: 'Download APK',
     downloadNote: 'The APK is generated during the Cloudflare Pages build; VITE_DOWNLOAD_URL can point to an external download instead.',
-    footerText: 'Cross-platform music queue manager based on playback delegation and media-session monitoring.'
+    footerText: 'Cross-platform music queue manager based on playback delegation and media-session monitoring.',
+    footerPersonalSite: 'More from Lue'
   }
 };
 
